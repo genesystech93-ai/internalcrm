@@ -45,7 +45,7 @@ export default async function AdminDashboardPage() {
             </p>
           </div>
 
-          <Link href="/admin/settings" className="liquid-glass-card p-5 rounded-3xl group cursor-pointer">
+          <Link href="/admin/settings#shifts" className="liquid-glass-card p-5 rounded-3xl group cursor-pointer">
             <div className="flex items-center justify-between mb-2.5">
               <span className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider">
                 Floor Shift
@@ -55,8 +55,9 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
             <p className="text-2xl font-extrabold font-mono text-[#0F172A] dark:text-white">19:00 - 04:00</p>
-            <p className="text-xs text-[#EA580C] dark:text-[#FB923C] mt-1 font-semibold group-hover:underline">
-              Configure Shifts $\rightarrow$
+            <p className="text-xs text-[#EA580C] dark:text-[#FB923C] mt-1 font-semibold group-hover:underline flex items-center gap-1">
+              <span>Configure Shifts</span>
+              <span className="group-hover:translate-x-0.5 transition-transform">→</span>
             </p>
           </Link>
 
@@ -70,8 +71,9 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
             <p className="text-2xl font-extrabold text-[#0F172A] dark:text-white">Staff Roster</p>
-            <p className="text-xs text-[#0284C7] dark:text-[#38BDF8] mt-1 font-semibold group-hover:underline">
-              Manage Staff & Breaks $\rightarrow$
+            <p className="text-xs text-[#0284C7] dark:text-[#38BDF8] mt-1 font-semibold group-hover:underline flex items-center gap-1">
+              <span>Manage Staff & Breaks</span>
+              <span className="group-hover:translate-x-0.5 transition-transform">→</span>
             </p>
           </Link>
 
@@ -85,8 +87,9 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
             <p className="text-2xl font-extrabold text-[#0F172A] dark:text-white">Export CSV</p>
-            <p className="text-xs text-purple-600 dark:text-purple-400 mt-1 font-semibold group-hover:underline">
-              Staff Reports & Downloads $\rightarrow$
+            <p className="text-xs text-purple-600 dark:text-purple-400 mt-1 font-semibold group-hover:underline flex items-center gap-1">
+              <span>Staff Reports & Downloads</span>
+              <span className="group-hover:translate-x-0.5 transition-transform">→</span>
             </p>
           </Link>
         </div>

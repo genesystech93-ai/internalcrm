@@ -20,6 +20,8 @@ export interface CompanySettings {
   logoUrl: string;
 }
 
+import { inMemorySettingsStore } from "@/lib/company-store";
+
 // Default fallback settings
 const defaultSettings: CompanySettings = {
   companyName: "Genesoft Infotech Private Limited",
@@ -61,15 +63,22 @@ export async function getCompanySettingsAction(): Promise<CompanySettings> {
       return settings;
     }
   } catch (err) {
-    console.warn("Could not query database for company settings, checking disk fallback...", err);
+    console.warn("Could not query database for company settings, checking cache/disk fallback...", err);
   }
 
-  // 3. Disk fallback check
+  // 3. Cache fallback check
+  if (inMemorySettingsStore.has("company_logo")) {
+    settings.hasCustomLogo = true;
+    settings.logoUrl = "/api/logo";
+    return settings;
+  }
+
+  // 4. Disk fallback check
   try {
     const logoPath = path.join(process.cwd(), "public", "logo.png");
     await fs.access(logoPath);
     settings.hasCustomLogo = true;
-    settings.logoUrl = "/logo.png";
+    settings.logoUrl = "/api/logo";
   } catch {
     settings.hasCustomLogo = false;
   }
@@ -161,33 +170,49 @@ export async function uploadCompanyLogoAction(formData: FormData) {
       }
     }
 
-    // 1. Convert to Base64 data URL for database storage (persistent across reboots and works on all cloud hosts)
+    // 1. Convert to Base64 data URL for storage
     const base64Data = buffer.toString("base64");
     const dataUrl = `data:${file.type};base64,${base64Data}`;
 
-    await prisma.systemSetting.upsert({
-      where: { key: "company_logo" },
-      update: { value: dataUrl },
-      create: { key: "company_logo", value: dataUrl },
-    });
+    // 2. Store in memory cache
+    inMemorySettingsStore.set("company_logo", dataUrl);
 
-    // 2. Best-effort: also write to public/logo.png if filesystem permissions allow
+    // 3. Write to public/logo.png as disk fallback
     try {
       const publicDir = path.join(process.cwd(), "public");
       const logoFilePath = path.join(publicDir, "logo.png");
       await fs.writeFile(logoFilePath, buffer);
     } catch {
-      // Ignored: Database storage is primary
+      // Best-effort disk write
+    }
+
+    // 4. Persist to database
+    let dbPersisted = false;
+    try {
+      await prisma.systemSetting.upsert({
+        where: { key: "company_logo" },
+        update: { value: dataUrl },
+        create: { key: "company_logo", value: dataUrl },
+      });
+      dbPersisted = true;
+    } catch (dbErr) {
+      console.warn("Database storage warning for logo (saved to memory & disk cache):", dbErr);
     }
 
     revalidatePath("/admin");
+    revalidatePath("/admin/settings");
     revalidatePath("/dashboard");
     revalidatePath("/login");
 
-    return { success: true, message: "Official Company Logo uploaded and applied across CRM!" };
+    return {
+      success: true,
+      message: dbPersisted
+        ? "Official Company Logo uploaded and applied across CRM!"
+        : "Company Logo uploaded and active across CRM (Cached Storage).",
+    };
   } catch (err: unknown) {
-    console.error("Failed to save logo to database:", err);
-    return { error: "Failed to save logo. Please verify database connection." };
+    console.error("Failed to process logo upload:", err);
+    return { error: "Failed to process logo. Please try a different image format (PNG, JPG, SVG)." };
   }
 }
 
@@ -198,9 +223,15 @@ export async function removeCompanyLogoAction() {
   }
 
   try {
-    await prisma.systemSetting.deleteMany({
-      where: { key: "company_logo" },
-    });
+    inMemorySettingsStore.delete("company_logo");
+
+    try {
+      await prisma.systemSetting.deleteMany({
+        where: { key: "company_logo" },
+      });
+    } catch {
+      // Best effort DB delete
+    }
 
     // Best-effort remove from disk
     try {
@@ -211,12 +242,13 @@ export async function removeCompanyLogoAction() {
     }
 
     revalidatePath("/admin");
+    revalidatePath("/admin/settings");
     revalidatePath("/dashboard");
     revalidatePath("/login");
 
     return { success: true, message: "Company logo removed. Monogram fallback restored." };
   } catch (err) {
     console.error("Failed to remove logo:", err);
-    return { error: "Failed to remove logo from database." };
+    return { error: "Failed to remove logo." };
   }
 }

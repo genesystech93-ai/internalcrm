@@ -42,6 +42,8 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
 
   const [inspectLead, setInspectLead] = useState<LeadItem | null>(null);
   const [shareSuccess, setShareSuccess] = useState<string | null>(null);
+  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
   const handleShareLead = async (lead: LeadItem) => {
     const res = await shareLeadToChatAction({
@@ -124,7 +126,30 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
           return (
             <div
               key={col.id}
-              className="liquid-glass rounded-3xl p-3.5 sm:p-4 border border-white/70 dark:border-slate-800 flex flex-col min-h-[580px]"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (dragOverColumn !== col.id) setDragOverColumn(col.id);
+              }}
+              onDragLeave={(e) => {
+                if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                setDragOverColumn(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverColumn(null);
+                const droppedId = e.dataTransfer.getData("text/plain") || draggedLeadId;
+                if (!droppedId) return;
+                const targetLead = leads.find((l) => l.id === droppedId);
+                if (targetLead && targetLead.status !== col.id) {
+                  handleMoveStatus(targetLead, col.id);
+                }
+              }}
+              className={`liquid-glass rounded-3xl p-3.5 sm:p-4 border transition-all duration-200 flex flex-col min-h-[580px] ${
+                dragOverColumn === col.id
+                  ? "border-orange-500/60 bg-orange-500/10 shadow-lg ring-2 ring-orange-500/30 scale-[1.01]"
+                  : "border-white/70 dark:border-slate-800"
+              }`}
             >
               {/* Column Header */}
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200/60 dark:border-slate-700/60">
@@ -143,13 +168,25 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
               <div className="space-y-3 flex-1 overflow-y-auto max-h-[640px] pr-0.5 custom-scrollbar">
                 {colLeads.length === 0 ? (
                   <div className="h-32 flex items-center justify-center text-center p-3 text-[11px] text-[#94A3B8] border border-dashed border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                    No leads in this column
+                    No leads in this column (Drop card here)
                   </div>
                 ) : (
                   colLeads.map((lead) => (
                     <div
                       key={lead.id}
-                      className="liquid-glass-card p-3.5 rounded-2xl border border-white/90 dark:border-slate-700 shadow-sm hover:shadow-md transition-all group relative"
+                      draggable={true}
+                      onDragStart={(e) => {
+                        setDraggedLeadId(lead.id);
+                        e.dataTransfer.setData("text/plain", lead.id);
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragEnd={() => {
+                        setDraggedLeadId(null);
+                        setDragOverColumn(null);
+                      }}
+                      className={`liquid-glass-card p-3.5 rounded-2xl border border-white/90 dark:border-slate-700 shadow-sm hover:shadow-md transition-all group relative cursor-grab active:cursor-grabbing ${
+                        draggedLeadId === lead.id ? "opacity-35 border-dashed border-orange-400 scale-[0.98]" : ""
+                      }`}
                     >
                       {/* Top: Customer Name & Campaign Badge */}
                       <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -160,7 +197,7 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
                           {lead.customerName}
                         </h4>
                         <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] shrink-0 border border-orange-500/20">
-                          {lead.campaignName.split(" ")[0]}
+                          {(lead.campaignName || "General").split(" ")[0]}
                         </span>
                       </div>
 
