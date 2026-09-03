@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { applyLeaveAction, reviewLeaveAction, getLeaveRequestsAction } from "@/app/actions/leave";
-import { Calendar, CheckCircle2, Plus, AlertCircle } from "lucide-react";
+import { Calendar, CheckCircle2, Plus, AlertCircle, X } from "lucide-react";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 
 interface LeaveItem {
@@ -210,8 +210,20 @@ export function LeaveManagement({ isAdmin = false }: { isAdmin?: boolean }) {
 
       {/* Apply Leave Modal */}
       {showApplyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowApplyModal(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
+        >
           <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative">
+            <button
+              type="button"
+              onClick={() => setShowApplyModal(false)}
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100/70 dark:hover:bg-slate-800 text-[#64748B] dark:text-[#94A3B8] transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
             <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white mb-4">
               Apply for Planned Leave
             </h3>

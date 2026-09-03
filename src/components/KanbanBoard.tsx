@@ -303,7 +303,12 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
 
       {/* Lead Details Drawer / Modal */}
       {inspectLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setInspectLead(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
+        >
           <div className="liquid-glass w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-700">
               <div>

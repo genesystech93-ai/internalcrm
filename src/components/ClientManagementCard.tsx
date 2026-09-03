@@ -30,6 +30,16 @@ export function ClientManagementCard() {
     loadClients();
   }, [loadClients]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isModalOpen) {
+        setIsModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isModalOpen]);
+
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -168,7 +178,12 @@ export function ClientManagementCard() {
 
       {/* Modal: Register New Client */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200"
+        >
           <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-7 border border-white/80 dark:border-slate-700 shadow-2xl relative">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-slate-800">
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">

@@ -64,7 +64,7 @@ export function EmployeePerformanceReports() {
       "Rejected Leads",
       "Callbacks Scheduled",
       "Conversion Rate (%)",
-      "Commissions Earned ($)",
+      "Commissions Earned (Rs.)",
       "Productive Hours",
       "Late Arrivals",
     ];
@@ -240,7 +240,7 @@ export function EmployeePerformanceReports() {
         <div className="p-4 rounded-2xl bg-white/50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700">
           <span className="text-[11px] font-bold text-[#64748B] dark:text-[#94A3B8] uppercase">Commissions Paid</span>
           <p className="text-2xl font-extrabold font-mono text-[#EA580C] dark:text-[#FB923C] mt-1">
-            ${totalFloorCommissions.toFixed(2)}
+            ₹{totalFloorCommissions.toLocaleString("en-IN")}
           </p>
           <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8] mt-1">Direct performance payroll</p>
         </div>
@@ -344,7 +344,7 @@ export function EmployeePerformanceReports() {
                 </td>
 
                 <td className="py-3 px-3 font-mono font-extrabold text-right text-[#EA580C] dark:text-[#FB923C]">
-                  ${emp.earnedCommissions.toFixed(2)}
+                  ₹{emp.earnedCommissions.toLocaleString("en-IN")}
                 </td>
               </tr>
             ))}

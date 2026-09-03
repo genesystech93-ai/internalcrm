@@ -34,17 +34,16 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
     getCustomStatusesAction().then((res) => setCustomStatuses(res));
   }, []);
 
-  // Keyboard shortcut Ctrl+N listener
+  // Keyboard shortcut Ctrl+N and Escape listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
-        e.preventDefault();
-        // Toggle or open modal
+      if (e.key === "Escape" && isOpen) {
+        onClose();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -52,6 +51,14 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
     e.preventDefault();
     setLoading(true);
     setMessage(null);
+
+    // Basic date parsing validation
+    const parsedDob = new Date(dob);
+    if (isNaN(parsedDob.getTime())) {
+      setMessage({ text: "Please enter a valid Date of Birth.", type: "error" });
+      setLoading(false);
+      return;
+    }
 
     const fd = new FormData();
     fd.append("customerName", customerName);
@@ -63,34 +70,42 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
     fd.append("source", source);
     fd.append("closerName", closerName);
     fd.append("status", status);
-    if (status === "CALL_BACK") {
+    if (status === "CALL_BACK" && callBackTime) {
       fd.append("callBackTime", callBackTime);
     }
     fd.append("notes", notes);
 
     const res = await createLeadAction(fd);
+
     if (res.error) {
       setMessage({ text: res.error, type: "error" });
     } else {
-      setMessage({ text: res.message || "Lead recorded successfully!", type: "success" });
+      setMessage({ text: "Lead successfully recorded in pipeline!", type: "success" });
       setTimeout(() => {
+        onSuccess?.();
         onClose();
-        if (onSuccess) onSuccess();
         // Reset form
         setCustomerName("");
         setMobile("");
         setAddress("");
         setEmail("");
-        setNotes("");
+        setCloserName("");
+        setStatus("UPLOADED");
         setCallBackTime("");
+        setNotes("");
         setMessage(null);
-      }, 1000);
+      }, 700);
     }
     setLoading(false);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
+    >
       <div className="liquid-glass w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative custom-scrollbar">
         {/* Close Button */}
         <button

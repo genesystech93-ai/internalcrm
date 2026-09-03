@@ -205,7 +205,7 @@ export function AdminWorkforceManager() {
                 <tr className="border-b border-slate-200/80 dark:border-slate-700 text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider">
                   <th className="py-2.5 px-3">Employee</th>
                   <th className="py-2.5 px-3">Role</th>
-                  <th className="py-2.5 px-3">Base Salary</th>
+                  <th className="py-2.5 px-3">Base Salary (₹)</th>
                   <th className="py-2.5 px-3">Frequency</th>
                   <th className="py-2.5 px-3">Effective Date</th>
                   <th className="py-2.5 px-3 text-right">Actions</th>
@@ -228,7 +228,7 @@ export function AdminWorkforceManager() {
                           className="liquid-glass-input w-28 px-2 py-1 rounded-lg text-xs"
                         />
                       ) : (
-                        `$${s.baseSalary.toFixed(2)}`
+                        `₹${s.baseSalary.toLocaleString("en-IN")}`
                       )}
                     </td>
                     <td className="py-3 px-3 font-mono">{s.payFrequency}</td>

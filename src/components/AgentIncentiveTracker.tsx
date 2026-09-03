@@ -37,7 +37,7 @@ export function AgentIncentiveTracker() {
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <div className="px-3.5 py-1.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-mono text-xs font-extrabold flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5 text-[#10B981]" />
-            <span>Projected Payout: ${total.toFixed(2)}</span>
+            <span>Projected Payout: ₹{total.toLocaleString("en-IN")}</span>
           </div>
         </div>
       </div>
@@ -59,7 +59,7 @@ export function AgentIncentiveTracker() {
             <Award className="w-4 h-4 text-[#F97316]" />
           </div>
           <p className="text-2xl font-extrabold font-mono text-[#0F172A] dark:text-white">
-            ${(data?.individualCommissions || 0).toFixed(2)}
+            ₹{(data?.individualCommissions || 0).toLocaleString("en-IN")}
           </p>
           <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] mt-1">Per-lead credited</p>
         </div>
@@ -70,7 +70,7 @@ export function AgentIncentiveTracker() {
             <Trophy className="w-4 h-4 text-[#F59E0B]" />
           </div>
           <p className="text-2xl font-extrabold font-mono text-[#0F172A] dark:text-white">
-            ${(data?.teamPoolBonus || 0).toFixed(2)}
+            ₹{(data?.teamPoolBonus || 0).toLocaleString("en-IN")}
           </p>
           <p className="text-[11px] text-[#F59E0B] mt-1 font-semibold">Alpha Velocity Pool</p>
         </div>
@@ -81,7 +81,7 @@ export function AgentIncentiveTracker() {
         <div className="flex items-center justify-between text-xs mb-2">
           <span className="font-bold text-[#9A3412] dark:text-orange-300 flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-[#F97316]" />
-            <span>Team Alpha Velocity: $500 Milestone Target</span>
+            <span>Team Alpha Velocity: ₹10,000 Milestone Target</span>
           </span>
           <span className="font-mono font-extrabold text-[#C2410C] dark:text-orange-300">
             {teamCurrent} / {teamGoal} Approved ({teamPercent}%)
@@ -94,7 +94,7 @@ export function AgentIncentiveTracker() {
           />
         </div>
         <p className="text-[11px] text-[#9A3412] dark:text-orange-400 mt-2">
-          52 more approved leads to unlock the $500 monthly team bonus pool for equal member distribution!
+          52 more approved leads to unlock the ₹10,000 monthly team bonus pool for equal member distribution!
         </p>
       </div>
     </div>

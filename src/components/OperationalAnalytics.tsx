@@ -59,7 +59,7 @@ export function OperationalAnalytics() {
         <div className="p-4 rounded-2xl bg-white/50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700">
           <span className="text-[11px] font-bold text-[#64748B] dark:text-[#94A3B8] uppercase">Commissions Paid</span>
           <p className="text-2xl font-extrabold font-mono text-[#EA580C] dark:text-[#FB923C] mt-1">
-            ${data.totalCommissionPaid.toFixed(2)}
+            ₹{data.totalCommissionPaid.toLocaleString("en-IN")}
           </p>
           <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8] mt-1">Automated payroll credits</p>
         </div>
@@ -126,7 +126,7 @@ export function OperationalAnalytics() {
                 <div className="text-right">
                   <p className="font-bold text-[#10B981] font-mono">{a.approvedLeads} Approved</p>
                   <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8] font-mono">
-                    ${a.totalEarnings.toFixed(2)} Earned
+                    ₹{a.totalEarnings.toLocaleString("en-IN")} Earned
                   </p>
                 </div>
               </div>

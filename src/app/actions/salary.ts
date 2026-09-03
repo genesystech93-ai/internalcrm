@@ -56,7 +56,7 @@ export async function getSalaryProfilesAction(): Promise<SalaryProfileItem[]> {
       username: u.username,
       name: u.name,
       role: u.role,
-      baseSalary: override ? override.baseSalary : (u.role === "CLOSER" ? 3200.0 : 2500.0),
+      baseSalary: override ? override.baseSalary : 25000.0,
       payFrequency: override ? override.payFrequency : "MONTHLY",
       effectiveDate: override ? override.effectiveDate : u.createdAt.split("T")[0],
     };

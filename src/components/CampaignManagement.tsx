@@ -21,14 +21,14 @@ export function CampaignManagement() {
   const [shiftStartTime, setShiftStartTime] = useState("19:00");
   const [shiftEndTime, setShiftEndTime] = useState("04:00");
   const [lateGraceMinutes, setLateGraceMinutes] = useState("15");
-  const [commissionPerLead, setCommissionPerLead] = useState("15.00");
+  const [commissionPerLead, setCommissionPerLead] = useState("500.00");
 
   // In-line Edit Shift Schedule
   const [editingCampId, setEditingCampId] = useState<string | null>(null);
   const [editStartTime, setEditStartTime] = useState("");
   const [editEndTime, setEditEndTime] = useState("");
   const [editGrace, setEditGrace] = useState(15);
-  const [editCommission, setEditCommission] = useState(15.0);
+  const [editCommission, setEditCommission] = useState(500.0);
 
   const loadCampaigns = async () => {
     try {
@@ -140,7 +140,7 @@ export function CampaignManagement() {
               <th className="py-2.5 px-3">Campaign & Vertical</th>
               <th className="py-2.5 px-3">Shift Operating Hours</th>
               <th className="py-2.5 px-3">Late Grace Window</th>
-              <th className="py-2.5 px-3">Commission / Lead</th>
+              <th className="py-2.5 px-3">Commission / Lead (₹)</th>
               <th className="py-2.5 px-3">Performance</th>
               <th className="py-2.5 px-3 text-right">Schedule Settings</th>
             </tr>
@@ -203,7 +203,7 @@ export function CampaignManagement() {
                         className="liquid-glass-input px-1.5 py-1 rounded text-xs w-20"
                       />
                     ) : (
-                      `$${c.commissionPerLead.toFixed(2)}`
+                      `₹${c.commissionPerLead.toLocaleString("en-IN")}`
                     )}
                   </td>
 
@@ -244,9 +244,14 @@ export function CampaignManagement() {
         </table>
       </div>
 
-      {/* New Campaign Modal */}
+      {/* Create Campaign Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCreateModal(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
+        >
           <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative">
             <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white mb-4">
               Add New Campaign & Shift Schedule
@@ -322,11 +327,11 @@ export function CampaignManagement() {
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                    Commission / Lead ($)
+                    Commission / Lead (₹)
                   </label>
                   <input
                     type="number"
-                    step="0.50"
+                    step="10"
                     required
                     value={commissionPerLead}
                     onChange={(e) => setCommissionPerLead(e.target.value)}
