@@ -4,9 +4,12 @@ import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ShiftControls } from "@/components/ShiftControls";
 import { AgentIncentiveTracker } from "@/components/AgentIncentiveTracker";
+import { AgentPerformanceDashboard } from "@/components/AgentPerformanceDashboard";
 import { LeadWorkspace } from "@/components/LeadWorkspace";
 import { LeaveManagement } from "@/components/LeaveManagement";
 import { EmployeeChatWidget } from "@/components/EmployeeChatWidget";
+import { AgentDashboardHeader } from "@/components/AgentDashboardHeader";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { LogOut } from "lucide-react";
 
 export default async function AgentDashboardPage() {
@@ -53,21 +56,36 @@ export default async function AgentDashboardPage() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 sm:p-8 relative z-10">
+        {/* Animated Welcome Header */}
+        <AgentDashboardHeader sessionName={session?.name || "Agent"} />
+
         {/* Active Shift Controls (Log In / Log Out, 15m Grace Window & Multiple Breaks) */}
-        <ShiftControls />
+        <div data-section="shift-controls">
+          <ShiftControls />
+        </div>
+
+        {/* Personal Target & Streak Performance Snapshot */}
+        <AgentPerformanceDashboard />
 
         {/* Real-Time Commission & Milestone Tracker */}
         <AgentIncentiveTracker />
 
         {/* Lead Workspace: Dual-View Kanban & Pretext Virtualized Data Grid */}
-        <LeadWorkspace isAdmin={false} />
+        <div data-section="lead-workspace">
+          <LeadWorkspace isAdmin={false} />
+        </div>
 
         {/* Planned Leave Management */}
         <LeaveManagement isAdmin={false} />
       </main>
 
       {/* Internal Staff Floor Messaging & Team Chat Widget */}
-      <EmployeeChatWidget />
+      <div data-section="chat-widget">
+        <EmployeeChatWidget />
+      </div>
+
+      {/* Mobile Bottom Tab Navigation (< 768px only) */}
+      <MobileBottomNav />
     </div>
   );
 }

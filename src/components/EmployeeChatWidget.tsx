@@ -64,6 +64,21 @@ export function EmployeeChatWidget() {
   const [inputContent, setInputContent] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [messageReactions, setMessageReactions] = useState<Record<string, string[]>>({});
+  const [isPartnerTyping, setIsPartnerTyping] = useState(false);
+
+  const handleToggleReaction = (messageId: string, emoji: string) => {
+    setMessageReactions((prev) => {
+      const current = prev[messageId] || [];
+      const hasReacted = current.includes(emoji);
+      return {
+        ...prev,
+        [messageId]: hasReacted
+          ? current.filter((e) => e !== emoji)
+          : [...current, emoji],
+      };
+    });
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevTotalUnreadRef = useRef(0);
@@ -609,74 +624,130 @@ export function EmployeeChatWidget() {
                     </p>
                   </div>
                 ) : (
-                  messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex flex-col ${msg.isOwn ? "items-end" : "items-start"} space-y-1`}
-                    >
-                      {!msg.isOwn && (
-                        <div className="flex items-center gap-1.5 pl-1">
-                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">
-                            {msg.senderName}
-                          </span>
-                          <span
-                            className={`text-[8px] font-bold px-1 rounded border ${getRoleBadge(
-                              msg.senderRole
-                            )}`}
-                          >
-                            {msg.senderRole}
-                          </span>
-                        </div>
-                      )}
-
+                  messages.map((msg) => {
+                    const reactions = messageReactions[msg.id] || [];
+                    return (
                       <div
-                        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs shadow-sm ${
-                          msg.isOwn
-                            ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-br-xs"
-                            : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-bl-xs"
-                        }`}
+                        key={msg.id}
+                        className={`group relative flex flex-col ${msg.isOwn ? "items-end" : "items-start"} space-y-1`}
                       >
-                        {/* Text Content */}
-                        <p className="whitespace-pre-wrap leading-relaxed break-words">{msg.content}</p>
-
-                        {/* Rich Lead Card if attached */}
-                        {msg.metadata && (
-                          <div
-                            className={`mt-2 p-2.5 rounded-xl border text-[11px] space-y-1.5 ${
-                              msg.isOwn
-                                ? "bg-orange-700/30 border-orange-400/40 text-orange-50"
-                                : "bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between font-bold">
-                              <span className="flex items-center gap-1">
-                                <span>📋 Lead:</span>
-                                <span>{msg.metadata.customerName || "Customer"}</span>
-                              </span>
-                              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-orange-500/20 text-orange-600 dark:text-orange-300 border border-orange-500/30">
-                                {msg.metadata.status || "ACTIVE"}
-                              </span>
+                        {!msg.isOwn && (
+                          <div className="flex items-center gap-1.5 pl-1">
+                            {/* Avatar with role ring */}
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${
+                              msg.senderRole === "ADMIN"
+                                ? "bg-orange-500 text-white ring-2 ring-orange-500/40"
+                                : "bg-sky-500 text-white ring-2 ring-sky-500/40"
+                            }`}>
+                              {msg.senderName.charAt(0)}
                             </div>
-
-                            <div className="text-[10px] opacity-90 flex items-center justify-between font-mono">
-                              <span>📱 {msg.metadata.mobile || "10-digit"}</span>
-                              <span>{msg.metadata.campaign || "Campaign"}</span>
-                            </div>
+                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                              {msg.senderName}
+                            </span>
+                            <span
+                              className={`text-[8px] font-bold px-1 rounded border ${getRoleBadge(
+                                msg.senderRole
+                              )}`}
+                            >
+                              {msg.senderRole}
+                            </span>
                           </div>
                         )}
-                      </div>
 
-                      <div className="flex items-center gap-1 text-[9px] text-slate-400 px-1">
-                        <span>
-                          {new Date(msg.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                        {msg.isOwn && <CheckCheck className="w-3 h-3 text-orange-500" />}
+                        <div className="relative group/bubble max-w-[85%]">
+                          <div
+                            className={`rounded-2xl px-3.5 py-2.5 text-xs shadow-sm ${
+                              msg.isOwn
+                                ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-br-xs"
+                                : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-bl-xs"
+                            }`}
+                          >
+                            {/* Text Content */}
+                            <p className="whitespace-pre-wrap leading-relaxed break-words">{msg.content}</p>
+
+                            {/* Rich Lead Card if attached */}
+                            {msg.metadata && (
+                              <div
+                                className={`mt-2 p-2.5 rounded-xl border text-[11px] space-y-1.5 ${
+                                  msg.isOwn
+                                    ? "bg-orange-700/30 border-orange-400/40 text-orange-50"
+                                    : "bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between font-bold">
+                                  <span className="flex items-center gap-1">
+                                    <span>📋 Lead:</span>
+                                    <span>{msg.metadata.customerName || "Customer"}</span>
+                                  </span>
+                                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-orange-500/20 text-orange-600 dark:text-orange-300 border border-orange-500/30">
+                                    {msg.metadata.status || "ACTIVE"}
+                                  </span>
+                                </div>
+
+                                <div className="text-[10px] opacity-90 flex items-center justify-between font-mono">
+                                  <span>📱 {msg.metadata.mobile || "10-digit"}</span>
+                                  <span>{msg.metadata.campaign || "Campaign"}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Quick Reaction Bar on hover */}
+                          <div className={`absolute top-[-14px] ${msg.isOwn ? "left-0" : "right-0"} opacity-0 group-hover/bubble:opacity-100 transition-opacity bg-white dark:bg-slate-800 rounded-full px-1.5 py-0.5 shadow-md border border-slate-200 dark:border-slate-700 flex items-center gap-1 text-xs z-10 scale-90 origin-bottom`}>
+                            {["👍", "🔥", "👀", "❤️", "✅"].map((emoji) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => handleToggleReaction(msg.id, emoji)}
+                                className="hover:scale-125 transition-transform p-0.5 cursor-pointer"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Active Reactions Pills */}
+                        {reactions.length > 0 && (
+                          <div className="flex items-center gap-1 px-1 mt-0.5 flex-wrap">
+                            {Array.from(new Set(reactions)).map((emoji) => {
+                              const count = reactions.filter(r => r === emoji).length;
+                              return (
+                                <span
+                                  key={emoji}
+                                  onClick={() => handleToggleReaction(msg.id, emoji)}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs cursor-pointer hover:scale-105 transition-transform"
+                                >
+                                  <span>{emoji}</span>
+                                  {count > 1 && <span className="font-bold text-[9px] text-slate-500">{count}</span>}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-1 text-[9px] text-slate-400 px-1">
+                          <span>
+                            {new Date(msg.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                          {msg.isOwn && <CheckCheck className="w-3.5 h-3.5 text-sky-400" />}
+                        </div>
                       </div>
+                    );
+                  })
+                )}
+                {isPartnerTyping && (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 px-2 py-1 italic animate-pulse">
+                    <div className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
-                  ))
+                    <span>{activeConversation.name} is typing...</span>
+                  </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
