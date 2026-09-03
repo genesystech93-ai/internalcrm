@@ -1,0 +1,374 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  AGENT
+  CLOSER
+  TL
+}
+
+enum LeadSource {
+  DIALER
+  MANUAL_DIAL
+  REFERENCE
+  CUSTOM
+}
+
+enum LeadStatus {
+  VOICEMAIL
+  UPLOADED
+  PENDING_VERIFICATION
+  CALL_BACK
+  APPROVED
+  REJECTED
+  CUSTOM
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  HALF_DAY
+  ABSENT
+}
+
+enum BreakType {
+  FIRST_TEA      // 09:30 PM - 09:45 PM (15 mins)
+  DINNER         // 11:30 PM - 12:15 AM (45 mins)
+  MIDNIGHT_TEA   // 02:00 AM - 02:15 AM (15 mins)
+  CUSTOM         // Ad-hoc (Bio, Training, Emergency)
+}
+
+enum IncentiveStatus {
+  ACCRUED
+  PAID
+  VOIDED
+}
+
+enum RoleTarget {
+  AGENT
+  CLOSER
+  TL
+}
+
+enum LeaveType {
+  CASUAL
+  SICK
+  EMERGENCY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id                String             @id @default(uuid())
+  username          String             @unique // Unique login username created exclusively by Admin
+  name              String
+  email             String?            // Optional employee contact email
+  password          String
+  role              Role               @default(AGENT)
+  teamId            String?
+  team              Team?              @relation("TeamMembers", fields: [teamId], references: [id])
+  ledTeams          Team[]             @relation("TeamLeader")
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  leads             Lead[]             @relation("AgentLeads")
+  statusChanges     LeadStatusHistory[] @relation("UserStatusChanges")
+  attendances       Attendance[]
+  breakLogs         BreakLog[]
+  incentiveEarnings IncentiveEarning[]
+  leaveRequests     LeaveRequest[]
+  salaryProfile     SalaryProfile?
+  sentMessages      ChatMessage[]              @relation("SenderMessages")
+  chatParticipants  ConversationParticipant[]  @relation("UserParticipants")
+}
+
+model Team {
+  id           String     @id @default(uuid())
+  name         String     @unique
+  leaderId     String?
+  leader       User?      @relation("TeamLeader", fields: [leaderId], references: [id])
+  members      User[]     @relation("TeamMembers")
+  campaigns    Campaign[]
+  conversations Conversation[]
+  targetVolume Int        @default(200)
+  poolAmount   Decimal    @default(500.00)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Campaign {
+  id                 String          @id @default(uuid())
+  name               String          @unique
+  vertical           String?
+  isActive           Boolean         @default(true)
+  shiftStartTime     String          @default("19:00") // e.g. "19:00" (7:00 PM), or customizable per campaign
+  shiftEndTime       String          @default("04:00") // e.g. "04:00" (4:00 AM), or customizable per campaign
+  lateGraceMinutes   Int             @default(15)      // Grace period in minutes before marked LATE
+  commissionPerLead  Decimal         @default(15.00)
+  teams              Team[]
+  leads              Lead[]
+  attendances        Attendance[]
+  incentiveRules     IncentiveRule[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+}
+
+model Lead {
+  id              String             @id @default(uuid())
+  customerName    String
+  dob             DateTime
+  mobile          String             // 10 digits
+  address         String             @db.Text
+  email           String
+  campaignId      String
+  campaign        Campaign           @relation(fields: [campaignId], references: [id])
+  source          LeadSource         @default(DIALER)
+  closerName      String
+  status          LeadStatus         @default(UPLOADED)
+  callBackTime    DateTime?
+  rejectionReason String?
+  agentId         String
+  agent           User               @relation("AgentLeads", fields: [agentId], references: [id])
+  notes           String?            @db.Text
+  approvedAt      DateTime?
+  clientId             String?
+  client               Client?               @relation(fields: [clientId], references: [id])
+  clientNetTerms       NetTerms?
+  clientSubmittedAt    DateTime?
+  expectedApprovalDate DateTime?
+  clientApprovalStatus ClientApprovalStatus?
+  clientDecisionReason String?               @db.Text
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  statusHistory   LeadStatusHistory[]
+  incentives      IncentiveEarning[]
+  chatMessages    ChatMessage[]      @relation("LeadChatMentions")
+
+  // STRICT RULE: One Agent cannot enter duplicate mobile for same campaign, but permitted across campaigns
+  @@unique([mobile, campaignId])
+  @@index([campaignId])
+  @@index([agentId])
+  @@index([status])
+  @@index([clientId])
+}
+
+model LeadStatusHistory {
+  id             String    @id @default(uuid())
+  leadId         String
+  lead           Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  changedById    String
+  changedBy      User      @relation("UserStatusChanges", fields: [changedById], references: [id])
+  previousStatus String
+  newStatus      String
+  reason         String?   @db.Text // Strictly mandatory when changing Approved leads or Rejecting
+  createdAt      DateTime  @default(now())
+
+  @@index([leadId])
+}
+
+model Attendance {
+  id           String           @id @default(uuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id])
+  campaignId   String?
+  campaign     Campaign?        @relation(fields: [campaignId], references: [id])
+  shiftDate    DateTime         @db.Date // Shift attributed to start date
+  loginAt      DateTime
+  logoutAt     DateTime?
+  totalMinutes Int              @default(0)
+  status       AttendanceStatus @default(PRESENT)
+  breaks       BreakLog[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([userId, shiftDate])
+}
+
+model BreakLog {
+  id              String      @id @default(uuid())
+  attendanceId    String
+  attendance      Attendance  @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  breakType       BreakType
+  customReason    String?
+  startTime       DateTime    @default(now())
+  endTime         DateTime?
+  durationMinutes Int         @default(0)
+  createdAt       DateTime    @default(now())
+
+  @@index([attendanceId])
+  @@index([userId])
+}
+
+model IncentiveRule {
+  id             String            @id @default(uuid())
+  campaignId     String?
+  campaign       Campaign?         @relation(fields: [campaignId], references: [id])
+  roleTarget     RoleTarget        @default(AGENT)
+  amountPerLead  Decimal           @db.Decimal(10, 2)
+  bonusThreshold Int?
+  bonusAmount    Decimal?          @db.Decimal(10, 2)
+  isActive       Boolean           @default(true)
+  earnings       IncentiveEarning[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model IncentiveEarning {
+  id             String          @id @default(uuid())
+  leadId         String
+  lead           Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+  ruleId         String?
+  rule           IncentiveRule?  @relation(fields: [ruleId], references: [id])
+  amount         Decimal         @db.Decimal(10, 2)
+  status         IncentiveStatus @default(ACCRUED)
+  reversalReason String?         // Logged automatically when an Approved lead is reclassified
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([leadId])
+}
+
+model LeaveRequest {
+  id           String      @id @default(uuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id])
+  leaveType    LeaveType   @default(CASUAL)
+  startDate    DateTime    @db.Date
+  endDate      DateTime    @db.Date
+  reason       String      @db.Text
+  status       LeaveStatus @default(PENDING)
+  reviewedById String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([userId])
+}
+
+model SalaryProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  baseSalary    Decimal  @db.Decimal(10, 2)
+  payFrequency  String   @default("MONTHLY")
+  effectiveDate DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CustomStatus {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  colorHex  String
+  category  String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+}
+
+model WhitelistedIp {
+  id          String   @id @default(uuid())
+  ipAddress   String   @unique // e.g. 192.168.1.100, 103.21.244.0
+  description String?  // e.g. "Main Sales Floor", "Admin Home Backup"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique // e.g. "ip_restriction_enabled"
+  value     String   // e.g. "true" or "false"
+  updatedAt DateTime @updatedAt
+}
+
+enum ConversationType {
+  DIRECT
+  TEAM
+  GENERAL
+}
+
+model Conversation {
+  id           String                    @id @default(uuid())
+  type         ConversationType          @default(DIRECT)
+  name         String?
+  teamId       String?
+  team         Team?                     @relation(fields: [teamId], references: [id])
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  participants ConversationParticipant[]
+  messages     ChatMessage[]
+
+  @@index([teamId])
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation("UserParticipants", fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime     @default(now())
+  unreadCount    Int          @default(0)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model ChatMessage {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation("SenderMessages", fields: [senderId], references: [id])
+  content        String       @db.Text
+  leadId         String?
+  lead           Lead?        @relation("LeadChatMentions", fields: [leadId], references: [id])
+  metadata       String?      @db.Text // JSON string for rich mentions/chips
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@index([leadId])
+}
+
+enum NetTerms {
+  NET_7
+  NET_14
+  NET_21
+  NET_30
+}
+
+enum ClientApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Client {
+  id              String       @id @default(uuid())
+  name            String       @unique
+  contactPerson   String?
+  email           String?
+  defaultNetTerms NetTerms     @default(NET_14)
+  isActive        Boolean      @default(true)
+  leads           Lead[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+

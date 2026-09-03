@@ -1,0 +1,346 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark, .dark *));
+
+:root {
+  /* Genesoft Brand Palette */
+  --brand-orange: #F97316;
+  --brand-orange-hover: #EA580C;
+  --brand-orange-dark: #C2410C;
+  --brand-orange-light: #FFF7ED;
+  --brand-orange-border: #FED7AA;
+
+  /* Surfaces & Neutrals */
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --surface: #FFFFFF;
+  --surface-subtle: #F1F5F9;
+  --border: #E2E8F0;
+
+  /* Liquid Glass Design System */
+  --glass-bg: rgba(255, 255, 255, 0.76);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.55);
+  --glass-bg-hover: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.85);
+  --glass-border-subtle: rgba(226, 232, 240, 0.75);
+  --glass-edge: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
+  --glass-shadow: 0 12px 36px -4px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+  --glass-shadow-orange: 0 14px 40px -6px rgba(249, 115, 22, 0.18), 0 2px 6px -1px rgba(249, 115, 22, 0.08);
+
+  /* Status Tokens */
+  --status-voicemail: #64748B;
+  --status-uploaded: #0284C7;
+  --status-pending: #8B5CF6;
+  --status-callback: #F59E0B;
+  --status-approved: #10B981;
+  --status-rejected: #EF4444;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-orange-hover: var(--brand-orange-hover);
+  --color-brand-orange-dark: var(--brand-orange-dark);
+  --color-brand-orange-light: var(--brand-orange-light);
+  --color-brand-orange-border: var(--brand-orange-border);
+
+  --color-status-voicemail: var(--status-voicemail);
+  --color-status-uploaded: var(--status-uploaded);
+  --color-status-pending: var(--status-pending);
+  --color-status-callback: var(--status-callback);
+  --color-status-approved: var(--status-approved);
+  --color-status-rejected: var(--status-rejected);
+
+  --font-sans: var(--font-plus-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-fira-code), monospace;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Ambient Liquid Gradient Mesh Background */
+.liquid-mesh-backdrop {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+  background: #F8FAFC;
+}
+
+.liquid-orb-orange {
+  position: absolute;
+  top: -120px;
+  right: 15%;
+  width: 580px;
+  height: 580px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.16) 0%, rgba(254, 215, 170, 0.08) 50%, transparent 70%);
+  filter: blur(80px);
+  animation: floatOrb 18s ease-in-out infinite alternate;
+}
+
+.liquid-orb-amber {
+  position: absolute;
+  top: 40%;
+  left: -100px;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, rgba(253, 230, 138, 0.06) 50%, transparent 70%);
+  filter: blur(90px);
+  animation: floatOrbReverse 22s ease-in-out infinite alternate;
+}
+
+.liquid-orb-sky {
+  position: absolute;
+  bottom: -80px;
+  right: 25%;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(2, 132, 199, 0.08) 0%, rgba(186, 230, 253, 0.04) 50%, transparent 70%);
+  filter: blur(80px);
+}
+
+@keyframes floatOrb {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-40px, 60px) scale(1.08); }
+}
+
+@keyframes floatOrbReverse {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(50px, -40px) scale(1.05); }
+}
+
+/* Liquid Glass Core Utilities */
+.liquid-glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+
+.liquid-glass-card {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95), 0 10px 30px -4px rgba(15, 23, 42, 0.05);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-glass-card:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(249, 115, 22, 0.4);
+  box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 1), var(--glass-shadow-orange);
+  transform: translateY(-2px);
+}
+
+.liquid-glass-header {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.6), 0 4px 20px -2px rgba(15, 23, 42, 0.04);
+}
+
+.liquid-glass-input {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+}
+
+.liquid-glass-input:focus {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: var(--brand-orange);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+
+.liquid-glass-button-primary {
+  background: linear-gradient(135deg, #FB923C 0%, #F97316 50%, #EA580C 100%);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.4), 0 8px 24px -4px rgba(249, 115, 22, 0.4);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-glass-button-primary:hover {
+  background: linear-gradient(135deg, #F97316 0%, #EA580C 50%, #C2410C 100%);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.5), 0 12px 30px -4px rgba(249, 115, 22, 0.5);
+  transform: translateY(-1px);
+}
+
+.liquid-glass-button-secondary {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  color: #334155;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px -1px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+}
+
+.liquid-glass-button-secondary:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(249, 115, 22, 0.3);
+  color: #0F172A;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 1), 0 4px 14px -2px rgba(249, 115, 22, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Custom scrollbar for high-density tables */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 0.8);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.9);
+}
+
+/* ============================================================
+   DARK MODE (Liquid Obsidian Glass for Night Shift 7PM - 4AM)
+   ============================================================ */
+.dark {
+  --background: #0B0F19;
+  --foreground: #F8FAFC;
+  --surface: #111827;
+  --surface-subtle: #1F2937;
+  --border: #374151;
+
+  --glass-bg: rgba(17, 24, 39, 0.78);
+  --glass-bg-subtle: rgba(17, 24, 39, 0.55);
+  --glass-bg-hover: rgba(31, 41, 55, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border-subtle: rgba(55, 65, 81, 0.7);
+  --glass-edge: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+  --glass-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.5);
+  --glass-shadow-orange: 0 16px 44px -4px rgba(249, 115, 22, 0.28);
+}
+
+.dark body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+.dark .liquid-mesh-backdrop {
+  background: #0B0F19;
+}
+
+.dark .liquid-orb-orange {
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(234, 88, 12, 0.1) 50%, transparent 70%);
+}
+
+.dark .liquid-orb-amber {
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 70%);
+}
+
+.dark .liquid-orb-sky {
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.1) 0%, transparent 70%);
+}
+
+.dark .liquid-glass {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+
+.dark .liquid-glass-card {
+  background: rgba(17, 24, 39, 0.75);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.12), 0 10px 30px -4px rgba(0, 0, 0, 0.4);
+}
+
+.dark .liquid-glass-card:hover {
+  background: rgba(31, 41, 55, 0.85);
+  border-color: rgba(249, 115, 22, 0.5);
+  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.2), var(--glass-shadow-orange);
+}
+
+.dark .liquid-glass-header {
+  background: rgba(11, 15, 25, 0.85);
+  border-bottom-color: rgba(55, 65, 81, 0.6);
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.05), 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+}
+
+.dark .liquid-glass-input {
+  background: rgba(17, 24, 39, 0.7);
+  border-color: rgba(75, 85, 99, 0.6);
+  color: #F8FAFC;
+}
+
+.dark .liquid-glass-input:focus {
+  background: rgba(31, 41, 55, 0.95);
+  border-color: var(--brand-orange);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+.dark .liquid-glass-button-secondary {
+  background: rgba(31, 41, 55, 0.7);
+  border-color: rgba(75, 85, 99, 0.7);
+  color: #E2E8F0;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.1), 0 2px 8px -1px rgba(0, 0, 0, 0.2);
+}
+
+.dark .liquid-glass-button-secondary:hover {
+  background: rgba(55, 65, 81, 0.9);
+  border-color: rgba(249, 115, 22, 0.4);
+  color: #FFFFFF;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.8);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.9);
+}
+
+/* High-Contrast Luminous Dark Mode Typography & Titles */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  color: #FFFFFF !important;
+}
+
+.dark strong:not([class*="text-"]) {
+  color: #FFFFFF;
+}
+
+.dark th {
+  color: #CBD5E1 !important;
+}
+
+.dark label {
+  color: #94A3B8;
+}
+
+
