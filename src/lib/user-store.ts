@@ -19,7 +19,7 @@ const inMemoryUsers: Map<string, StoredUser> = new Map([
     {
       id: "admin-system-uuid",
       username: "admin",
-      passwordHash: "$2b$10$nfRMdoWxnJAIMhYLHAGLduif6oUHspjPHIYcwWN9NoHFdLK2EUNlC",
+      passwordHash: "$2b$10$u9UYaAQ8988KIa4K1zmbOukWl6BZFZDj65zSiNW1OrycM7mUMqDfG",
       name: "Genesoft Administrator",
       role: "ADMIN" as Role,
       email: "admin@genesoftinfotech.com",
