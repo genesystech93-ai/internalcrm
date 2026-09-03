@@ -23,7 +23,7 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
   const [email, setEmail] = useState("");
   const [campaignId, setCampaignId] = useState("camp-health-1");
   const [source, setSource] = useState<LeadSource>("DIALER");
-  const [closerName, setCloserName] = useState("Alex Morgan");
+  const [closerName, setCloserName] = useState("");
   const [status, setStatus] = useState<LeadStatus>("UPLOADED");
   const [callBackTime, setCallBackTime] = useState("");
   const [notes, setNotes] = useState("");
@@ -272,16 +272,26 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                8. Assigned Closer *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8]">
+                  8. Assigned Closer *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setCloserName("Self (Agent Closed)")}
+                  className="text-[10px] font-bold text-[#EA580C] dark:text-[#FB923C] hover:underline cursor-pointer"
+                  title="Click if you closed this deal yourself"
+                >
+                  + Self-Close
+                </button>
+              </div>
               <input
                 type="text"
                 required
                 maxLength={100}
                 value={closerName}
                 onChange={(e) => setCloserName(e.target.value)}
-                placeholder="Closer Name"
+                placeholder="e.g. Self, or Closer Name"
                 className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold focus:outline-none"
               />
             </div>
