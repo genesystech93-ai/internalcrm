@@ -383,8 +383,8 @@ export function AdminWorkforceManager() {
 
           {/* Create Team Modal */}
           {showTeamModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
                 <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white mb-4">
                   Create New Floor Team
                 </h3>
@@ -419,7 +419,7 @@ export function AdminWorkforceManager() {
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                        Bonus Pool ($)
+                        Bonus Pool (₹)
                       </label>
                       <input
                         type="number"
@@ -454,8 +454,8 @@ export function AdminWorkforceManager() {
 
           {/* Create Incentive Rule Modal */}
           {showRuleModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
                 <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white mb-4">
                   Configure New Incentive Rule
                 </h3>
@@ -512,7 +512,7 @@ export function AdminWorkforceManager() {
 
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                      Team Milestone Bonus Pool ($)
+                      Team Milestone Bonus Pool (₹)
                     </label>
                     <input
                       type="number"

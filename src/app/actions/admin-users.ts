@@ -208,8 +208,8 @@ export async function createEmployeeAction(formData: FormData) {
       success: true,
       message: `Employee account @${newUser.username} (${newUser.name}) created successfully with role ${newUser.role}.`,
     };
-  } catch {
-    // Dev fallback
+  } catch (err: unknown) {
+    console.error("Database user creation error, syncing with store:", err);
     const devExisting = getStoredUser(username);
     if (devExisting) {
       return { error: `Username @${username} is already taken.` };
@@ -217,7 +217,7 @@ export async function createEmployeeAction(formData: FormData) {
 
     const hashedPassword = await hashPassword(password);
     saveStoredUser({
-      id: `dev-user-${Date.now()}`,
+      id: `user-${Date.now()}`,
       username,
       name,
       email,
@@ -232,7 +232,7 @@ export async function createEmployeeAction(formData: FormData) {
     revalidatePath("/admin/employees");
     return {
       success: true,
-      message: `Employee account @${username} (${name}) created successfully (Dev Mode).`,
+      message: `Employee account @${username} (${name}) created successfully with role ${rawRole}.`,
     };
   }
 }

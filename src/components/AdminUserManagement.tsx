@@ -353,9 +353,9 @@ export function AdminUserManagement() {
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsAddModalOpen(false);
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
         >
-          <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
             <button
               onClick={() => setIsAddModalOpen(false)}
               className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100/70 dark:hover:bg-slate-800 text-[#64748B] dark:text-[#94A3B8] transition-colors"
@@ -386,7 +386,7 @@ export function AdminUserManagement() {
                   value={addName}
                   onChange={(e) => setAddName(e.target.value)}
                   placeholder="e.g. Johnathan Smith"
-                  className="liquid-glass-input w-full px-3.5 py-2 rounded-xl text-xs font-semibold focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
                 />
               </div>
 
@@ -401,7 +401,7 @@ export function AdminUserManagement() {
                     value={addUsername}
                     onChange={(e) => setAddUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))}
                     placeholder="e.g. jsmith"
-                    className="liquid-glass-input w-full px-3.5 py-2 rounded-xl text-xs font-mono font-bold focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
                   />
                 </div>
 
@@ -412,7 +412,7 @@ export function AdminUserManagement() {
                   <select
                     value={addRole}
                     onChange={(e) => setAddRole(e.target.value as Role)}
-                    className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-semibold focus:outline-none"
+                    className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
                   >
                     <option value="AGENT">Agent</option>
                     <option value="TL">Team Lead</option>
@@ -430,7 +430,7 @@ export function AdminUserManagement() {
                   value={addEmail}
                   onChange={(e) => setAddEmail(e.target.value)}
                   placeholder="jsmith@genesoftinfotech.com"
-                  className="liquid-glass-input w-full px-3.5 py-2 rounded-xl text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
                 />
               </div>
 
@@ -441,7 +441,7 @@ export function AdminUserManagement() {
                 <select
                   value={addCampaign}
                   onChange={(e) => setAddCampaign(e.target.value)}
-                  className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-semibold focus:outline-none"
+                  className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
                 >
                   {campaigns.length === 0 ? (
                     <option value="General Floor">General Floor</option>
@@ -478,7 +478,7 @@ export function AdminUserManagement() {
                     value={addPassword}
                     onChange={(e) => setAddPassword(e.target.value)}
                     placeholder="Password (min 6 chars)"
-                    className="liquid-glass-input w-full pl-10 pr-4 py-2 rounded-xl text-xs font-mono placeholder-[#94A3B8] focus:outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs font-mono bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
                   />
                 </div>
               </div>
@@ -510,9 +510,9 @@ export function AdminUserManagement() {
           onClick={(e) => {
             if (e.target === e.currentTarget) setSelectedUser(null);
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
         >
-          <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
             <button
               onClick={() => setSelectedUser(null)}
               className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100/70 dark:hover:bg-slate-800 text-[#64748B] dark:text-[#94A3B8] transition-colors"
@@ -576,7 +576,7 @@ export function AdminUserManagement() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Enter new password (min 6 chars)"
-                    className="liquid-glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-xs font-mono placeholder-[#94A3B8] focus:outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs font-mono bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
                   />
                 </div>
               </div>
