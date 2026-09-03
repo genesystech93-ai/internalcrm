@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
-    "postbuild": "node -e \"const fs=require('fs'); if(fs.existsSync('.next/standalone')){ try { fs.cpSync('public', '.next/standalone/public', {recursive:true, force:true}); } catch(_) {} try { fs.cpSync('.next/static', '.next/standalone/.next/static', {recursive:true, force:true}); } catch(_) {} }\"",
+    "postbuild": "node -e \"const fs=require('fs'); if(fs.existsSync('.next/standalone')){ try { fs.cpSync('public', '.next/standalone/public', {recursive:true, force:true}); } catch(_) {} try { fs.cpSync('.next/static', '.next/standalone/.next/static', {recursive:true, force:true}); } catch(_) {} try { if(fs.existsSync('.env')) fs.copyFileSync('.env', '.next/standalone/.env'); } catch(_) {} }\"",
     "start": "node server.js",
     "lint": "eslint",
     "test:db": "tsx tests/test-db.ts",
