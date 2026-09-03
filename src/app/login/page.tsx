@@ -70,7 +70,7 @@ export default function LoginPage() {
 
         <div className={`relative z-10 transition-all duration-700 delay-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           <p className="text-xs text-white/50 dark:text-slate-500 font-medium">
-            © {new Date().getFullYear()} Genesoft Infotech. Proprietary CRM Application.
+            © {new Date().getFullYear()} Enterprise CRM Platform. All rights reserved.
           </p>
         </div>
       </div>
@@ -173,7 +173,7 @@ export default function LoginPage() {
 
           {/* Footer info — Mobile only */}
           <p className="mt-6 text-center text-xs text-[#64748B] dark:text-[#94A3B8] font-medium lg:hidden">
-            &copy; {new Date().getFullYear()} Genesoft Infotech. Proprietary CRM Application.
+            &copy; {new Date().getFullYear()} Enterprise CRM Platform. All rights reserved.
           </p>
         </div>
       </div>

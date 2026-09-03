@@ -367,7 +367,7 @@ export function EmployeeChatWidget() {
                 ) : (
                   <div>
                     <h3 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <span>Genesoft Pulse Chat</span>
+                      <span>Live Pulse Chat</span>
                       <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-mono border border-emerald-500/20">
                         Live Floor
                       </span>

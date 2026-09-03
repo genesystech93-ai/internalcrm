@@ -11,8 +11,8 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
 
   useEffect(() => {
     setMounted(true);
-    const savedTheme = localStorage.getItem("genesoft-theme");
-    const savedAuto = localStorage.getItem("genesoft-theme-auto");
+    const savedTheme = localStorage.getItem("crm-theme") || localStorage.getItem("genesoft-theme");
+    const savedAuto = localStorage.getItem("crm-theme-auto") || localStorage.getItem("genesoft-theme-auto");
 
     // Auto dark mode: between 7PM and 4AM (shift hours)
     const hours = new Date().getHours();
@@ -33,7 +33,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
         setIsDark(false);
         document.documentElement.classList.remove("dark");
       }
-      localStorage.setItem("genesoft-theme-auto", "true");
+      localStorage.setItem("crm-theme-auto", "true");
     } else {
       // Manual override
       setIsAutoMode(false);
@@ -45,25 +45,23 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
         document.documentElement.classList.remove("dark");
       }
     }
-  }, []);
 
-  // Periodic auto-check every minute for shift boundary transitions
-  useEffect(() => {
-    if (!isAutoMode) return;
-
+    // Check hourly for shift transitions if auto mode is on
     const interval = setInterval(() => {
-      const hours = new Date().getHours();
-      const shouldBeDark = hours >= 19 || hours < 4;
-      if (shouldBeDark !== isDark) {
-        setIsDark(shouldBeDark);
-        if (shouldBeDark) {
+      if (isAutoMode) {
+        const currentHour = new Date().getHours();
+        const duringShift = currentHour >= 19 || currentHour < 4;
+        if (duringShift && !isDark) {
+          setIsDark(true);
           document.documentElement.classList.add("dark");
-          setShowToast("🌙 Night mode activated — shift started");
-        } else {
+          setShowToast("🌙 Auto night shift theme enabled");
+          setTimeout(() => setShowToast(null), 3500);
+        } else if (!duringShift && isDark) {
+          setIsDark(false);
           document.documentElement.classList.remove("dark");
-          setShowToast("☀️ Light mode restored — shift ended");
+          setShowToast("☀️ Day shift theme enabled");
+          setTimeout(() => setShowToast(null), 3500);
         }
-        setTimeout(() => setShowToast(null), 3500);
       }
     }, 60000);
 
@@ -74,20 +72,20 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     const nextTheme = !isDark;
     setIsDark(nextTheme);
     setIsAutoMode(false); // Manual override disables auto
-    localStorage.setItem("genesoft-theme-auto", "false");
+    localStorage.setItem("crm-theme-auto", "false");
     if (nextTheme) {
       document.documentElement.classList.add("dark");
-      localStorage.setItem("genesoft-theme", "dark");
+      localStorage.setItem("crm-theme", "dark");
     } else {
       document.documentElement.classList.remove("dark");
-      localStorage.setItem("genesoft-theme", "light");
+      localStorage.setItem("crm-theme", "light");
     }
   };
 
   const enableAutoMode = () => {
     setIsAutoMode(true);
-    localStorage.setItem("genesoft-theme-auto", "true");
-    localStorage.removeItem("genesoft-theme");
+    localStorage.setItem("crm-theme-auto", "true");
+    localStorage.removeItem("crm-theme");
     const hours = new Date().getHours();
     const shouldBeDark = hours >= 19 || hours < 4;
     setIsDark(shouldBeDark);
@@ -96,8 +94,8 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     } else {
       document.documentElement.classList.remove("dark");
     }
-    setShowToast(shouldBeDark ? "🌙 Auto: Night shift mode" : "☀️ Auto: Day mode");
-    setTimeout(() => setShowToast(null), 2500);
+    setShowToast("🔄 Auto shift theme restored (7PM-4AM Night)");
+    setTimeout(() => setShowToast(null), 3000);
   };
 
   if (!mounted) {

@@ -165,10 +165,10 @@ export function CompanySettingsCard() {
             ) : (
               <div className="flex flex-col items-center justify-center">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FB923C] to-[#F97316] text-white flex items-center justify-center font-extrabold text-2xl shadow-md shadow-orange-500/25 mb-1.5">
-                  G
+                  CRM
                 </div>
                 <span className="text-[10px] font-bold text-[#64748B] dark:text-[#94A3B8]">
-                  Genesoft Monogram
+                  Default Brand Emblem
                 </span>
               </div>
             )}
@@ -225,7 +225,7 @@ export function CompanySettingsCard() {
                   name="companyName"
                   required
                   defaultValue={settings.companyName}
-                  placeholder="e.g. Genesoft Infotech Private Limited"
+                  placeholder="e.g. Acme Global Corporation"
                   className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold focus:outline-none"
                 />
               </div>
@@ -239,7 +239,7 @@ export function CompanySettingsCard() {
                   name="brandName"
                   required
                   defaultValue={settings.brandName}
-                  placeholder="e.g. Genesoft Infotech"
+                  placeholder="e.g. Acme CRM"
                   className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#F97316] focus:outline-none"
                 />
               </div>
@@ -253,7 +253,7 @@ export function CompanySettingsCard() {
                 type="text"
                 name="tagline"
                 defaultValue={settings.tagline}
-                placeholder="e.g. High-Velocity BPO Sales Floor & Campaign Operations"
+                placeholder="e.g. High-Velocity Sales Floor & Campaign Operations"
                 className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs focus:outline-none"
               />
             </div>
@@ -269,7 +269,7 @@ export function CompanySettingsCard() {
                   name="supportEmail"
                   required
                   defaultValue={settings.supportEmail}
-                  placeholder="support@genesoftinfotech.com"
+                  placeholder="support@company.com"
                   className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold focus:outline-none"
                 />
               </div>
@@ -283,7 +283,7 @@ export function CompanySettingsCard() {
                   type="text"
                   name="phone"
                   defaultValue={settings.phone}
-                  placeholder="+1 (888) 436-3763"
+                  placeholder="+1 (800) 555-0199"
                   className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-semibold focus:outline-none"
                 />
               </div>
@@ -299,7 +299,7 @@ export function CompanySettingsCard() {
                   type="url"
                   name="website"
                   defaultValue={settings.website}
-                  placeholder="https://genesoftinfotech.com"
+                  placeholder="https://company.com"
                   className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs focus:outline-none"
                 />
               </div>

@@ -24,14 +24,14 @@ import { inMemorySettingsStore } from "@/lib/company-store";
 
 // Default fallback settings
 const defaultSettings: CompanySettings = {
-  companyName: "Genesoft Infotech Private Limited",
-  brandName: "Genesoft Infotech",
-  tagline: "Enterprise Sales Floor & Campaign Operations CRM",
-  supportEmail: "operations@genesoftinfotech.com",
-  phone: "+1 (888) 436-3763",
-  headquarters: "Level 4, Infotech Towers, Silicon Corridor",
-  website: "https://genesoftinfotech.com",
-  registrationNumber: "GEN-INF-2026-BPO",
+  companyName: "CRM Operations Platform",
+  brandName: "CRM Portal",
+  tagline: "Enterprise Sales Floor & Campaign Operations Platform",
+  supportEmail: "operations@company.com",
+  phone: "+1 (800) 555-0199",
+  headquarters: "Operations Headquarters",
+  website: "https://company.com",
+  registrationNumber: "CRM-2026-OPS",
   hasCustomLogo: false,
   logoUrl: "/api/logo",
 };

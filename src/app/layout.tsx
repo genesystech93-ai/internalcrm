@@ -15,7 +15,7 @@ const firaCode = Fira_Code({
 });
 
 export const metadata: Metadata = {
-  title: "Genesoft Infotech CRM",
+  title: "CRM Platform | Enterprise Floor Operations",
   description: "High-Velocity Sales Floor CRM & Operational Platform",
 };
 
@@ -35,7 +35,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                const theme = localStorage.getItem('genesoft-theme');
+                const theme = localStorage.getItem('crm-theme') || localStorage.getItem('genesoft-theme');
                 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                 if (theme === 'dark' || (!theme && prefersDark)) {
                   document.documentElement.classList.add('dark');

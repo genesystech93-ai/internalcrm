@@ -429,7 +429,7 @@ export function AdminUserManagement() {
                   type="email"
                   value={addEmail}
                   onChange={(e) => setAddEmail(e.target.value)}
-                  placeholder="jsmith@genesoftinfotech.com"
+                  placeholder="jsmith@company.com"
                   className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
                 />
               </div>

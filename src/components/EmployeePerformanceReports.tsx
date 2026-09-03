@@ -96,7 +96,7 @@ export function EmployeePerformanceReports() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `Genesoft_Employee_Performance_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("download", `Employee_Performance_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -156,7 +156,7 @@ export function EmployeePerformanceReports() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `Genesoft_Leads_Sales_Master_${new Date().toISOString().split("T")[0]}.csv`);
+      link.setAttribute("download", `Leads_Sales_Master_${new Date().toISOString().split("T")[0]}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
