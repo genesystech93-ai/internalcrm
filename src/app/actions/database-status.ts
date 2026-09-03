@@ -23,8 +23,13 @@ export interface DatabaseDiagnosticResult {
 }
 
 export async function checkDatabaseHealthAction(): Promise<DatabaseDiagnosticResult> {
-  const session = await getSession();
-  const isAdmin = session?.role === "ADMIN";
+  let isAdmin = false;
+  try {
+    const session = await getSession();
+    isAdmin = session?.role === "ADMIN";
+  } catch {
+    // Non-request context fallback
+  }
 
   // Parse connection URL metadata safely
   const dbUrl = process.env.DATABASE_URL || "";
@@ -56,8 +61,30 @@ export async function checkDatabaseHealthAction(): Promise<DatabaseDiagnosticRes
   const startTime = Date.now();
 
   try {
-    // 1. Probe database connection with lightweight query
-    await prisma.$queryRawUnsafe("SELECT 1 as probe");
+    // 1. Probe database connection with lightweight query & auto-retry for sleeping poolers
+    let probeSuccess = false;
+    let lastProbeError: unknown = null;
+
+    try {
+      await prisma.$queryRawUnsafe("SELECT 1 as probe");
+      probeSuccess = true;
+    } catch (err1) {
+      lastProbeError = err1;
+      // Brief pause to allow pooler socket to re-establish
+      await new Promise((r) => setTimeout(r, 400));
+      try {
+        await prisma.$connect();
+        await prisma.$queryRawUnsafe("SELECT 1 as probe");
+        probeSuccess = true;
+      } catch (err2) {
+        lastProbeError = err2;
+      }
+    }
+
+    if (!probeSuccess && lastProbeError) {
+      throw lastProbeError;
+    }
+
     const latencyMs = Date.now() - startTime;
 
     // 2. Fetch table counts for integrity check
@@ -92,7 +119,7 @@ export async function checkDatabaseHealthAction(): Promise<DatabaseDiagnosticRes
 
     let recommendation = "Verify your DATABASE_URL in environment settings.";
     if (rawError.includes("P1001") || rawError.includes("Can't reach")) {
-      recommendation = "Cannot reach Supabase host. Ensure your GoDaddy/cPanel host allows outbound TCP on port 5432.";
+      recommendation = "Cannot reach Supabase host. If running locally, restart 'npm run dev' to reload .env. If on GoDaddy/cPanel, ensure outbound TCP port 5432/6543 is allowed in firewall.";
     } else if (rawError.includes("P1000") || rawError.includes("Authentication failed")) {
       recommendation = "Authentication failed. Check your Supabase database password in .env.";
     } else if (rawError.includes("timeout") || rawError.includes("ETIMEDOUT")) {
