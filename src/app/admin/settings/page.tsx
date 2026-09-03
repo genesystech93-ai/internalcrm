@@ -4,6 +4,7 @@ import { CompanySettingsCard } from "@/components/CompanySettingsCard";
 import { AdminIpManagement } from "@/components/AdminIpManagement";
 import { CampaignManagement } from "@/components/CampaignManagement";
 import { ClientManagementCard } from "@/components/ClientManagementCard";
+import { DatabaseHealthCard } from "@/components/DatabaseHealthCard";
 import { Settings } from "lucide-react";
 
 export default async function AdminSettingsPage() {
@@ -19,26 +20,29 @@ export default async function AdminSettingsPage() {
         <div className="mb-6">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-slate-800/80 border border-orange-200/70 dark:border-orange-500/30 text-xs font-bold text-[#EA580C] dark:text-[#FB923C] shadow-sm mb-2 backdrop-blur-md">
             <Settings className="w-3.5 h-3.5 text-[#F97316]" />
-            <span>Corporate Branding & Security Settings</span>
+            <span>Corporate Branding, Security & System Health</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] dark:text-white tracking-tight">
-            System, Branding & Security Settings
+            System, Branding & Infrastructure Settings
           </h1>
           <p className="text-sm text-[#64748B] dark:text-[#94A3B8] mt-1 font-medium">
-            Upload company logo, customize corporate information, configure Global Public WAN IP whitelisting, and set campaign shift operating hours.
+            Monitor real-time database connection health, upload company logo, configure Global Public WAN IP whitelisting, and set campaign shift operating hours.
           </p>
         </div>
 
-        {/* 1. Company Branding & Official Logo Upload Center */}
+        {/* 1. Real-Time Database Connection & Infrastructure Diagnostic Monitor */}
+        <DatabaseHealthCard />
+
+        {/* 2. Company Branding & Official Logo Upload Center */}
         <CompanySettingsCard />
 
-        {/* 2. Global IP Whitelist & Restricted Login Guard */}
+        {/* 3. Global IP Whitelist & Restricted Login Guard */}
         <AdminIpManagement />
 
-        {/* 3. Campaign Management & Configurable Shift Operating Hours */}
+        {/* 4. Campaign Management & Configurable Shift Operating Hours */}
         <CampaignManagement />
 
-        {/* 4. Corporate Clients & Net Terms Approval Window Manager */}
+        {/* 5. Corporate Clients & Net Terms Approval Window Manager */}
         <ClientManagementCard />
       </main>
     </div>

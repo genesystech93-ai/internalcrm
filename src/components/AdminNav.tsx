@@ -15,6 +15,7 @@ import {
   Clock,
 } from "lucide-react";
 import { EmployeeChatWidget } from "@/components/EmployeeChatWidget";
+import { DatabaseStatusBadge } from "@/components/DatabaseStatusBadge";
 
 interface AdminNavProps {
   sessionUser?: {
@@ -72,6 +73,9 @@ export function AdminNav({ sessionUser }: AdminNavProps) {
         </div>
 
         <div className="flex items-center gap-3 sm:gap-4">
+          {/* Real-time Database Health Monitor Pill */}
+          <DatabaseStatusBadge />
+
           <div className="text-right hidden sm:block">
             <p className="text-xs font-bold text-[#0F172A] dark:text-white">
               {sessionUser?.name || "Administrator"}
