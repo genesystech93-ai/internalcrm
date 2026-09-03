@@ -142,6 +142,7 @@ export async function createEmployeeAction(formData: FormData) {
   const rawName = formData.get("name");
   const rawRole = (formData.get("role")?.toString() || "AGENT") as Role;
   const rawEmail = formData.get("email")?.toString().trim();
+  const campaignName = sanitizeText(formData.get("campaign") || formData.get("campaignId"), 100) || "General Floor";
 
   const userVal = validateUsername(rawUsername);
   if (!userVal.valid) {
@@ -197,7 +198,7 @@ export async function createEmployeeAction(formData: FormData) {
       role: newUser.role,
       passwordHash: hashedPassword,
       isActive: true,
-      campaignName: "USA Health Advantage",
+      campaignName,
       createdAt: newUser.createdAt.toISOString(),
     });
 
@@ -223,7 +224,7 @@ export async function createEmployeeAction(formData: FormData) {
       role: rawRole,
       passwordHash: hashedPassword,
       isActive: true,
-      campaignName: "USA Health Advantage",
+      campaignName,
       createdAt: new Date().toISOString(),
     });
 

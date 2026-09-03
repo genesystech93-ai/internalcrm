@@ -25,9 +25,24 @@ async function runClientTests() {
     }
   };
 
-  // 1. Verify Seed Clients in Directory
+  // 1. Verify Client Registration & Directory
+  saveInMemoryClient({
+    name: "Apex Healthcare Buyers LLC",
+    contactPerson: "David Miller",
+    email: "dmiller@apexhealthcare.com",
+    defaultNetTerms: "NET_14",
+    isActive: true,
+  });
+  saveInMemoryClient({
+    name: "MediCare Direct Group",
+    contactPerson: "Elena Rostova",
+    email: "elena@medicaredirect.com",
+    defaultNetTerms: "NET_7",
+    isActive: true,
+  });
+
   const clients = getInMemoryClients();
-  assert(clients.length >= 4, `Initial client directory has ${clients.length} seed clients`);
+  assert(clients.length >= 2, `Client directory has registered clients`);
 
   const apexClient = clients.find((c) => c.name.includes("Apex Healthcare"));
   assert(!!apexClient, "Apex Healthcare Buyers LLC exists in directory");

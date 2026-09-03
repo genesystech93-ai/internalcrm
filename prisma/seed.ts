@@ -44,7 +44,7 @@ async function main() {
     update: {},
     create: {
       username: "agent",
-      name: "Sarah Connor",
+      name: "Frontline Agent",
       email: "agent@genesoft.com",
       password: agentPasswordHash,
       role: Role.AGENT,

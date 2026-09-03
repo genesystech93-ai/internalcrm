@@ -4,17 +4,12 @@ import React, { useActionState, useState } from "react";
 import { loginAction } from "@/app/actions/auth";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Lock, User, ArrowRight, ShieldCheck, UserCheck, Sparkles } from "lucide-react";
+import { Lock, User, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(loginAction, null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-
-  const fillCredentials = (userLogin: string, userPass: string) => {
-    setUsername(userLogin);
-    setPassword(userPass);
-  };
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 relative">
@@ -97,34 +92,6 @@ export default function LoginPage() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick Test Credentials (Development Only — stripped from production builds) */}
-          {process.env.NODE_ENV !== "production" && (
-          <div className="mt-8 pt-6 border-t border-slate-200/60 dark:border-slate-800">
-            <div className="flex items-center justify-center gap-1 text-xs font-semibold text-[#64748B] dark:text-[#94A3B8] mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-[#F97316]" />
-              <span>Dev-Only Test Accounts:</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => fillCredentials("admin", "Admin@123")}
-                className="liquid-glass-button-secondary py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-[#F97316]" />
-                <span>Admin (`admin`)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => fillCredentials("agent", "Agent@123")}
-                className="liquid-glass-button-secondary py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-[#10B981]" />
-                <span>Agent (`agent`)</span>
-              </button>
-            </div>
-          </div>
-          )}
         </div>
 
         {/* Footer info */}

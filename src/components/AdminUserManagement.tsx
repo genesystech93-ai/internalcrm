@@ -9,6 +9,7 @@ import {
   adminChangePasswordAction,
   UserManagementItem,
 } from "@/app/actions/admin-users";
+import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
 import {
   KeyRound,
   ShieldAlert,
@@ -40,15 +41,23 @@ export function AdminUserManagement() {
   const [addRole, setAddRole] = useState<Role>("AGENT");
   const [addEmail, setAddEmail] = useState("");
   const [addPassword, setAddPassword] = useState("");
-  const [addCampaign, setAddCampaign] = useState("USA Health Advantage");
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
+  const [addCampaign, setAddCampaign] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [notification, setNotification] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const data = await getAdminUsersAction();
+      const [data, campList] = await Promise.all([
+        getAdminUsersAction(),
+        getCampaignsAction(),
+      ]);
       setUsers(data);
+      setCampaigns(campList);
+      if (campList.length > 0 && !addCampaign) {
+        setAddCampaign(campList[0].name);
+      }
     } catch {
       // Fallback
     }
@@ -284,7 +293,7 @@ export function AdminUserManagement() {
                   </td>
 
                   <td className="py-3 px-3 text-[#475569] dark:text-[#94A3B8] font-medium">
-                    {u.campaignName || "USA Health Advantage"}
+                    {u.campaignName || "General Floor"}
                   </td>
 
                   <td className="py-3 px-3">
@@ -434,8 +443,15 @@ export function AdminUserManagement() {
                   onChange={(e) => setAddCampaign(e.target.value)}
                   className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-semibold focus:outline-none"
                 >
-                  <option value="USA Health Advantage">USA Health Advantage</option>
-                  <option value="Medicare Advantage Plus">Medicare Advantage Plus</option>
+                  {campaigns.length === 0 ? (
+                    <option value="General Floor">General Floor</option>
+                  ) : (
+                    campaigns.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 

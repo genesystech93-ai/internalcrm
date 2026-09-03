@@ -34,32 +34,7 @@ export interface AnalyticsData {
   leaderboard: Array<{ agentName: string; username: string; approvedLeads: number; totalEarnings: number }>;
 }
 
-const configuredCampaigns: CampaignItem[] = [
-  {
-    id: "camp-health-1",
-    name: "USA Health Advantage",
-    vertical: "Healthcare",
-    shiftStartTime: "19:00",
-    shiftEndTime: "04:00",
-    lateGraceMinutes: 15,
-    commissionPerLead: 15.0,
-    isActive: true,
-    totalLeads: 0,
-    approvedLeads: 0,
-  },
-  {
-    id: "camp-medicare-1",
-    name: "Medicare Advantage Plus",
-    vertical: "Insurance",
-    shiftStartTime: "20:00",
-    shiftEndTime: "05:00",
-    lateGraceMinutes: 15,
-    commissionPerLead: 20.0,
-    isActive: true,
-    totalLeads: 0,
-    approvedLeads: 0,
-  },
-];
+const configuredCampaigns: CampaignItem[] = [];
 
 export async function getCampaignsAction(): Promise<CampaignItem[]> {
   try {
@@ -70,20 +45,18 @@ export async function getCampaignsAction(): Promise<CampaignItem[]> {
       orderBy: { createdAt: "asc" },
     });
 
-    if (list.length > 0) {
-      return list.map((c) => ({
-        id: c.id,
-        name: c.name,
-        vertical: c.vertical,
-        shiftStartTime: c.shiftStartTime,
-        shiftEndTime: c.shiftEndTime,
-        lateGraceMinutes: c.lateGraceMinutes,
-        commissionPerLead: Number(c.commissionPerLead),
-        isActive: c.isActive,
-        totalLeads: c.leads.length,
-        approvedLeads: c.leads.filter((l) => l.status === "APPROVED").length,
-      }));
-    }
+    return list.map((c) => ({
+      id: c.id,
+      name: c.name,
+      vertical: c.vertical,
+      shiftStartTime: c.shiftStartTime,
+      shiftEndTime: c.shiftEndTime,
+      lateGraceMinutes: c.lateGraceMinutes,
+      commissionPerLead: Number(c.commissionPerLead),
+      isActive: c.isActive,
+      totalLeads: c.leads.length,
+      approvedLeads: c.leads.filter((l) => l.status === "APPROVED").length,
+    }));
   } catch {
     // Database offline fallback
   }
@@ -207,52 +180,50 @@ export async function getOperationalAnalyticsAction(): Promise<AnalyticsData> {
       }),
     ]);
 
-    if (leads.length > 0) {
-      const total = leads.length;
-      const approved = leads.filter((l) => l.status === "APPROVED").length;
-      const rejected = leads.filter((l) => l.status === "REJECTED").length;
-      const callbacks = leads.filter((l) => l.status === "CALL_BACK").length;
-      const uploaded = leads.filter((l) => l.status === "UPLOADED").length;
-      const pending = leads.filter((l) => l.status === "PENDING_VERIFICATION").length;
-      const voicemail = leads.filter((l) => l.status === "VOICEMAIL").length;
+    const total = leads.length;
+    const approved = leads.filter((l) => l.status === "APPROVED").length;
+    const rejected = leads.filter((l) => l.status === "REJECTED").length;
+    const callbacks = leads.filter((l) => l.status === "CALL_BACK").length;
+    const uploaded = leads.filter((l) => l.status === "UPLOADED").length;
+    const pending = leads.filter((l) => l.status === "PENDING_VERIFICATION").length;
+    const voicemail = leads.filter((l) => l.status === "VOICEMAIL").length;
 
-      const totalPaid = earnings
-        .filter((e) => e.status === "ACCRUED" || e.status === "PAID")
-        .reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalPaid = earnings
+      .filter((e) => e.status === "ACCRUED" || e.status === "PAID")
+      .reduce((sum, e) => sum + Number(e.amount), 0);
 
-      // Source breakdown
-      const sources = ["DIALER", "MANUAL_DIAL", "REFERENCE", "CUSTOM"];
-      const sourceBreakdown = sources.map((s) => {
-        const count = leads.filter((l) => l.source === s).length;
-        return {
-          source: s,
-          count,
-          percentage: total > 0 ? Math.round((count / total) * 100) : 0,
-        };
-      });
-
-      // Leaderboard
-      const leaderboard = agents.map((a) => ({
-        agentName: a.name,
-        username: a.username,
-        approvedLeads: a.leads.length,
-        totalEarnings: a.incentiveEarnings.reduce((acc, curr) => acc + Number(curr.amount), 0),
-      }));
-
+    // Source breakdown
+    const sources = ["DIALER", "MANUAL_DIAL", "REFERENCE", "CUSTOM"];
+    const sourceBreakdown = sources.map((s) => {
+      const count = leads.filter((l) => l.source === s).length;
       return {
-        totalLeads: total,
-        approvedCount: approved,
-        rejectedCount: rejected,
-        callbackCount: callbacks,
-        uploadedCount: uploaded,
-        pendingCount: pending,
-        voicemailCount: voicemail,
-        totalCommissionPaid: totalPaid,
-        conversionRate: total > 0 ? Math.round((approved / total) * 100) : 0,
-        sourceBreakdown,
-        leaderboard,
+        source: s,
+        count,
+        percentage: total > 0 ? Math.round((count / total) * 100) : 0,
       };
-    }
+    });
+
+    // Leaderboard
+    const leaderboard = agents.map((a) => ({
+      agentName: a.name,
+      username: a.username,
+      approvedLeads: a.leads.length,
+      totalEarnings: a.incentiveEarnings.reduce((acc, curr) => acc + Number(curr.amount), 0),
+    }));
+
+    return {
+      totalLeads: total,
+      approvedCount: approved,
+      rejectedCount: rejected,
+      callbackCount: callbacks,
+      uploadedCount: uploaded,
+      pendingCount: pending,
+      voicemailCount: voicemail,
+      totalCommissionPaid: totalPaid,
+      conversionRate: total > 0 ? Math.round((approved / total) * 100) : 0,
+      sourceBreakdown,
+      leaderboard,
+    };
   } catch {
     // Database offline fallback
   }

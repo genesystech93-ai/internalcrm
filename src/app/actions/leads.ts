@@ -58,136 +58,11 @@ export interface CustomStatusItem {
   category: string;
 }
 
-// In-memory dynamic leads store for offline development
+// In-memory dynamic leads store for offline development (starts clean)
 const devLeads: LeadItem[] = [];
-const devCustomStatuses: CustomStatusItem[] = [
-  { id: "cs-1", name: "Follow-up Needed", colorHex: "#F59E0B", category: "ACTIVE" },
-  { id: "cs-2", name: "Escalated to Supervisor", colorHex: "#EC4899", category: "ACTIVE" },
-];
-
-function seedDevLeadsIfEmpty() {
-  if (devLeads.length > 0) return;
-  const now = new Date();
-  
-  // Lead 1: Submitted to Apex Healthcare on Net 14 (submitted 4 days ago -> 10 days left)
-  const sub1 = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000);
-  const exp1 = new Date(sub1.getTime() + 14 * 24 * 60 * 60 * 1000);
-  const sla1 = computeApprovalSLA(exp1);
-
-  devLeads.push({
-    id: "lead-dev-1",
-    customerName: "Robert Johnson",
-    dob: "1968-04-12",
-    mobile: "3125550198",
-    address: "742 Evergreen Terrace, Springfield, IL",
-    email: "robert.j@example.com",
-    campaignId: "camp-health-1",
-    campaignName: "USA Health Advantage",
-    source: "DIALER" as LeadSource,
-    closerName: "Alex Morgan",
-    status: "UPLOADED" as LeadStatus,
-    callBackTime: null,
-    rejectionReason: null,
-    agentId: "agent-sarah-uuid",
-    agentName: "Sarah Connor",
-    agentUsername: "agent",
-    notes: "Medicare Part A & B verified. All initial intake forms collected.",
-    approvedAt: null,
-    createdAt: sub1.toISOString(),
-    clientId: "client-apex-health",
-    clientName: "Apex Healthcare Buyers LLC",
-    clientNetTerms: "NET_14",
-    clientSubmittedAt: sub1.toISOString(),
-    expectedApprovalDate: exp1.toISOString(),
-    daysRemaining: sla1.daysRemaining,
-    isOverdue: sla1.isOverdue,
-    slaLabel: sla1.statusLabel,
-    clientApprovalStatus: "PENDING",
-    history: [
-      {
-        id: "hist-1",
-        fromStatus: "UPLOADED" as LeadStatus,
-        toStatus: "UPLOADED" as LeadStatus,
-        changedByName: "Genesoft Administrator",
-        reason: "Submitted to Apex Healthcare Buyers LLC on Net 14 terms.",
-        createdAt: sub1.toISOString(),
-      },
-    ],
-  });
-
-  // Lead 2: Submitted to MediCare Direct on Net 7 (submitted 5 days ago -> 2 days left / Due Soon)
-  const sub2 = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
-  const exp2 = new Date(sub2.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const sla2 = computeApprovalSLA(exp2);
-
-  devLeads.push({
-    id: "lead-dev-2",
-    customerName: "Amanda Clark",
-    dob: "1972-09-24",
-    mobile: "2145550187",
-    address: "108 Oakridge Blvd, Dallas, TX",
-    email: "amanda.clark@example.com",
-    campaignId: "camp-health-1",
-    campaignName: "USA Health Advantage",
-    source: "MANUAL_DIAL" as LeadSource,
-    closerName: "Alex Morgan",
-    status: "PENDING_VERIFICATION" as LeadStatus,
-    callBackTime: null,
-    rejectionReason: null,
-    agentId: "agent-sarah-uuid",
-    agentName: "Sarah Connor",
-    agentUsername: "agent",
-    notes: "Document intake verified. Client underwriting in final queue.",
-    approvedAt: null,
-    createdAt: sub2.toISOString(),
-    clientId: "client-medicare-direct",
-    clientName: "MediCare Direct Group",
-    clientNetTerms: "NET_7",
-    clientSubmittedAt: sub2.toISOString(),
-    expectedApprovalDate: exp2.toISOString(),
-    daysRemaining: sla2.daysRemaining,
-    isOverdue: sla2.isOverdue,
-    slaLabel: sla2.statusLabel,
-    clientApprovalStatus: "PENDING",
-    history: [
-      {
-        id: "hist-2",
-        fromStatus: "UPLOADED" as LeadStatus,
-        toStatus: "PENDING_VERIFICATION" as LeadStatus,
-        changedByName: "Genesoft Administrator",
-        reason: "Submitted to MediCare Direct Group on Net 7 terms.",
-        createdAt: sub2.toISOString(),
-      },
-    ],
-  });
-
-  // Lead 3: Unsubmitted Lead (Ready for Admin to select Client)
-  devLeads.push({
-    id: "lead-dev-3",
-    customerName: "Marcus Brody",
-    dob: "1980-11-03",
-    mobile: "4155550143",
-    address: "550 Market Street, San Francisco, CA",
-    email: "m.brody@example.com",
-    campaignId: "camp-health-1",
-    campaignName: "USA Health Advantage",
-    source: "REFERENCE" as LeadSource,
-    closerName: "Alex Morgan",
-    status: "UPLOADED" as LeadStatus,
-    callBackTime: null,
-    rejectionReason: null,
-    agentId: "agent-sarah-uuid",
-    agentName: "Sarah Connor",
-    agentUsername: "agent",
-    notes: "Transferred from dialer queue. Awaiting Client Selection & Submission.",
-    approvedAt: null,
-    createdAt: now.toISOString(),
-    history: [],
-  });
-}
+const devCustomStatuses: CustomStatusItem[] = [];
 
 export async function getDevLeads(): Promise<LeadItem[]> {
-  seedDevLeadsIfEmpty();
   return devLeads;
 }
 
@@ -307,7 +182,7 @@ export async function createLeadAction(formData: FormData) {
       };
     }
 
-    const campaignName = campaignId === "camp-medicare-1" ? "Medicare Advantage Plus" : "USA Health Advantage";
+    const campaignName = campaignId || "General Floor";
     const newLead: LeadItem = {
       id: `dev-lead-${Date.now()}`,
       customerName,
@@ -387,66 +262,63 @@ export async function getLeadsAction(params?: { campaignId?: string; status?: st
       orderBy: { createdAt: "desc" },
     });
 
-    if (leads.length > 0) {
-      return leads.map((l: any) => {
-        let daysRemaining: number | null = null;
-        let isOverdue: boolean = false;
-        let slaLabel: string | null = null;
+    return leads.map((l: any) => {
+      let daysRemaining: number | null = null;
+      let isOverdue: boolean = false;
+      let slaLabel: string | null = null;
 
-        if (l.expectedApprovalDate) {
-          const sla = computeApprovalSLA(l.expectedApprovalDate);
-          daysRemaining = sla.daysRemaining;
-          isOverdue = sla.isOverdue;
-          slaLabel = sla.statusLabel;
-        }
+      if (l.expectedApprovalDate) {
+        const sla = computeApprovalSLA(l.expectedApprovalDate);
+        daysRemaining = sla.daysRemaining;
+        isOverdue = sla.isOverdue;
+        slaLabel = sla.statusLabel;
+      }
 
-        return {
-          id: l.id,
-          customerName: l.customerName,
-          dob: l.dob.toISOString().split("T")[0],
-          mobile: l.mobile,
-          address: l.address,
-          email: l.email,
-          campaignId: l.campaignId,
-          campaignName: l.campaign.name,
-          source: l.source,
-          closerName: l.closerName,
-          status: l.status,
-          callBackTime: l.callBackTime ? l.callBackTime.toISOString() : null,
-          rejectionReason: l.rejectionReason,
-          agentId: l.agentId,
-          agentName: l.agent.name,
-          agentUsername: l.agent.username,
-          notes: l.notes,
-          approvedAt: l.approvedAt ? l.approvedAt.toISOString() : null,
-          createdAt: l.createdAt.toISOString(),
-          clientId: l.clientId,
-          clientName: l.client ? l.client.name : null,
-          clientNetTerms: l.clientNetTerms,
-          clientSubmittedAt: l.clientSubmittedAt ? l.clientSubmittedAt.toISOString() : null,
-          expectedApprovalDate: l.expectedApprovalDate ? l.expectedApprovalDate.toISOString() : null,
-          daysRemaining,
-          isOverdue,
-          slaLabel,
-          clientApprovalStatus: l.clientApprovalStatus,
-          clientDecisionReason: l.clientDecisionReason,
-          history: l.statusHistory.map((h: any) => ({
-            id: h.id,
-            fromStatus: h.previousStatus as LeadStatus,
-            toStatus: h.newStatus as LeadStatus,
-            changedByName: h.changedBy.name,
-            reason: h.reason,
-            createdAt: h.createdAt.toISOString(),
-          })),
-        };
-      });
-    }
+      return {
+        id: l.id,
+        customerName: l.customerName,
+        dob: l.dob.toISOString().split("T")[0],
+        mobile: l.mobile,
+        address: l.address,
+        email: l.email,
+        campaignId: l.campaignId,
+        campaignName: l.campaign.name,
+        source: l.source,
+        closerName: l.closerName,
+        status: l.status,
+        callBackTime: l.callBackTime ? l.callBackTime.toISOString() : null,
+        rejectionReason: l.rejectionReason,
+        agentId: l.agentId,
+        agentName: l.agent.name,
+        agentUsername: l.agent.username,
+        notes: l.notes,
+        approvedAt: l.approvedAt ? l.approvedAt.toISOString() : null,
+        createdAt: l.createdAt.toISOString(),
+        clientId: l.clientId,
+        clientName: l.client ? l.client.name : null,
+        clientNetTerms: l.clientNetTerms,
+        clientSubmittedAt: l.clientSubmittedAt ? l.clientSubmittedAt.toISOString() : null,
+        expectedApprovalDate: l.expectedApprovalDate ? l.expectedApprovalDate.toISOString() : null,
+        daysRemaining,
+        isOverdue,
+        slaLabel,
+        clientApprovalStatus: l.clientApprovalStatus,
+        clientDecisionReason: l.clientDecisionReason,
+        history: l.statusHistory.map((h: any) => ({
+          id: h.id,
+          fromStatus: h.previousStatus as LeadStatus,
+          toStatus: h.newStatus as LeadStatus,
+          changedByName: h.changedBy.name,
+          reason: h.reason,
+          createdAt: h.createdAt.toISOString(),
+        })),
+      };
+    });
   } catch {
     // Database offline fallback
   }
 
   // Filter in-memory dev leads
-  seedDevLeadsIfEmpty();
   for (const l of devLeads) {
     if (l.expectedApprovalDate) {
       const sla = computeApprovalSLA(l.expectedApprovalDate);

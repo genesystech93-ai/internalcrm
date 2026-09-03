@@ -6,6 +6,7 @@ import { LeaveManagement } from "@/components/LeaveManagement";
 import { getSalaryProfilesAction, updateSalaryProfileAction, SalaryProfileItem } from "@/app/actions/salary";
 import { getIncentiveRulesAction, createIncentiveRuleAction, IncentiveRuleItem } from "@/app/actions/incentives";
 import { getTeamsAction, createTeamAction, TeamItem } from "@/app/actions/teams";
+import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
 import { Users, Clock, Calendar, DollarSign, Award, Plus, Edit2, Check, AlertCircle } from "lucide-react";
 
 export function AdminWorkforceManager() {
@@ -14,35 +15,41 @@ export function AdminWorkforceManager() {
   // Salary Profiles state
   const [salaries, setSalaries] = useState<SalaryProfileItem[]>([]);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [newSalaryVal, setNewSalaryVal] = useState<number>(2500);
+  const [newSalaryVal, setNewSalaryVal] = useState<number>(25000);
 
   // Incentive Rules state
   const [rules, setRules] = useState<IncentiveRuleItem[]>([]);
   const [showRuleModal, setShowRuleModal] = useState(false);
-  const [campaignId, setCampaignId] = useState("camp-health-1");
-  const [amountPerLead, setAmountPerLead] = useState("15.00");
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
+  const [campaignId, setCampaignId] = useState("");
+  const [amountPerLead, setAmountPerLead] = useState("500.00");
   const [minLeadsTarget, setMinLeadsTarget] = useState("10");
-  const [teamBonusPool, setTeamBonusPool] = useState("500.00");
+  const [teamBonusPool, setTeamBonusPool] = useState("10000.00");
 
   // Teams state
   const [teams, setTeams] = useState<TeamItem[]>([]);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamTarget, setNewTeamTarget] = useState("200");
-  const [newTeamPool, setNewTeamPool] = useState("500");
+  const [newTeamPool, setNewTeamPool] = useState("10000");
 
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const loadData = async () => {
     try {
-      const [salList, ruleList, teamList] = await Promise.all([
+      const [salList, ruleList, teamList, campList] = await Promise.all([
         getSalaryProfilesAction(),
         getIncentiveRulesAction(),
         getTeamsAction(),
+        getCampaignsAction(),
       ]);
       setSalaries(salList);
       setRules(ruleList);
       setTeams(teamList);
+      setCampaigns(campList);
+      if (campList.length > 0 && !campaignId) {
+        setCampaignId(campList[0].id);
+      }
     } catch {
       // Fallback
     }
@@ -463,15 +470,22 @@ export function AdminWorkforceManager() {
                       onChange={(e) => setCampaignId(e.target.value)}
                       className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
                     >
-                      <option value="camp-health-1">USA Health Advantage</option>
-                      <option value="camp-medicare-1">Medicare Advantage Plus</option>
+                      {campaigns.length === 0 ? (
+                        <option value="">No campaigns available</option>
+                      ) : (
+                        campaigns.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                        Commission / Lead ($)
+                        Commission / Lead (₹)
                       </label>
                       <input
                         type="number"

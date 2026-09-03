@@ -149,11 +149,15 @@ export function ClientSubmissionModal({
               }}
               className="w-full p-3 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/30"
             >
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} (Default: {c.defaultNetTerms.replace("_", " ")})
-                </option>
-              ))}
+              {clients.length === 0 ? (
+                <option value="">No registered clients. Please add a client first.</option>
+              ) : (
+                clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} (Default: {c.defaultNetTerms.replace("_", " ")})
+                  </option>
+                ))
+              )}
             </select>
             {selectedClient?.contactPerson && (
               <p className="text-[11px] text-slate-400 mt-1 pl-1">

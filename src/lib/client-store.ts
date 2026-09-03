@@ -14,66 +14,8 @@ export interface StoredClient {
   updatedAt: string;
 }
 
-// In-memory clients registry
+// In-memory clients registry (starts clean)
 const inMemoryClients: Map<string, StoredClient> = new Map();
-
-function initializeSeedClients() {
-  if (inMemoryClients.size > 0) return;
-
-  const now = new Date().toISOString();
-
-  inMemoryClients.set("client-apex-health", {
-    id: "client-apex-health",
-    name: "Apex Healthcare Buyers LLC",
-    contactPerson: "David Miller (Director of Acquisitions)",
-    email: "dmiller@apexhealthcare.com",
-    defaultNetTerms: "NET_14",
-    isActive: true,
-    totalLeadsCount: 18,
-    pendingApprovalsCount: 5,
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  inMemoryClients.set("client-medicare-direct", {
-    id: "client-medicare-direct",
-    name: "MediCare Direct Group",
-    contactPerson: "Elena Rostova (Compliance & Intake)",
-    email: "elena@medicaredirect.com",
-    defaultNetTerms: "NET_7",
-    isActive: true,
-    totalLeadsCount: 24,
-    pendingApprovalsCount: 3,
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  inMemoryClients.set("client-careplus-network", {
-    id: "client-careplus-network",
-    name: "CarePlus Global Network",
-    contactPerson: "Marcus Vance (VP of Operations)",
-    email: "marcus.vance@careplusglobal.com",
-    defaultNetTerms: "NET_21",
-    isActive: true,
-    totalLeadsCount: 12,
-    pendingApprovalsCount: 4,
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  inMemoryClients.set("client-horizon-prime", {
-    id: "client-horizon-prime",
-    name: "Horizon Prime Insurance LLC",
-    contactPerson: "Rachel Adams (Underwriting)",
-    email: "radams@horizonprime.com",
-    defaultNetTerms: "NET_30",
-    isActive: true,
-    totalLeadsCount: 31,
-    pendingApprovalsCount: 8,
-    createdAt: now,
-    updatedAt: now,
-  });
-}
 
 // Convert NetTerms to number of calendar days
 export function netTermsToDays(terms: NetTermsType): number {
@@ -144,17 +86,14 @@ export function computeApprovalSLA(expectedApprovalDate: Date | string): {
 
 // In-memory client accessors
 export function getInMemoryClients(): StoredClient[] {
-  initializeSeedClients();
   return Array.from(inMemoryClients.values()).filter((c) => c.isActive);
 }
 
 export function getInMemoryClientById(id: string): StoredClient | undefined {
-  initializeSeedClients();
   return inMemoryClients.get(id);
 }
 
 export function saveInMemoryClient(client: Omit<StoredClient, "id" | "createdAt" | "updatedAt">): StoredClient {
-  initializeSeedClients();
   const id = `client-${Date.now()}`;
   const now = new Date().toISOString();
   const newClient: StoredClient = {

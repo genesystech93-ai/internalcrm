@@ -25,9 +25,8 @@ async function runChatTests() {
     }
   };
 
-  // 1. Check Initial Conversations for Agent Sarah
   const sarahConvs = getInMemoryConversations("agent-sarah-uuid");
-  assert(sarahConvs.length >= 2, "Agent Sarah has seeded conversations (General Floor, Direct Chats)");
+  assert(sarahConvs.length >= 1, "Agent Sarah has access to General Floor channel");
 
   const generalConv = sarahConvs.find((c) => c.type === "GENERAL");
   assert(!!generalConv, "#General Floor conversation exists");

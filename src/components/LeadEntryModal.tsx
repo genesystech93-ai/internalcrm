@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createLeadAction, getCustomStatusesAction, CustomStatusItem } from "@/app/actions/leads";
+import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
 import { LeadSource, LeadStatus } from "@prisma/client";
 import { PlusCircle, X, Calendar, Phone, Mail, MapPin, User, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
 
@@ -17,11 +18,11 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
 
   // Form Fields (11 Fields)
   const [customerName, setCustomerName] = useState("");
-  const [dob, setDob] = useState("1985-06-15");
+  const [dob, setDob] = useState("");
   const [mobile, setMobile] = useState("");
   const [address, setAddress] = useState("");
   const [email, setEmail] = useState("");
-  const [campaignId, setCampaignId] = useState("camp-health-1");
+  const [campaignId, setCampaignId] = useState("");
   const [source, setSource] = useState<LeadSource>("DIALER");
   const [closerName, setCloserName] = useState("");
   const [status, setStatus] = useState<LeadStatus>("UPLOADED");
@@ -29,9 +30,14 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
   const [notes, setNotes] = useState("");
 
   const [customStatuses, setCustomStatuses] = useState<CustomStatusItem[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
 
   useEffect(() => {
     getCustomStatusesAction().then((res) => setCustomStatuses(res));
+    getCampaignsAction().then((res) => {
+      setCampaigns(res);
+      if (res.length > 0) setCampaignId(res[0].id);
+    });
   }, []);
 
   // Keyboard shortcut Ctrl+N and Escape listener
@@ -261,12 +267,20 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
                 6. Campaign *
               </label>
               <select
+                required
                 value={campaignId}
                 onChange={(e) => setCampaignId(e.target.value)}
                 className="liquid-glass-input w-full px-3 py-2.5 rounded-xl text-xs font-semibold focus:outline-none"
               >
-                <option value="camp-health-1">USA Health Advantage</option>
-                <option value="camp-medicare-1">Medicare Advantage Plus</option>
+                {campaigns.length === 0 ? (
+                  <option value="">No campaigns available</option>
+                ) : (
+                  campaigns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.vertical ? `(${c.vertical})` : ""}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 

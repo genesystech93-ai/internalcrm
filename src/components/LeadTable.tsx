@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { LeadItem, adminDecisionAction } from "@/app/actions/leads";
+import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
 import { LeadStatus } from "@prisma/client";
 import { AdminDecisionModal } from "@/components/AdminDecisionModal";
 import { calculateRowHeight } from "@/lib/pretext-measure";
@@ -19,6 +20,11 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
   const [search, setSearch] = useState("");
   const [selectedCampaign, setSelectedCampaign] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
+
+  useEffect(() => {
+    getCampaignsAction().then((res) => setCampaigns(res));
+  }, []);
 
   const [inspectLead, setInspectLead] = useState<LeadItem | null>(null);
   const [clientSubmitLead, setClientSubmitLead] = useState<LeadItem | null>(null);
@@ -121,8 +127,11 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
             className="liquid-glass-input px-3 py-2 rounded-xl text-xs focus:outline-none font-semibold"
           >
             <option value="ALL">All Campaigns</option>
-            <option value="camp-health-1">USA Health Advantage</option>
-            <option value="camp-medicare-1">Medicare Advantage Plus</option>
+            {campaigns.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
           </select>
 
           <select

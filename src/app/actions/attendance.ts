@@ -145,7 +145,7 @@ export async function loginShiftAction(campaignId?: string): Promise<AttendanceR
     const newDev: DevAttendance = {
       id: `dev-att-${Date.now()}`,
       userId: session.userId,
-      campaignId: campaignId || "camp-health-1",
+      campaignId: campaignId || null,
       shiftDate,
       loginAt: now,
       logoutAt: null,
@@ -431,7 +431,7 @@ export async function getActiveShiftStatusAction() {
       loginAt: devAtt.loginAt.toISOString(),
       logoutAt: devAtt.logoutAt ? devAtt.logoutAt.toISOString() : null,
       status: devAtt.status,
-      campaignName: "USA Health Advantage",
+      campaignName: devAtt.campaignId || "General Floor",
       shiftStartTime: "19:00",
       shiftEndTime: "04:00",
       isLoggedOut: !!devAtt.logoutAt,
@@ -473,28 +473,26 @@ export async function getFloorAttendanceAction() {
       },
     });
 
-    if (list.length > 0) {
-      return list.map((a) => {
-        const activeBreak = a.breaks.find((b) => b.endTime === null);
-        const totalBreakMins = a.breaks.reduce((sum, b) => sum + (b.durationMinutes || 0), 0);
-        return {
-          id: a.id,
-          username: a.user.username,
-          name: a.user.name,
-          role: a.user.role,
-          campaignName: a.campaign?.name || "General Floor",
-          shiftStartTime: a.campaign?.shiftStartTime || "19:00",
-          shiftEndTime: a.campaign?.shiftEndTime || "04:00",
-          loginAt: a.loginAt.toISOString(),
-          logoutAt: a.logoutAt ? a.logoutAt.toISOString() : null,
-          status: a.status,
-          isOnBreak: !!activeBreak,
-          activeBreakType: activeBreak ? activeBreak.breakType : null,
-          totalBreakMinutes: totalBreakMins,
-          netProductiveMinutes: a.totalMinutes,
-        };
-      });
-    }
+    return list.map((a) => {
+      const activeBreak = a.breaks.find((b) => b.endTime === null);
+      const totalBreakMins = a.breaks.reduce((sum, b) => sum + (b.durationMinutes || 0), 0);
+      return {
+        id: a.id,
+        username: a.user.username,
+        name: a.user.name,
+        role: a.user.role,
+        campaignName: a.campaign?.name || "General Floor",
+        shiftStartTime: a.campaign?.shiftStartTime || "19:00",
+        shiftEndTime: a.campaign?.shiftEndTime || "04:00",
+        loginAt: a.loginAt.toISOString(),
+        logoutAt: a.logoutAt ? a.logoutAt.toISOString() : null,
+        status: a.status,
+        isOnBreak: !!activeBreak,
+        activeBreakType: activeBreak ? activeBreak.breakType : null,
+        totalBreakMinutes: totalBreakMins,
+        netProductiveMinutes: a.totalMinutes,
+      };
+    });
   } catch {
     // Database offline fallback
   }
@@ -509,7 +507,7 @@ export async function getFloorAttendanceAction() {
       username: user.username,
       name: user.name,
       role: user.role,
-      campaignName: "USA Health Advantage",
+      campaignName: a.campaignId || "General Floor",
       shiftStartTime: "19:00",
       shiftEndTime: "04:00",
       loginAt: a.loginAt.toISOString(),

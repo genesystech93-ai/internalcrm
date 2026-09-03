@@ -48,138 +48,23 @@ export interface StaffMember {
 const inMemoryConversations: Map<string, StoredConversation> = new Map();
 const inMemoryMessages: StoredChatMessage[] = [];
 
-// Seed Initial conversations & messages
+// Seed Initial conversations (clean floor room only, zero mock messages)
 function initializeSeedData() {
   if (inMemoryConversations.size > 0) return;
 
-  const now = new Date();
-  const timeMinusMins = (mins: number) => new Date(now.getTime() - mins * 60000).toISOString();
+  const now = new Date().toISOString();
 
-  // 1. General Floor Chat
+  // 1. General Floor Chat room (clean without dummy messages)
   inMemoryConversations.set("conv-general-floor", {
     id: "conv-general-floor",
     type: "GENERAL",
     name: "#General Floor Chat",
     teamId: null,
-    participantIds: ["admin-system-uuid", "agent-sarah-uuid", "closer-alex-uuid"],
-    unreadCounts: {
-      "agent-sarah-uuid": 0,
-      "closer-alex-uuid": 0,
-      "admin-system-uuid": 0,
-    },
+    participantIds: [],
+    unreadCounts: {},
     lastReadAt: {},
-    lastMessage: {
-      content: "Floor Shift is officially active! 🎯 Target for today: 45 verified leads.",
-      senderName: "Genesoft Administrator",
-      createdAt: timeMinusMins(25),
-    },
-    createdAt: timeMinusMins(120),
-    updatedAt: timeMinusMins(25),
-  });
-
-  inMemoryMessages.push({
-    id: "msg-gen-1",
-    conversationId: "conv-general-floor",
-    senderId: "admin-system-uuid",
-    senderName: "Genesoft Administrator",
-    senderRole: "ADMIN" as Role,
-    content: "Welcome team! Please make sure to log your shift before 7:15 PM to avoid LATE grace deductions.",
-    createdAt: timeMinusMins(45),
-  });
-
-  inMemoryMessages.push({
-    id: "msg-gen-2",
-    conversationId: "conv-general-floor",
-    senderId: "closer-alex-uuid",
-    senderName: "Alex Morgan",
-    senderRole: "CLOSER" as Role,
-    content: "Ready on USA Health dialers. Send high-intent warm transfers my way!",
-    createdAt: timeMinusMins(30),
-  });
-
-  inMemoryMessages.push({
-    id: "msg-gen-3",
-    conversationId: "conv-general-floor",
-    senderId: "admin-system-uuid",
-    senderName: "Genesoft Administrator",
-    senderRole: "ADMIN" as Role,
-    content: "Floor Shift is officially active! 🎯 Target for today: 45 verified leads.",
-    createdAt: timeMinusMins(25),
-  });
-
-  // 2. Direct Conversation: Sarah (Agent) <-> Alex (Closer)
-  inMemoryConversations.set("conv-sarah-alex", {
-    id: "conv-sarah-alex",
-    type: "DIRECT",
-    participantIds: ["agent-sarah-uuid", "closer-alex-uuid"],
-    unreadCounts: {
-      "agent-sarah-uuid": 1,
-      "closer-alex-uuid": 0,
-    },
-    lastReadAt: {},
-    lastMessage: {
-      content: "Just reviewed lead Robert Johnson. Ready for callback at 8:15 PM.",
-      senderName: "Alex Morgan",
-      createdAt: timeMinusMins(10),
-    },
-    createdAt: timeMinusMins(60),
-    updatedAt: timeMinusMins(10),
-  });
-
-  inMemoryMessages.push({
-    id: "msg-sa-1",
-    conversationId: "conv-sarah-alex",
-    senderId: "agent-sarah-uuid",
-    senderName: "Sarah Connor",
-    senderRole: "AGENT" as Role,
-    content: "Hey Alex! Can you take a look at customer Robert Johnson? They have Medicare Part A & B verified.",
-    leadId: "lead-sample-1",
-    metadata: {
-      customerName: "Robert Johnson",
-      mobile: "3125550198",
-      campaign: "USA Health Advantage",
-      status: "UPLOADED",
-    },
-    createdAt: timeMinusMins(15),
-  });
-
-  inMemoryMessages.push({
-    id: "msg-sa-2",
-    conversationId: "conv-sarah-alex",
-    senderId: "closer-alex-uuid",
-    senderName: "Alex Morgan",
-    senderRole: "CLOSER" as Role,
-    content: "Just reviewed lead Robert Johnson. Ready for callback at 8:15 PM.",
-    createdAt: timeMinusMins(10),
-  });
-
-  // 3. Direct Conversation: Sarah (Agent) <-> Admin
-  inMemoryConversations.set("conv-sarah-admin", {
-    id: "conv-sarah-admin",
-    type: "DIRECT",
-    participantIds: ["agent-sarah-uuid", "admin-system-uuid"],
-    unreadCounts: {
-      "agent-sarah-uuid": 0,
-      "admin-system-uuid": 0,
-    },
-    lastReadAt: {},
-    lastMessage: {
-      content: "Your commission bonus for reaching Tier 2 milestone has been approved! Great work.",
-      senderName: "Genesoft Administrator",
-      createdAt: timeMinusMins(5),
-    },
-    createdAt: timeMinusMins(50),
-    updatedAt: timeMinusMins(5),
-  });
-
-  inMemoryMessages.push({
-    id: "msg-sadm-1",
-    conversationId: "conv-sarah-admin",
-    senderId: "admin-system-uuid",
-    senderName: "Genesoft Administrator",
-    senderRole: "ADMIN" as Role,
-    content: "Your commission bonus for reaching Tier 2 milestone has been approved! Great work.",
-    createdAt: timeMinusMins(5),
+    createdAt: now,
+    updatedAt: now,
   });
 }
 

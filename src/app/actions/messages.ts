@@ -13,6 +13,7 @@ import {
   StaffMember,
 } from "@/lib/chat-store";
 import { getDevAttendances } from "@/app/actions/attendance";
+import { getDevLeads } from "@/app/actions/leads";
 
 // Safe dynamic database accessor ensuring zero type errors even when IDE language server caches PrismaClient
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -545,16 +546,20 @@ export async function shareLeadToChatAction(params: {
       };
     }
   } catch {
-    // Dev fallback lead details
+    const devLeads = await getDevLeads();
+    const devL = devLeads.find((l) => l.id === params.leadId);
+    if (devL) {
+      leadDetails = {
+        customerName: devL.customerName,
+        mobile: devL.mobile,
+        campaign: devL.campaignName,
+        status: devL.status,
+      };
+    }
   }
 
   if (!leadDetails) {
-    leadDetails = {
-      customerName: "Robert Johnson",
-      mobile: "3125550198",
-      campaign: "USA Health Advantage",
-      status: "UPLOADED",
-    };
+    return { success: false, error: "Lead record could not be found to share." };
   }
 
   const result = await sendMessageAction({

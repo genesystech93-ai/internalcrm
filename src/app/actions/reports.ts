@@ -49,7 +49,7 @@ export async function getEmployeePerformanceReportAction(): Promise<EmployeePerf
 
   try {
     const users = await prisma.user.findMany({
-      where: { role: { in: ["AGENT", "CLOSER"] } },
+      where: { role: { in: ["AGENT", "TL"] } },
       include: {
         team: true,
         leads: true,
@@ -58,38 +58,36 @@ export async function getEmployeePerformanceReportAction(): Promise<EmployeePerf
       },
     });
 
-    if (users.length > 0) {
-      return users.map((u) => {
-        const total = u.leads.length;
-        const approved = u.leads.filter((l) => l.status === "APPROVED").length;
-        const rejected = u.leads.filter((l) => l.status === "REJECTED").length;
-        const callbacks = u.leads.filter((l) => l.status === "CALL_BACK").length;
-        const conversionRate = total > 0 ? Math.round((approved / total) * 100) : 0;
+    return users.map((u) => {
+      const total = u.leads.length;
+      const approved = u.leads.filter((l) => l.status === "APPROVED").length;
+      const rejected = u.leads.filter((l) => l.status === "REJECTED").length;
+      const callbacks = u.leads.filter((l) => l.status === "CALL_BACK").length;
+      const conversionRate = total > 0 ? Math.round((approved / total) * 100) : 0;
 
-        const earned = u.incentiveEarnings
-          .filter((e) => e.status === "ACCRUED" || e.status === "PAID")
-          .reduce((sum, e) => sum + Number(e.amount), 0);
+      const earned = u.incentiveEarnings
+        .filter((e) => e.status === "ACCRUED" || e.status === "PAID")
+        .reduce((sum, e) => sum + Number(e.amount), 0);
 
-        const totalMins = u.attendances.reduce((sum, a) => sum + a.totalMinutes, 0);
-        const lateCount = u.attendances.filter((a) => a.status === "LATE").length;
+      const totalMins = u.attendances.reduce((sum, a) => sum + a.totalMinutes, 0);
+      const lateCount = u.attendances.filter((a) => a.status === "LATE").length;
 
-        return {
-          userId: u.id,
-          name: u.name,
-          username: u.username,
-          role: u.role,
-          teamName: u.team?.name || "General Floor",
-          totalLeads: total,
-          approvedSales: approved,
-          rejectedCount: rejected,
-          callbacksCount: callbacks,
-          conversionRate,
-          earnedCommissions: earned,
-          totalShiftHours: Math.round((totalMins / 60) * 10) / 10,
-          lateArrivals: lateCount,
-        };
-      });
-    }
+      return {
+        userId: u.id,
+        name: u.name,
+        username: u.username,
+        role: u.role,
+        teamName: u.team?.name || "General Floor",
+        totalLeads: total,
+        approvedSales: approved,
+        rejectedCount: rejected,
+        callbacksCount: callbacks,
+        conversionRate,
+        earnedCommissions: earned,
+        totalShiftHours: Math.round((totalMins / 60) * 10) / 10,
+        lateArrivals: lateCount,
+      };
+    });
   } catch {
     // Database offline fallback
   }
