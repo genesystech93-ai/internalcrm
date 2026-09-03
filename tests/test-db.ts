@@ -36,10 +36,10 @@ async function run() {
   // 1. Test Current .env configuration
   const currentOk = await testUrl("Active .env Configuration (DATABASE_URL)", currentEnvUrl);
 
-  if (currentOk) {
-    console.log("\n>>> Active connection string is working perfectly!");
-    return;
-  }
+  // if (currentOk) {
+  //   console.log("\n>>> Active connection string is working perfectly!");
+  //   return;
+  // }
 
   console.log("\n>>> Active connection failed. Testing fallback options...\n");
 
@@ -49,9 +49,9 @@ async function run() {
     "postgresql://postgres.tcdyyznmarfplpaovcdl:SURAJmagar9890@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require"
   );
 
-  // 3. Test Direct Database Host
+  // 3. Direct DB Host (Port 5432)
   await testUrl(
-    "Fallback Option B: Direct DB Host Port 5432",
+    "Fallback Option B: Direct DB Host (Port 5432)",
     "postgresql://postgres:SURAJmagar9890@db.tcdyyznmarfplpaovcdl.supabase.co:5432/postgres?sslmode=require"
   );
 
