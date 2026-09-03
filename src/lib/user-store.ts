@@ -42,20 +42,6 @@ const inMemoryUsers: Map<string, StoredUser> = new Map([
       createdAt: "2026-09-01T00:00:00.000Z",
     },
   ],
-  [
-    "closer",
-    {
-      id: "closer-alex-uuid",
-      username: "closer",
-      passwordHash: "$2b$10$od6CyB6m3FhVBJ60j/U6YecDpbk4MNfAhxbyT2CL5gRo/tux7jAqK",
-      name: "Alex Morgan",
-      role: "CLOSER" as Role,
-      email: "alex.morgan@genesoftinfotech.com",
-      isActive: true,
-      campaignName: "Medicare Advantage Plus",
-      createdAt: "2026-09-01T00:00:00.000Z",
-    },
-  ],
 ]);
 
 export function getStoredUser(username: string): StoredUser | undefined {

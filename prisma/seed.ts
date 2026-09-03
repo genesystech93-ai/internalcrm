@@ -9,7 +9,9 @@ async function main() {
   // Password hashes
   const adminPasswordHash = await bcrypt.hash("Admin@123", 10);
   const agentPasswordHash = await bcrypt.hash("Agent@123", 10);
-  const closerPasswordHash = await bcrypt.hash("Closer@123", 10);
+
+  // Remove any legacy closer account if present
+  await prisma.user.deleteMany({ where: { username: "closer" } });
 
   // 1. Seed Admin User (Username: admin)
   const admin = await prisma.user.upsert({
@@ -51,20 +53,7 @@ async function main() {
     },
   });
 
-  // 4. Seed Closer User (Username: closer)
-  const closer = await prisma.user.upsert({
-    where: { username: "closer" },
-    update: {},
-    create: {
-      username: "closer",
-      name: "Alex Morgan",
-      email: "closer@genesoft.com",
-      password: closerPasswordHash,
-      role: Role.CLOSER,
-      teamId: teamAlpha.id,
-      isActive: true,
-    },
-  });
+
 
   // 5. Seed Campaigns with Configurable Shift Schedules
   const campaignHealth = await prisma.campaign.upsert({
@@ -122,7 +111,6 @@ async function main() {
   console.log({
     admin: admin.username,
     agent: agent.username,
-    closer: closer.username,
     campaigns: [campaignHealth.name, campaignMedicare.name],
   });
 }
