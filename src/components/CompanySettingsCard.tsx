@@ -23,7 +23,7 @@ export function CompanySettingsCard() {
       const data = await getCompanySettingsAction();
       setSettings(data);
       if (data.hasCustomLogo) {
-        setLogoPreview(`/logo.png?v=${Date.now()}`);
+        setLogoPreview(`/api/logo?v=${Date.now()}`);
       } else {
         setLogoPreview(null);
       }

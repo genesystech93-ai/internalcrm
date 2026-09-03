@@ -32,7 +32,7 @@ export function Logo({
       {hasLogoImg ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src="/logo.png"
+          src="/api/logo"
           alt="Genesoft Infotech"
           className={`${currentSize.img} object-contain`}
           onError={() => setHasLogoImg(false)}

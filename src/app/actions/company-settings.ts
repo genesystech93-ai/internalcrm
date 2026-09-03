@@ -3,6 +3,7 @@
 import { getSession } from "@/lib/auth";
 import { sanitizeText, validateEmail } from "@/lib/sanitize";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
 import fs from "fs/promises";
 import path from "path";
 
@@ -19,8 +20,8 @@ export interface CompanySettings {
   logoUrl: string;
 }
 
-// In-memory / persistent config fallback
-let currentSettings: CompanySettings = {
+// Default fallback settings
+const defaultSettings: CompanySettings = {
   companyName: "Genesoft Infotech Private Limited",
   brandName: "Genesoft Infotech",
   tagline: "Enterprise Sales Floor & Campaign Operations CRM",
@@ -30,19 +31,50 @@ let currentSettings: CompanySettings = {
   website: "https://genesoftinfotech.com",
   registrationNumber: "GEN-INF-2026-BPO",
   hasCustomLogo: false,
-  logoUrl: "/logo.png",
+  logoUrl: "/api/logo",
 };
 
 export async function getCompanySettingsAction(): Promise<CompanySettings> {
-  // Check if logo.png exists on filesystem
+  let settings = { ...defaultSettings };
+
+  try {
+    // 1. Fetch persistent company profile from database
+    const profileSetting = await prisma.systemSetting.findUnique({
+      where: { key: "company_profile" },
+    });
+    if (profileSetting && profileSetting.value) {
+      try {
+        const parsed = JSON.parse(profileSetting.value);
+        settings = { ...settings, ...parsed };
+      } catch {
+        // Ignore parse error
+      }
+    }
+
+    // 2. Check if logo exists in database
+    const logoSetting = await prisma.systemSetting.findUnique({
+      where: { key: "company_logo" },
+    });
+    if (logoSetting && logoSetting.value) {
+      settings.hasCustomLogo = true;
+      settings.logoUrl = "/api/logo";
+      return settings;
+    }
+  } catch (err) {
+    console.warn("Could not query database for company settings, checking disk fallback...", err);
+  }
+
+  // 3. Disk fallback check
   try {
     const logoPath = path.join(process.cwd(), "public", "logo.png");
     await fs.access(logoPath);
-    currentSettings.hasCustomLogo = true;
+    settings.hasCustomLogo = true;
+    settings.logoUrl = "/logo.png";
   } catch {
-    currentSettings.hasCustomLogo = false;
+    settings.hasCustomLogo = false;
   }
-  return currentSettings;
+
+  return settings;
 }
 
 export async function updateCompanySettingsAction(formData: FormData) {
@@ -65,17 +97,26 @@ export async function updateCompanySettingsAction(formData: FormData) {
     return { error: "Please provide a valid support email address." };
   }
 
-  currentSettings = {
-    ...currentSettings,
-    companyName: companyName || currentSettings.companyName,
-    brandName: brandName || currentSettings.brandName,
-    tagline: tagline || currentSettings.tagline,
+  const updatedProfile = {
+    companyName: companyName || defaultSettings.companyName,
+    brandName: brandName || defaultSettings.brandName,
+    tagline: tagline || defaultSettings.tagline,
     supportEmail: emailVal.value,
-    phone: phone || currentSettings.phone,
-    headquarters: headquarters || currentSettings.headquarters,
-    website: website || currentSettings.website,
-    registrationNumber: registrationNumber || currentSettings.registrationNumber,
+    phone: phone || defaultSettings.phone,
+    headquarters: headquarters || defaultSettings.headquarters,
+    website: website || defaultSettings.website,
+    registrationNumber: registrationNumber || defaultSettings.registrationNumber,
   };
+
+  try {
+    await prisma.systemSetting.upsert({
+      where: { key: "company_profile" },
+      update: { value: JSON.stringify(updatedProfile) },
+      create: { key: "company_profile", value: JSON.stringify(updatedProfile) },
+    });
+  } catch (err) {
+    console.error("Failed to persist company profile to database:", err);
+  }
 
   revalidatePath("/admin");
   revalidatePath("/dashboard");
@@ -114,15 +155,30 @@ export async function uploadCompanyLogoAction(formData: FormData) {
     if (file.type === "image/svg+xml") {
       const svgText = buffer.toString("utf-8");
       if (/<script\b|javascript:|onload=|onerror=|onclick=/i.test(svgText)) {
-        return { error: "Security Alert: Uploaded SVG contains embedded scripts or event handlers. Please upload a clean image." };
+        return {
+          error: "Security Alert: Uploaded SVG contains embedded scripts or event handlers. Please upload a clean image.",
+        };
       }
     }
 
-    const publicDir = path.join(process.cwd(), "public");
-    const logoFilePath = path.join(publicDir, "logo.png");
+    // 1. Convert to Base64 data URL for database storage (persistent across reboots and works on all cloud hosts)
+    const base64Data = buffer.toString("base64");
+    const dataUrl = `data:${file.type};base64,${base64Data}`;
 
-    await fs.writeFile(logoFilePath, buffer);
-    currentSettings.hasCustomLogo = true;
+    await prisma.systemSetting.upsert({
+      where: { key: "company_logo" },
+      update: { value: dataUrl },
+      create: { key: "company_logo", value: dataUrl },
+    });
+
+    // 2. Best-effort: also write to public/logo.png if filesystem permissions allow
+    try {
+      const publicDir = path.join(process.cwd(), "public");
+      const logoFilePath = path.join(publicDir, "logo.png");
+      await fs.writeFile(logoFilePath, buffer);
+    } catch {
+      // Ignored: Database storage is primary
+    }
 
     revalidatePath("/admin");
     revalidatePath("/dashboard");
@@ -130,8 +186,8 @@ export async function uploadCompanyLogoAction(formData: FormData) {
 
     return { success: true, message: "Official Company Logo uploaded and applied across CRM!" };
   } catch (err: unknown) {
-    console.error("Failed to write logo file:", err);
-    return { error: "Failed to save logo to disk. Please check server permissions." };
+    console.error("Failed to save logo to database:", err);
+    return { error: "Failed to save logo. Please verify database connection." };
   }
 }
 
@@ -142,17 +198,25 @@ export async function removeCompanyLogoAction() {
   }
 
   try {
-    const logoFilePath = path.join(process.cwd(), "public", "logo.png");
-    await fs.unlink(logoFilePath);
-    currentSettings.hasCustomLogo = false;
+    await prisma.systemSetting.deleteMany({
+      where: { key: "company_logo" },
+    });
+
+    // Best-effort remove from disk
+    try {
+      const logoFilePath = path.join(process.cwd(), "public", "logo.png");
+      await fs.unlink(logoFilePath);
+    } catch {
+      // Ignore
+    }
 
     revalidatePath("/admin");
     revalidatePath("/dashboard");
     revalidatePath("/login");
 
     return { success: true, message: "Company logo removed. Monogram fallback restored." };
-  } catch {
-    currentSettings.hasCustomLogo = false;
-    return { success: true, message: "Company logo reset to default monogram." };
+  } catch (err) {
+    console.error("Failed to remove logo:", err);
+    return { error: "Failed to remove logo from database." };
   }
 }

@@ -292,8 +292,8 @@ model WhitelistedIp {
 
 model SystemSetting {
   id        String   @id @default(uuid())
-  key       String   @unique // e.g. "ip_restriction_enabled"
-  value     String   // e.g. "true" or "false"
+  key       String   @unique // e.g. "ip_restriction_enabled", "company_logo", "company_profile"
+  value     String   @db.Text
   updatedAt DateTime @updatedAt
 }
 
@@ -371,4 +371,3 @@ model Client {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 }
-
