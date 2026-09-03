@@ -37,6 +37,16 @@ if (fs.existsSync(envPath)) {
   }
 }
 
+// 2b. Sanitize DATABASE_URL so Prisma never throws protocol validation error
+if (process.env.DATABASE_URL) {
+  let u = process.env.DATABASE_URL.trim();
+  if (u.startsWith("DATABASE_URL=")) u = u.slice("DATABASE_URL=".length).trim();
+  while ((u.startsWith('"') && u.endsWith('"')) || (u.startsWith("'") && u.endsWith("'"))) {
+    u = u.slice(1, -1).trim();
+  }
+  process.env.DATABASE_URL = u;
+}
+
 // 3. Phusion Passenger assigns a dynamic port or socket via process.env.PORT
 const port = process.env.PORT || 3000;
 const dev = false;
