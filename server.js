@@ -1,4 +1,7 @@
-// Production server entrypoint for GoDaddy cPanel / PM2 / Cloud hosting
+// Production server entrypoint for GoDaddy cPanel Phusion Passenger & Cloud hosting
+const { createServer } = require("http");
+const { parse } = require("url");
+const next = require("next");
 const path = require("path");
 const fs = require("fs");
 
@@ -10,7 +13,7 @@ process.on("unhandledRejection", (reason) => {
   console.error("[CRM Server UnhandledRejection]:", reason);
 });
 
-// 2. Load root .env variables into process.env if not already set by cloud host
+// 2. Load root .env variables into process.env if not already provided by hosting panel
 const envPath = path.join(__dirname, ".env");
 if (fs.existsSync(envPath)) {
   try {
@@ -34,55 +37,26 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-// 3. Force 0.0.0.0 binding (Fix for 502 Bad Gateway)
-// Container environments set HOSTNAME to the container ID (e.g. af4cc876e741),
-// which causes Next.js to refuse connections from 127.0.0.1 reverse proxy.
-const port = process.env.PORT || "3000";
-const host = "0.0.0.0";
+// 3. Phusion Passenger assigns a dynamic port or socket via process.env.PORT
+const port = process.env.PORT || 3000;
+const dev = false;
+const app = next({ dev });
+const handle = app.getRequestHandler();
 
-process.env.PORT = port;
-process.env.HOSTNAME = "0.0.0.0";
+console.log(`[CRM Server] Initializing Next.js application for GoDaddy / Passenger on port ${port}...`);
 
-const standaloneServer = path.join(__dirname, ".next", "standalone", "server.js");
-
-if (fs.existsSync(standaloneServer)) {
-  console.log(`[CRM Server] Launching Next.js standalone engine on ${host}:${port}...`);
-  // Also copy .env into .next/standalone if missing so internal standalone cwd has it
-  const standaloneEnv = path.join(__dirname, ".next", "standalone", ".env");
-  if (fs.existsSync(envPath) && !fs.existsSync(standaloneEnv)) {
-    try {
-      fs.copyFileSync(envPath, standaloneEnv);
-    } catch (_) {}
-  }
-  require(standaloneServer);
-} else {
-  console.log(`[CRM Server] Launching Next.js standard server on ${host}:${port}...`);
-  try {
-    const { createServer } = require("http");
-    const { parse } = require("url");
-    const next = require("next");
-
-    const app = next({ dev: false, hostname: host, port: parseInt(port, 10) });
-    const handle = app.getRequestHandler();
-
-    app.prepare().then(() => {
-      createServer((req, res) => {
-        const parsedUrl = parse(req.url, true);
-        handle(req, res, parsedUrl);
-      }).listen(parseInt(port, 10), host, (err) => {
-        if (err) throw err;
-        console.log(`[CRM Server] Ready on http://${host}:${port}`);
-      });
+app
+  .prepare()
+  .then(() => {
+    createServer((req, res) => {
+      const parsedUrl = parse(req.url, true);
+      handle(req, res, parsedUrl);
+    }).listen(port, (err) => {
+      if (err) throw err;
+      console.log(`[CRM Server] Ready and actively listening on port ${port}`);
     });
-  } catch (err) {
-    if (err && err.code === "MODULE_NOT_FOUND") {
-      console.error("\n==================================================================");
-      console.error("[CRM Server Error] Missing npm packages in GoDaddy environment!");
-      console.error("1. In GoDaddy cPanel -> 'Setup Node.js App', click 'Run NPM Install'");
-      console.error("2. Ensure Node.js version is set to 20.x (or 18.x+)");
-      console.error("3. Then run: npm run build");
-      console.error("==================================================================\n");
-    }
-    throw err;
-  }
-}
+  })
+  .catch((err) => {
+    console.error("[CRM Server] Error during app.prepare():", err);
+    process.exit(1);
+  });
