@@ -317,10 +317,14 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
                 <button
                   type="button"
                   onClick={() => setCloserName("Self (Agent Closed)")}
-                  className="text-[10px] font-bold text-[#EA580C] dark:text-[#FB923C] hover:underline cursor-pointer"
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                    closerName.toLowerCase().includes("self")
+                      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                      : "bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] hover:bg-orange-500/20 border border-orange-500/20"
+                  }`}
                   title="Click if you closed this deal yourself"
                 >
-                  + Self-Close
+                  {closerName.toLowerCase().includes("self") ? "✓ Marked Self-Closed" : "+ Self-Close (Same Agent)"}
                 </button>
               </div>
               <input
@@ -333,6 +337,12 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
                 placeholder="e.g. Self, or select closer..."
                 className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold focus:outline-none"
               />
+              {closerName.toLowerCase().includes("self") && (
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 font-semibold flex items-center gap-1">
+                  <span>🎯</span>
+                  <span>Self-Closed Deal: You will be credited with BOTH Agent and Closer incentives upon approval.</span>
+                </p>
+              )}
               <datalist id="closer-suggestions">
                 <option value="Self (Agent Closed)" />
                 {staffSuggestions.map((s) => (

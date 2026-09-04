@@ -612,3 +612,27 @@ export async function createCustomStatusAction(name: string, colorHex = "#F97316
     return { success: true, message: `Status "${name}" created (Dev Mode).` };
   }
 }
+
+export async function updateLeadCloserAction(leadId: string, newCloserName: string) {
+  const session = await getSession();
+  if (!session) return { error: "Unauthorized. Please log in." };
+
+  const sanitizedCloser = sanitizeText(newCloserName, 100);
+  if (!sanitizedCloser) return { error: "Closer name cannot be blank." };
+
+  try {
+    const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+    if (!lead) return { error: "Lead not found." };
+
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: { closerName: sanitizedCloser },
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/dashboard");
+    return { success: true, message: `Closer updated to "${sanitizedCloser}".` };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : "Failed to update closer." };
+  }
+}

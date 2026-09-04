@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { LeadItem, adminDecisionAction } from "@/app/actions/leads";
+import { LeadItem, adminDecisionAction, updateLeadCloserAction } from "@/app/actions/leads";
 import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
 import { LeadStatus } from "@prisma/client";
 import { AdminDecisionModal } from "@/components/AdminDecisionModal";
 import { calculateRowHeight } from "@/lib/pretext-measure";
-import { Search, CheckCircle2, XCircle, Clock, Eye, MessageSquare, Check, Building2, Loader2 } from "lucide-react";
+import { Search, CheckCircle2, XCircle, Clock, Eye, MessageSquare, Check, Building2, Loader2, Edit2 } from "lucide-react";
 import { shareLeadToChatAction } from "@/app/actions/messages";
 import { ClientSubmissionModal } from "@/components/ClientSubmissionModal";
 import { ModalPortal } from "@/components/ModalPortal";
@@ -38,6 +38,9 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
   } | null>(null);
 
   const [shareSuccess, setShareSuccess] = useState<string | null>(null);
+  const [isEditingCloser, setIsEditingCloser] = useState(false);
+  const [editCloserVal, setEditCloserVal] = useState("");
+  const [isSavingCloser, setIsSavingCloser] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
 
@@ -240,7 +243,14 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                         )}
                       </td>
                       <td className="py-3 px-3">
-                        <p className="font-semibold text-[#0F172A] dark:text-white">Closer: {lead.closerName}</p>
+                        <p className="font-semibold text-[#0F172A] dark:text-white flex items-center gap-1">
+                          <span>Closer: {lead.closerName}</span>
+                          {lead.closerName.toLowerCase().includes("self") && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                              Self
+                            </span>
+                          )}
+                        </p>
                         <p className="font-mono text-[10px] text-[#94A3B8]">@{lead.agentUsername}</p>
                       </td>
                       <td className="py-3 px-3">
@@ -393,8 +403,78 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                   <p className="font-semibold text-[#0F172A] dark:text-white mt-0.5">{inspectLead.email}</p>
                 </div>
                 <div>
-                  <span className="text-[10px] text-[#94A3B8] font-bold uppercase">Assigned Closer</span>
-                  <p className="font-semibold text-[#0F172A] dark:text-white mt-0.5">{inspectLead.closerName}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-[#94A3B8] font-bold uppercase">Assigned Closer</span>
+                    {!isEditingCloser && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditCloserVal(inspectLead.closerName);
+                          setIsEditingCloser(true);
+                        }}
+                        className="text-[10px] font-bold text-[#EA580C] dark:text-[#FB923C] hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <Edit2 className="w-2.5 h-2.5" />
+                        <span>Edit / Self-Close</span>
+                      </button>
+                    )}
+                  </div>
+                  {isEditingCloser ? (
+                    <div className="mt-1 space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={editCloserVal}
+                          onChange={(e) => setEditCloserVal(e.target.value)}
+                          placeholder="Closer Name or Self"
+                          className="liquid-glass-input w-full px-2 py-1 text-xs rounded-lg focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEditCloserVal("Self (Agent Closed)")}
+                          className="px-2 py-1 rounded-lg text-[9px] font-bold bg-orange-500/15 text-[#EA580C] whitespace-nowrap cursor-pointer hover:bg-orange-500/25"
+                          title="Mark as Self-Closed by intake agent"
+                        >
+                          + Self
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={isSavingCloser}
+                          onClick={async () => {
+                            if (!editCloserVal.trim()) return;
+                            setIsSavingCloser(true);
+                            await updateLeadCloserAction(inspectLead.id, editCloserVal.trim());
+                            inspectLead.closerName = editCloserVal.trim();
+                            setIsSavingCloser(false);
+                            setIsEditingCloser(false);
+                            onRefresh();
+                          }}
+                          className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
+                        >
+                          {isSavingCloser ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSavingCloser}
+                          onClick={() => setIsEditingCloser(false)}
+                          className="px-2 py-0.5 rounded-lg text-[10px] text-slate-500 hover:text-slate-700 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="font-semibold text-[#0F172A] dark:text-white mt-0.5 flex items-center gap-1.5">
+                      <span>{inspectLead.closerName}</span>
+                      {inspectLead.closerName.toLowerCase().includes("self") && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                          Self-Closed
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
 

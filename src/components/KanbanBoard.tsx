@@ -218,7 +218,12 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
                         <div className="flex items-center gap-1.5 text-[#64748B] dark:text-[#94A3B8]">
                           <User className="w-3 h-3 text-[#94A3B8]" />
                           <span>
-                            Closer: <strong>{lead.closerName}</strong>
+                            Closer:{" "}
+                            {lead.closerName && lead.closerName.toLowerCase().includes("self") ? (
+                              <strong className="text-emerald-600 dark:text-emerald-400 font-bold">Self-Closed 🎯</strong>
+                            ) : (
+                              <strong>{lead.closerName}</strong>
+                            )}
                           </span>
                         </div>
                         {lead.clientName && (
