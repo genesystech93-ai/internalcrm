@@ -186,6 +186,17 @@ export async function createEmployeeAction(formData: FormData) {
         role: rawRole,
         email,
         isActive: true,
+        ...(rawRole !== "ADMIN"
+          ? {
+              salaryProfile: {
+                create: {
+                  baseSalary: 25000.0,
+                  payFrequency: "MONTHLY",
+                  effectiveDate: new Date(),
+                },
+              },
+            }
+          : {}),
       },
     });
 
@@ -290,7 +301,13 @@ export async function deleteEmployeeAction(username: string) {
   }
 
   try {
-    await prisma.user.delete({ where: { username } });
+    const targetUser = await prisma.user.findUnique({ where: { username } });
+    if (targetUser) {
+      await prisma.salaryProfile.deleteMany({ where: { userId: targetUser.id } });
+      await prisma.leaveRequest.deleteMany({ where: { userId: targetUser.id } });
+      await prisma.attendance.deleteMany({ where: { userId: targetUser.id } });
+      await prisma.user.delete({ where: { username } });
+    }
     deleteStoredUser(username);
 
     revalidatePath("/admin");

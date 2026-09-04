@@ -119,6 +119,9 @@ export function AdminUserManagement() {
       setAddEmail("");
       setAddPassword("");
       await loadUsers();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("crm:employee-updated"));
+      }
     }
     setIsCreating(false);
   };
@@ -131,6 +134,9 @@ export function AdminUserManagement() {
     } else {
       setNotification({ type: "success", text: res.message || "Status updated." });
       await loadUsers();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("crm:employee-updated"));
+      }
     }
     setTogglingUsername(null);
   };
@@ -145,6 +151,9 @@ export function AdminUserManagement() {
     } else {
       setNotification({ type: "success", text: res.message || "Employee removed." });
       await loadUsers();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("crm:employee-updated"));
+      }
     }
   };
 
