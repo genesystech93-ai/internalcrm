@@ -27,6 +27,7 @@ export function AdminWorkforceManager() {
   const [amountPerLead, setAmountPerLead] = useState("500.00");
   const [minLeadsTarget, setMinLeadsTarget] = useState("10");
   const [teamBonusPool, setTeamBonusPool] = useState("10000.00");
+  const [ruleRole, setRuleRole] = useState<"AGENT" | "CLOSER" | "TL">("AGENT");
 
   // Teams state
   const [teams, setTeams] = useState<TeamItem[]>([]);
@@ -105,7 +106,7 @@ export function AdminWorkforceManager() {
     e.preventDefault();
     const fd = new FormData();
     fd.append("campaignId", campaignId);
-    fd.append("role", "AGENT");
+    fd.append("role", ruleRole);
     fd.append("amountPerLead", amountPerLead);
     fd.append("minLeadsTarget", minLeadsTarget);
     fd.append("teamBonusPool", teamBonusPool);
@@ -523,6 +524,21 @@ export function AdminWorkforceManager() {
                             </option>
                           ))
                         )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                        Applicable Role
+                      </label>
+                      <select
+                        value={ruleRole}
+                        onChange={(e) => setRuleRole(e.target.value as "AGENT" | "CLOSER" | "TL")}
+                        className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
+                      >
+                        <option value="AGENT">Agent</option>
+                        <option value="CLOSER">Closer</option>
+                        <option value="TL">Team Lead</option>
                       </select>
                     </div>
 

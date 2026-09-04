@@ -231,7 +231,7 @@ export function AdminUserManagement() {
           <Filter className="w-3 h-3 text-[#F97316]" />
           <span>Filter:</span>
         </span>
-        {["ALL", "AGENT", "TL", "ADMIN"].map((r) => (
+        {["ALL", "AGENT", "CLOSER", "TL", "ADMIN"].map((r) => (
           <button
             key={r}
             type="button"
@@ -242,7 +242,7 @@ export function AdminUserManagement() {
                 : "bg-white/60 dark:bg-slate-800/60 text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white border border-slate-200/60 dark:border-slate-700"
             }`}
           >
-            {r === "ALL" ? `All Staff (${users.length})` : r === "TL" ? "Team Lead" : r}
+            {r === "ALL" ? `All Staff (${users.length})` : r === "TL" ? "Team Lead" : r === "CLOSER" ? "Closer" : r === "AGENT" ? "Agent" : "Admin"}
           </button>
         ))}
         <button
@@ -434,6 +434,7 @@ export function AdminUserManagement() {
                     className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
                   >
                     <option value="AGENT">Agent</option>
+                    <option value="CLOSER">Closer</option>
                     <option value="TL">Team Lead</option>
                     <option value="ADMIN">Admin</option>
                   </select>

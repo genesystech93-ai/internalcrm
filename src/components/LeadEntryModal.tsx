@@ -34,12 +34,16 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
 
   useEffect(() => {
-    getCustomStatusesAction().then((res) => setCustomStatuses(res));
-    getCampaignsAction().then((res) => {
-      setCampaigns(res);
-      if (res.length > 0) setCampaignId(res[0].id);
-    });
-  }, []);
+    if (isOpen) {
+      getCustomStatusesAction().then((res) => setCustomStatuses(res));
+      getCampaignsAction().then((res) => {
+        setCampaigns(res);
+        if (res.length > 0 && (!campaignId || !res.some((c) => c.id === campaignId))) {
+          setCampaignId(res[0].id);
+        }
+      });
+    }
+  }, [isOpen, campaignId]);
 
   // Keyboard shortcut Ctrl+N and Escape listener
   useEffect(() => {

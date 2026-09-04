@@ -49,7 +49,7 @@ export async function getEmployeePerformanceReportAction(): Promise<EmployeePerf
 
   try {
     const users = await prisma.user.findMany({
-      where: { role: { in: ["AGENT", "TL"] } },
+      where: { role: { not: "ADMIN" } },
       include: {
         team: true,
         leads: true,
