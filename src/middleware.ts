@@ -8,11 +8,13 @@ function getJwtSecret(): Uint8Array {
 
 const SECRET_KEY = getJwtSecret();
 
-const SESSION_COOKIE_NAME = "genesoft_session";
+const SESSION_COOKIE_NAME = "crm_session";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  const token =
+    request.cookies.get(SESSION_COOKIE_NAME)?.value ||
+    request.cookies.get("genesoft_session")?.value;
 
   let sessionUser: { role?: string; userId?: string } | null = null;
   if (token) {

@@ -10,7 +10,7 @@ function getJwtSecret(): Uint8Array {
 
 const SECRET_KEY = getJwtSecret();
 
-const SESSION_COOKIE_NAME = "genesoft_session";
+const SESSION_COOKIE_NAME = "crm_session";
 
 export interface SessionUser {
   userId: string;
