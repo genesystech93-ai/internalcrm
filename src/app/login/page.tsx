@@ -158,7 +158,7 @@ export default function LoginPage() {
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="e.g. admin or agent"
+                    placeholder="Enter your username (e.g. admin)"
                     className="liquid-glass-input w-full pl-11 pr-4 py-2.5 rounded-xl text-sm placeholder-[#94A3B8] focus:outline-none"
                     autoComplete="username"
                   />

@@ -21,6 +21,7 @@ export interface UserEarningsSummary {
   individualCommissions: number;
   teamPoolBonus: number;
   totalEarnings: number;
+  teamName?: string;
   history: Array<{
     id: string;
     leadCustomerName: string;
@@ -100,14 +101,22 @@ export async function getUserEarningsSummaryAction(): Promise<UserEarningsSummar
   if (!session) return emptyEarnings;
 
   try {
-    const earnings = await prisma.incentiveEarning.findMany({
-      where: { userId: session.userId },
-      include: {
-        lead: { include: { campaign: true } },
-        rule: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [earnings, user] = await Promise.all([
+      prisma.incentiveEarning.findMany({
+        where: { userId: session.userId },
+        include: {
+          lead: { include: { campaign: true } },
+          rule: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.user.findUnique({
+        where: { id: session.userId },
+        include: { team: true },
+      }),
+    ]);
+
+    const teamName = user?.team?.name;
 
     if (earnings.length > 0) {
       const individual = earnings
@@ -122,6 +131,7 @@ export async function getUserEarningsSummaryAction(): Promise<UserEarningsSummar
         individualCommissions: individual,
         teamPoolBonus: teamPool,
         totalEarnings: individual + teamPool,
+        teamName,
         history: earnings.map((e) => ({
           id: e.id,
           leadCustomerName: e.lead?.customerName || "Approved Lead",
@@ -133,7 +143,7 @@ export async function getUserEarningsSummaryAction(): Promise<UserEarningsSummar
       };
     }
 
-    return emptyEarnings;
+    return { ...emptyEarnings, teamName };
   } catch {
     // Database offline — return empty earnings
     return emptyEarnings;

@@ -150,7 +150,7 @@ export function AgentIncentiveTracker() {
           label="Team Milestone Pool"
           value={data?.teamPoolBonus || 0}
           prefix="₹"
-          subtext="Alpha Velocity Pool"
+          subtext={data?.teamName ? `${data.teamName} Pool` : "Collective Floor Pool"}
           subtextColor="text-[#F59E0B]"
           icon={Trophy}
           iconColor="text-[#F59E0B]"
@@ -165,7 +165,7 @@ export function AgentIncentiveTracker() {
         <div className="flex items-center justify-between text-xs mb-2">
           <span className="font-bold text-[#9A3412] dark:text-orange-300 flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-[#F97316]" />
-            <span>Team Alpha Velocity: ₹10,000 Milestone Target</span>
+            <span>{data?.teamName ? `Team ${data.teamName}: Target Milestone` : "Floor Milestone Target"}</span>
           </span>
           <span className="font-mono font-extrabold text-[#C2410C] dark:text-orange-300">
             {teamCurrent} / {teamGoal} Approved ({animatedTeamPercent}%)
@@ -178,7 +178,9 @@ export function AgentIncentiveTracker() {
           />
         </div>
         <p className="text-[11px] text-[#9A3412] dark:text-orange-400 mt-2">
-          52 more approved leads to unlock the ₹10,000 monthly team bonus pool for equal member distribution!
+          {teamGoal - teamCurrent > 0
+            ? `${teamGoal - teamCurrent} more approved leads to unlock the monthly team bonus pool for member distribution!`
+            : "Monthly target reached! Milestone pool unlocked."}
         </p>
       </div>
     </div>

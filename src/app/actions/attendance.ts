@@ -501,7 +501,7 @@ export async function getFloorAttendanceAction() {
   return devAttendances.map((a) => {
     const activeBreak = a.breaks.find((b) => b.endTime === null);
     const totalBreakMins = a.breaks.reduce((sum, b) => sum + (b.durationMinutes || 0), 0);
-    const user = getStoredUser(a.userId) || { username: "agent", name: "Staff Member", role: "AGENT" };
+    const user = getStoredUser(a.userId) || { username: "staff", name: "Staff Member", role: "AGENT" };
     return {
       id: a.id,
       username: user.username,

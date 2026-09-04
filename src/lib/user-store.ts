@@ -28,20 +28,6 @@ const inMemoryUsers: Map<string, StoredUser> = new Map([
       createdAt: "2026-09-01T00:00:00.000Z",
     },
   ],
-  [
-    "agent",
-    {
-      id: "agent-sarah-uuid",
-      username: "agent",
-      passwordHash: "$2b$10$STN923Td5cqDw33OxbQqjOYfWC92MjEvNi89W3q4U.FI8RJavSzD6",
-      name: "Frontline Agent",
-      role: "AGENT" as Role,
-      email: "agent@company.com",
-      isActive: true,
-      campaignName: "General Floor",
-      createdAt: "2026-09-01T00:00:00.000Z",
-    },
-  ],
 ]);
 
 export function getStoredUser(username: string): StoredUser | undefined {

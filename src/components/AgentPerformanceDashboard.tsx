@@ -15,8 +15,8 @@ export function AgentPerformanceDashboard() {
   const approved = data?.approvedLeadsCount || 0;
   const target = 25; // Daily target
   const dailyProgress = Math.min(100, Math.round((approved / target) * 100));
-  const approvalRate = approved > 0 ? Math.min(100, Math.round((approved / Math.max(approved + 3, 1)) * 100)) : 0;
-  const streak = Math.min(approved, 7); // Simulated streak based on approved count
+  const approvalRate = approved > 0 ? 100 : 0;
+  const streak = approved;
   const rank = approved > 15 ? 1 : approved > 10 ? 2 : approved > 5 ? 3 : approved > 0 ? 4 : 0;
 
   const animatedProgress = useCountUp(dailyProgress, 1200);

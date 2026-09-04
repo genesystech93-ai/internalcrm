@@ -510,7 +510,7 @@ export async function getStaffDirectoryAction(): Promise<StaffMember[]> {
       role: u.role,
       teamId: null,
       teamName: u.campaignName || "General Floor",
-      shiftStatus: liveShiftMap.get(u.id) || "ON_SHIFT", // In dev, make them active by default for rich testing
+      shiftStatus: liveShiftMap.get(u.id) || "OFFLINE",
     }));
 }
 

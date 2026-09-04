@@ -399,7 +399,7 @@ export function AdminWorkforceManager() {
                       <input
                         type="text"
                         required
-                        placeholder="e.g. Alpha Velocity"
+                        placeholder="e.g. Sales Team 1"
                         value={newTeamName}
                         onChange={(e) => setNewTeamName(e.target.value)}
                         className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
