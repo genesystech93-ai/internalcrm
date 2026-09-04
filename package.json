@@ -7,7 +7,6 @@
     "build": "next build --webpack",
     "start": "node server.js",
     "lint": "eslint",
-    "test:db": "tsx tests/test-db.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
