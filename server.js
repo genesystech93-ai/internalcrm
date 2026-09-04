@@ -38,7 +38,28 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-// 2b. Sanitize DATABASE_URL so Prisma never throws protocol validation error
+// 2b. Assemble DATABASE_URL from individual DB_* environment variables if provided
+if (process.env.DB_HOST && process.env.DB_USER && (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("<from-hosting>"))) {
+  const host = process.env.DB_HOST.trim();
+  const port = (process.env.DB_PORT || (host.includes("pooler.supabase.com") ? "6543" : "5432")).trim();
+  const dbName = (process.env.DB_NAME || "postgres").trim();
+  const user = encodeURIComponent(process.env.DB_USER.trim());
+  const pass = encodeURIComponent(process.env.DB_PASSWORD ? process.env.DB_PASSWORD.trim() : "");
+
+  let params = "";
+  if (host.includes("pooler.supabase.com")) {
+    params = port === "6543" ? "?pgbouncer=true&connection_limit=1&sslmode=require" : "?sslmode=require";
+  } else if (host === "localhost" || host === "127.0.0.1") {
+    params = "?schema=public";
+  } else {
+    params = "?sslmode=prefer";
+  }
+
+  process.env.DATABASE_URL = `postgresql://${user}:${pass}@${host}:${port}/${dbName}${params}`;
+  console.log(`[CRM Server] Assembled DATABASE_URL from DB_HOST=${host}, DB_PORT=${port}, DB_NAME=${dbName}`);
+}
+
+// 2c. Sanitize DATABASE_URL so Prisma never throws protocol validation error
 if (process.env.DATABASE_URL) {
   let u = process.env.DATABASE_URL.trim();
   if (u.startsWith("DATABASE_URL=")) u = u.slice("DATABASE_URL=".length).trim();

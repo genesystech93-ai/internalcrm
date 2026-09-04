@@ -39,7 +39,35 @@ function sanitizeDatabaseUrl(raw?: string): string {
   return url;
 }
 
-const dbUrl = sanitizeDatabaseUrl(process.env.DATABASE_URL);
+// Assembles DATABASE_URL from individual DB_* environment variables or returns sanitized DATABASE_URL
+function getEffectiveDatabaseUrl(): string {
+  if (
+    process.env.DB_HOST &&
+    process.env.DB_USER &&
+    (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("<from-hosting>"))
+  ) {
+    const host = process.env.DB_HOST.trim();
+    const port = (process.env.DB_PORT || (host.includes("pooler.supabase.com") ? "6543" : "5432")).trim();
+    const dbName = (process.env.DB_NAME || "postgres").trim();
+    const user = encodeURIComponent(process.env.DB_USER.trim());
+    const pass = encodeURIComponent(process.env.DB_PASSWORD ? process.env.DB_PASSWORD.trim() : "");
+
+    let params = "";
+    if (host.includes("pooler.supabase.com")) {
+      params = port === "6543" ? "?pgbouncer=true&connection_limit=1&sslmode=require" : "?sslmode=require";
+    } else if (host === "localhost" || host === "127.0.0.1") {
+      params = "?schema=public";
+    } else {
+      params = "?sslmode=prefer";
+    }
+
+    return `postgresql://${user}:${pass}@${host}:${port}/${dbName}${params}`;
+  }
+
+  return sanitizeDatabaseUrl(process.env.DATABASE_URL);
+}
+
+const dbUrl = getEffectiveDatabaseUrl();
 
 // Sync sanitized URL back to process.env so schema.prisma env("DATABASE_URL") receives it
 process.env.DATABASE_URL = dbUrl;
