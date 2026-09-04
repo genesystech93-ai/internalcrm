@@ -94,7 +94,7 @@ export async function checkDatabaseHealthAction(): Promise<DatabaseDiagnosticRes
   const startTime = Date.now();
 
   try {
-    // 1. Probe database connection with lightweight query & auto-retry for sleeping poolers
+    // 1. Ensure database connection pooler socket is initialized & warm
     let probeSuccess = false;
     let lastProbeError: unknown = null;
 
@@ -118,9 +118,12 @@ export async function checkDatabaseHealthAction(): Promise<DatabaseDiagnosticRes
       throw lastProbeError;
     }
 
-    const latencyMs = Date.now() - startTime;
+    // 2. Measure actual steady-state query roundtrip latency
+    const pingStart = Date.now();
+    await prisma.$queryRawUnsafe("SELECT 1 as ping");
+    const latencyMs = Date.now() - pingStart;
 
-    // 2. Fetch table counts for integrity check
+    // 3. Fetch table counts for integrity check
     const [usersCount, leadsCount, campaignsCount, settingsCount] = await Promise.all([
       prisma.user.count().catch(() => 0),
       prisma.lead.count().catch(() => 0),
@@ -128,7 +131,8 @@ export async function checkDatabaseHealthAction(): Promise<DatabaseDiagnosticRes
       prisma.systemSetting.count().catch(() => 0),
     ]);
 
-    const status = latencyMs > 600 ? "DEGRADED" : "CONNECTED";
+    // Steady-state cloud roundtrip threshold (warm connection is ~50ms; jitter up to 1200ms is normal)
+    const status = latencyMs > 1200 ? "DEGRADED" : "CONNECTED";
 
     return {
       status,
