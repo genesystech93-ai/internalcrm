@@ -5,11 +5,11 @@ import { AdminAttendanceBoard } from "@/components/AdminAttendanceBoard";
 import { LeaveManagement } from "@/components/LeaveManagement";
 import { getSalaryProfilesAction, updateSalaryProfileAction, SalaryProfileItem } from "@/app/actions/salary";
 import {
-  getIncentiveRulesAction,
-  createIncentiveRuleAction,
-  deleteIncentiveRuleAction,
-  toggleIncentiveRuleAction,
-  IncentiveRuleItem,
+  getCampaignIncentivesAction,
+  saveCampaignIncentiveAction,
+  deleteCampaignIncentiveAction,
+  toggleCampaignIncentiveAction,
+  CampaignIncentiveItem,
 } from "@/app/actions/incentives";
 import {
   getTeamsAction,
@@ -53,15 +53,15 @@ export function AdminWorkforceManager() {
   const [newFrequencyVal, setNewFrequencyVal] = useState<string>("MONTHLY");
   const [newEffectiveDateVal, setNewEffectiveDateVal] = useState<string>("");
 
-  // Incentive Rules state
-  const [rules, setRules] = useState<IncentiveRuleItem[]>([]);
+  // Unified Campaign Incentive Rules state
+  const [campaignIncentives, setCampaignIncentives] = useState<CampaignIncentiveItem[]>([]);
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
-  const [campaignId, setCampaignId] = useState("");
-  const [amountPerLead, setAmountPerLead] = useState("500.00");
+  const [ruleCampaignId, setRuleCampaignId] = useState("");
+  const [agentAmountPerLead, setAgentAmountPerLead] = useState("200.00");
+  const [closerAmountPerLead, setCloserAmountPerLead] = useState("500.00");
   const [minLeadsTarget, setMinLeadsTarget] = useState("10");
   const [teamBonusPool, setTeamBonusPool] = useState("10000.00");
-  const [ruleRole, setRuleRole] = useState<"AGENT" | "CLOSER" | "TL">("AGENT");
 
   // Teams state
   const [teams, setTeams] = useState<TeamItem[]>([]);
@@ -83,18 +83,18 @@ export function AdminWorkforceManager() {
   const loadData = async () => {
     setIsRefreshing(true);
     try {
-      const [salList, ruleList, teamList, campList] = await Promise.all([
+      const [salList, incentiveList, teamList, campList] = await Promise.all([
         getSalaryProfilesAction(),
-        getIncentiveRulesAction(),
+        getCampaignIncentivesAction(),
         getTeamsAction(),
         getCampaignsAction(),
       ]);
       setSalaries(salList);
-      setRules(ruleList);
+      setCampaignIncentives(incentiveList);
       setTeams(teamList);
       setCampaigns(campList);
-      if (campList.length > 0 && !campaignId) {
-        setCampaignId(campList[0].id);
+      if (campList.length > 0 && !ruleCampaignId) {
+        setRuleCampaignId(campList[0].id);
       }
     } catch {
       // Fallback
@@ -193,42 +193,62 @@ export function AdminWorkforceManager() {
     );
   };
 
-  const handleCreateRule = async (e: React.FormEvent) => {
+  const openCreateRuleModal = () => {
+    if (campaigns.length > 0) {
+      setRuleCampaignId(campaigns[0].id);
+    }
+    setAgentAmountPerLead("200.00");
+    setCloserAmountPerLead("500.00");
+    setMinLeadsTarget("10");
+    setTeamBonusPool("10000.00");
+    setShowRuleModal(true);
+  };
+
+  const openEditRuleModal = (item: CampaignIncentiveItem) => {
+    setRuleCampaignId(item.campaignId);
+    setAgentAmountPerLead(item.agentAmountPerLead.toString());
+    setCloserAmountPerLead(item.closerAmountPerLead.toString());
+    setMinLeadsTarget(item.minLeadsTarget.toString());
+    setTeamBonusPool(item.teamBonusPool.toString());
+    setShowRuleModal(true);
+  };
+
+  const handleSaveCampaignIncentive = async (e: React.FormEvent) => {
     e.preventDefault();
     const fd = new FormData();
-    fd.append("campaignId", campaignId);
-    fd.append("role", ruleRole);
-    fd.append("amountPerLead", amountPerLead);
+    fd.append("campaignId", ruleCampaignId);
+    fd.append("agentAmount", agentAmountPerLead);
+    fd.append("closerAmount", closerAmountPerLead);
     fd.append("minLeadsTarget", minLeadsTarget);
     fd.append("teamBonusPool", teamBonusPool);
 
-    const res = await createIncentiveRuleAction(fd);
+    const res = await saveCampaignIncentiveAction(fd);
     if (res.error) {
       setMessage({ text: res.error, type: "error" });
     } else {
-      setMessage({ text: res.message || "Incentive rule saved.", type: "success" });
+      setMessage({ text: res.message || "Campaign incentives saved successfully.", type: "success" });
       setShowRuleModal(false);
       await loadData();
     }
   };
 
-  const handleDeleteRule = async (ruleId: string) => {
-    if (!confirm("Are you sure you want to delete this incentive rule?")) return;
-    const res = await deleteIncentiveRuleAction(ruleId);
+  const handleDeleteCampaignIncentive = async (cId: string, cName: string) => {
+    if (!confirm(`Are you sure you want to delete incentive rates for "${cName}"?`)) return;
+    const res = await deleteCampaignIncentiveAction(cId);
     if (res.error) {
       setMessage({ text: res.error, type: "error" });
     } else {
-      setMessage({ text: res.message || "Rule deleted.", type: "success" });
+      setMessage({ text: res.message || "Campaign incentive deleted.", type: "success" });
       await loadData();
     }
   };
 
-  const handleToggleRule = async (ruleId: string, currentStatus: boolean) => {
-    const res = await toggleIncentiveRuleAction(ruleId, !currentStatus);
+  const handleToggleCampaignIncentive = async (cId: string, currentStatus: boolean) => {
+    const res = await toggleCampaignIncentiveAction(cId, !currentStatus);
     if (res.error) {
       setMessage({ text: res.error, type: "error" });
     } else {
-      setMessage({ text: res.message || "Rule status updated.", type: "success" });
+      setMessage({ text: res.message || "Campaign status updated.", type: "success" });
       await loadData();
     }
   };
@@ -482,11 +502,11 @@ export function AdminWorkforceManager() {
 
               <button
                 type="button"
-                onClick={() => setShowRuleModal(true)}
+                onClick={openCreateRuleModal}
                 className="liquid-glass-button-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Create Incentive Rule</span>
+                <span>Configure Campaign Incentives</span>
               </button>
             </div>
 
@@ -497,10 +517,10 @@ export function AdminWorkforceManager() {
               </div>
               <div className="space-y-1">
                 <span className="font-bold text-[#EA580C] dark:text-[#FB923C] block">
-                  How to Enter Separate Incentives for Closers vs. Agents
+                  Unified Single-Form Incentive Setup
                 </span>
                 <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] leading-relaxed">
-                  Click <strong>&quot;Create Incentive Rule&quot;</strong> and select <strong>Applicable Role: &quot;Agent&quot;</strong> for intake agents (e.g. ₹200/lead). Then click it again for the same campaign and select <strong>Applicable Role: &quot;Closer&quot;</strong> with the closer rate (e.g. ₹500/lead). When an admin approves a lead that has an assigned Closer, the system automatically pays both the intake Agent and the Closing Agent!
+                  You configure <strong>both Agent and Closer commission rates together</strong> in a single campaign setting. When an admin approves a lead, the intake Agent gets their commission, the assigned Closer gets their commission, and if the lead was self-closed by the agent, they automatically receive both!
                 </p>
               </div>
             </div>
@@ -510,66 +530,85 @@ export function AdminWorkforceManager() {
                 <thead>
                   <tr className="border-b border-slate-200/80 dark:border-slate-700 text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider">
                     <th className="py-2.5 px-3">Campaign</th>
-                    <th className="py-2.5 px-3">Eligible Role</th>
-                    <th className="py-2.5 px-3">Per-Lead Commission</th>
-                    <th className="py-2.5 px-3">Team Target</th>
-                    <th className="py-2.5 px-3">Team Bonus Pool</th>
+                    <th className="py-2.5 px-3">Agent Commission</th>
+                    <th className="py-2.5 px-3">Closer Commission</th>
+                    <th className="py-2.5 px-3">Self-Closed Total</th>
+                    <th className="py-2.5 px-3">Team Target & Pool</th>
                     <th className="py-2.5 px-3">Status</th>
                     <th className="py-2.5 px-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {rules.length === 0 ? (
+                  {campaignIncentives.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-8 text-center text-[#94A3B8]">
-                        No incentive rules created yet. Click &quot;Create Incentive Rule&quot; to define commissions for Closers, Agents, or Team Leads.
+                        No campaign incentives configured yet. Click &quot;Configure Campaign Incentives&quot; to set Agent & Closer rates in one place.
                       </td>
                     </tr>
                   ) : (
-                    rules.map((r) => (
-                      <tr key={r.id} className="hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="py-3 px-3 font-bold text-[#0F172A] dark:text-white">{r.campaignName}</td>
-                        <td className="py-3 px-3">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                              r.role === "CLOSER"
-                                ? "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/25"
-                                : r.role === "TL"
-                                ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
-                                : "bg-emerald-500/10 text-[#059669] dark:text-emerald-400 border-emerald-500/25"
-                            }`}
-                          >
-                            {r.role === "CLOSER" ? "🎯 Closer" : r.role === "TL" ? "⭐ Team Lead" : "📞 Agent"}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 font-mono font-bold text-[#10B981]">₹{r.amountPerLead.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                        <td className="py-3 px-3 font-mono">{r.minLeadsTarget} Approved</td>
-                        <td className="py-3 px-3 font-mono font-bold text-[#EA580C]">₹{r.teamBonusPool.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                        <td className="py-3 px-3">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleRule(r.id, r.isActive)}
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border cursor-pointer transition-all ${
-                              r.isActive
-                                ? "bg-emerald-500/10 text-[#059669] dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                                : "bg-slate-500/10 text-slate-500 border-slate-500/20 hover:bg-slate-500/20"
-                            }`}
-                          >
-                            {r.isActive ? "Active" : "Paused"}
-                          </button>
-                        </td>
-                        <td className="py-3 px-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteRule(r.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
-                            title="Delete Rule"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    campaignIncentives.map((r) => {
+                      const totalSelfClosed = r.agentAmountPerLead + r.closerAmountPerLead;
+                      return (
+                        <tr key={r.campaignId} className="hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="py-3 px-3">
+                            <span className="font-bold text-[#0F172A] dark:text-white block">{r.campaignName}</span>
+                            {r.campaignVertical && (
+                              <span className="text-[10px] text-slate-400 font-medium">({r.campaignVertical})</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 font-mono font-bold text-sky-600 dark:text-sky-400">
+                            ₹{r.agentAmountPerLead.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            <span className="text-[10px] font-normal text-slate-400 ml-1">/ lead</span>
+                          </td>
+                          <td className="py-3 px-3 font-mono font-bold text-purple-600 dark:text-purple-400">
+                            ₹{r.closerAmountPerLead.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            <span className="text-[10px] font-normal text-slate-400 ml-1">/ lead</span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                              ₹{totalSelfClosed.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 font-mono">
+                            <span className="text-[#0F172A] dark:text-white font-bold">{r.minLeadsTarget} Leads</span>
+                            <span className="text-[#EA580C] font-bold ml-1.5">&rarr; ₹{r.teamBonusPool.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleCampaignIncentive(r.campaignId, r.isActive)}
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border cursor-pointer transition-all ${
+                                r.isActive
+                                  ? "bg-emerald-500/10 text-[#059669] dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                                  : "bg-slate-500/10 text-slate-500 border-slate-500/20 hover:bg-slate-500/20"
+                              }`}
+                            >
+                              {r.isActive ? "Active" : "Paused"}
+                            </button>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => openEditRuleModal(r)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors cursor-pointer"
+                                title="Edit Rates"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCampaignIncentive(r.campaignId, r.campaignName)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                                title="Delete Rates"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -915,92 +954,130 @@ export function AdminWorkforceManager() {
             </ModalPortal>
           )}
 
-          {/* Create Incentive Rule Modal */}
+          {/* Unified Campaign Incentive Configuration Modal */}
           {showRuleModal && (
             <ModalPortal>
               <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
                 <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
-                  <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white mb-4">
-                    Configure New Incentive Rule
-                  </h3>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white flex items-center gap-2">
+                        <Award className="w-5 h-5 text-[#F97316]" />
+                        <span>Configure Campaign Incentives</span>
+                      </h3>
+                      <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
+                        Set Agent & Closer commission rates in one single configuration.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowRuleModal(false)}
+                      className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
 
-                  <form onSubmit={handleCreateRule} className="space-y-3.5">
+                  <form onSubmit={handleSaveCampaignIncentive} className="space-y-4">
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                        Campaign
+                        Select Campaign
                       </label>
                       <select
-                        value={campaignId}
-                        onChange={(e) => setCampaignId(e.target.value)}
-                        className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
+                        value={ruleCampaignId}
+                        onChange={(e) => setRuleCampaignId(e.target.value)}
+                        className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-semibold focus:outline-none"
                       >
                         {campaigns.length === 0 ? (
                           <option value="">No campaigns available</option>
                         ) : (
                           campaigns.map((c) => (
                             <option key={c.id} value={c.id}>
-                              {c.name}
+                              {c.name} {c.vertical ? `(${c.vertical})` : ""}
                             </option>
                           ))
                         )}
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                        Applicable Role
-                      </label>
-                      <select
-                        value={ruleRole}
-                        onChange={(e) => setRuleRole(e.target.value as "AGENT" | "CLOSER" | "TL")}
-                        className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
-                      >
-                        <option value="AGENT">Agent</option>
-                        <option value="CLOSER">Closer</option>
-                        <option value="TL">Team Lead</option>
-                      </select>
+                    {/* Single Combined Inputs: Agent & Closer Rates */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-2xl bg-sky-500/5 dark:bg-sky-500/10 border border-sky-500/20">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300 mb-1 flex items-center gap-1">
+                          <span>📞 Agent Rate (₹)</span>
+                        </label>
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          required
+                          value={agentAmountPerLead}
+                          onChange={(e) => setAgentAmountPerLead(e.target.value)}
+                          placeholder="e.g. 200"
+                          className="liquid-glass-input w-full px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-sky-700 dark:text-sky-300 focus:outline-none bg-white/80 dark:bg-slate-800/80"
+                        />
+                        <span className="text-[10px] text-slate-400 mt-1 block">Paid to intake agent</span>
+                      </div>
+
+                      <div className="p-3 rounded-2xl bg-purple-500/5 dark:bg-purple-500/10 border border-purple-500/20">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300 mb-1 flex items-center gap-1">
+                          <span>🎯 Closer Rate (₹)</span>
+                        </label>
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          required
+                          value={closerAmountPerLead}
+                          onChange={(e) => setCloserAmountPerLead(e.target.value)}
+                          placeholder="e.g. 500"
+                          className="liquid-glass-input w-full px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-purple-700 dark:text-purple-300 focus:outline-none bg-white/80 dark:bg-slate-800/80"
+                        />
+                        <span className="text-[10px] text-slate-400 mt-1 block">Paid to closing agent</span>
+                      </div>
                     </div>
 
+                    {/* Live Self-Close Preview */}
+                    <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-semibold">
+                        <span>⭐ Self-Closed Deal Payout:</span>
+                      </div>
+                      <div className="font-mono font-extrabold text-emerald-700 dark:text-emerald-300 text-sm">
+                        ₹{(parseFloat(agentAmountPerLead || "0") + parseFloat(closerAmountPerLead || "0")).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+
+                    {/* Team Target & Pool */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                          Commission / Lead (₹)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.50"
-                          required
-                          value={amountPerLead}
-                          onChange={(e) => setAmountPerLead(e.target.value)}
-                          className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                          Team Target Volume
+                          Monthly Team Target
                         </label>
                         <input
                           type="number"
                           required
+                          min="1"
                           value={minLeadsTarget}
                           onChange={(e) => setMinLeadsTarget(e.target.value)}
                           className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
                         />
+                        <span className="text-[10px] text-slate-400">Approved leads target</span>
                       </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                        Team Milestone Bonus Pool (₹)
-                      </label>
-                      <input
-                        type="number"
-                        step="50"
-                        required
-                        value={teamBonusPool}
-                        onChange={(e) => setTeamBonusPool(e.target.value)}
-                        className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
-                      />
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                          Team Milestone Pool (₹)
+                        </label>
+                        <input
+                          type="number"
+                          step="50"
+                          required
+                          min="0"
+                          value={teamBonusPool}
+                          onChange={(e) => setTeamBonusPool(e.target.value)}
+                          className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
+                        />
+                        <span className="text-[10px] text-slate-400">Bonus on reaching target</span>
+                      </div>
                     </div>
 
                     <div className="pt-2 flex items-center gap-3">
@@ -1015,7 +1092,7 @@ export function AdminWorkforceManager() {
                         type="submit"
                         className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs"
                       >
-                        Save Rule
+                        Save Rates
                       </button>
                     </div>
                   </form>

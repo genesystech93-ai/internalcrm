@@ -16,6 +16,19 @@ export interface IncentiveRuleItem {
   isActive: boolean;
 }
 
+export interface CampaignIncentiveItem {
+  campaignId: string;
+  campaignName: string;
+  campaignVertical?: string | null;
+  agentAmountPerLead: number;
+  closerAmountPerLead: number;
+  minLeadsTarget: number;
+  teamBonusPool: number;
+  isActive: boolean;
+  agentRuleId?: string;
+  closerRuleId?: string;
+}
+
 export interface UserEarningsSummary {
   approvedLeadsCount: number;
   individualCommissions: number;
@@ -40,6 +53,199 @@ const emptyEarnings: UserEarningsSummary = {
   history: [],
 };
 
+export async function getCampaignIncentivesAction(): Promise<CampaignIncentiveItem[]> {
+  try {
+    const [rules, campaigns] = await Promise.all([
+      prisma.incentiveRule.findMany({
+        include: { campaign: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.campaign.findMany({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+      }),
+    ]);
+
+    const map = new Map<string, CampaignIncentiveItem>();
+
+    for (const r of rules) {
+      const cId = r.campaignId || "general";
+      const cName = r.campaign?.name || "General Floor";
+      const cVert = r.campaign?.vertical || null;
+
+      if (!map.has(cId)) {
+        map.set(cId, {
+          campaignId: cId,
+          campaignName: cName,
+          campaignVertical: cVert,
+          agentAmountPerLead: 0,
+          closerAmountPerLead: 0,
+          minLeadsTarget: r.bonusThreshold || 10,
+          teamBonusPool: Number(r.bonusAmount || 0),
+          isActive: r.isActive,
+        });
+      }
+
+      const item = map.get(cId)!;
+      if (r.roleTarget === "AGENT") {
+        item.agentAmountPerLead = Number(r.amountPerLead);
+        item.agentRuleId = r.id;
+        item.isActive = r.isActive;
+        if (r.bonusThreshold) item.minLeadsTarget = r.bonusThreshold;
+        if (r.bonusAmount) item.teamBonusPool = Number(r.bonusAmount);
+      } else if (r.roleTarget === "CLOSER") {
+        item.closerAmountPerLead = Number(r.amountPerLead);
+        item.closerRuleId = r.id;
+        item.isActive = item.isActive || r.isActive;
+        if (r.bonusThreshold && !item.minLeadsTarget) item.minLeadsTarget = r.bonusThreshold;
+        if (r.bonusAmount && !item.teamBonusPool) item.teamBonusPool = Number(r.bonusAmount);
+      }
+    }
+
+    return Array.from(map.values());
+  } catch {
+    return [];
+  }
+}
+
+export async function saveCampaignIncentiveAction(formData: FormData) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Admin authority required." };
+  }
+
+  const campaignId = formData.get("campaignId")?.toString();
+  const agentAmount = parseFloat(formData.get("agentAmount")?.toString() || "0");
+  const closerAmount = parseFloat(formData.get("closerAmount")?.toString() || "0");
+  const minLeadsTarget = parseInt(formData.get("minLeadsTarget")?.toString() || "10", 10);
+  const teamBonusPool = parseFloat(formData.get("teamBonusPool")?.toString() || "0");
+
+  if (!campaignId) return { error: "Campaign is required." };
+  if (isNaN(agentAmount) || agentAmount < 0) return { error: "Please enter a valid Agent commission amount." };
+  if (isNaN(closerAmount) || closerAmount < 0) return { error: "Please enter a valid Closer commission amount." };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // 1. Upsert AGENT rule
+      const existingAgentRule = await tx.incentiveRule.findFirst({
+        where: { campaignId, roleTarget: "AGENT" },
+      });
+
+      if (existingAgentRule) {
+        await tx.incentiveRule.update({
+          where: { id: existingAgentRule.id },
+          data: {
+            amountPerLead: agentAmount,
+            bonusThreshold: minLeadsTarget,
+            bonusAmount: teamBonusPool,
+            isActive: true,
+          },
+        });
+      } else {
+        await tx.incentiveRule.create({
+          data: {
+            campaignId,
+            roleTarget: "AGENT",
+            amountPerLead: agentAmount,
+            bonusThreshold: minLeadsTarget,
+            bonusAmount: teamBonusPool,
+            isActive: true,
+          },
+        });
+      }
+
+      // 2. Upsert CLOSER rule
+      const existingCloserRule = await tx.incentiveRule.findFirst({
+        where: { campaignId, roleTarget: "CLOSER" },
+      });
+
+      if (existingCloserRule) {
+        await tx.incentiveRule.update({
+          where: { id: existingCloserRule.id },
+          data: {
+            amountPerLead: closerAmount,
+            bonusThreshold: minLeadsTarget,
+            bonusAmount: teamBonusPool,
+            isActive: true,
+          },
+        });
+      } else {
+        await tx.incentiveRule.create({
+          data: {
+            campaignId,
+            roleTarget: "CLOSER",
+            amountPerLead: closerAmount,
+            bonusThreshold: minLeadsTarget,
+            bonusAmount: teamBonusPool,
+            isActive: true,
+          },
+        });
+      }
+
+      // 3. Keep campaign commissionPerLead aligned
+      await tx.campaign.update({
+        where: { id: campaignId },
+        data: { commissionPerLead: agentAmount },
+      });
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/employees");
+    return { success: true, message: "Campaign incentive rates saved successfully." };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : "Failed to save campaign incentives." };
+  }
+}
+
+export async function deleteCampaignIncentiveAction(campaignId: string) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Admin authority required." };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const rules = await tx.incentiveRule.findMany({ where: { campaignId } });
+      const ruleIds = rules.map((r) => r.id);
+      if (ruleIds.length > 0) {
+        await tx.incentiveEarning.updateMany({
+          where: { ruleId: { in: ruleIds } },
+          data: { ruleId: null },
+        });
+        await tx.incentiveRule.deleteMany({
+          where: { id: { in: ruleIds } },
+        });
+      }
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/employees");
+    return { success: true, message: "Campaign incentive rules removed." };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : "Failed to delete campaign incentive rules." };
+  }
+}
+
+export async function toggleCampaignIncentiveAction(campaignId: string, isActive: boolean) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Admin authority required." };
+  }
+
+  try {
+    await prisma.incentiveRule.updateMany({
+      where: { campaignId },
+      data: { isActive },
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/employees");
+    return { success: true, message: `Campaign incentives ${isActive ? "activated" : "paused"}.` };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : "Failed to update status." };
+  }
+}
+
 export async function getIncentiveRulesAction(): Promise<IncentiveRuleItem[]> {
   try {
     const rules = await prisma.incentiveRule.findMany({
@@ -58,87 +264,20 @@ export async function getIncentiveRulesAction(): Promise<IncentiveRuleItem[]> {
       isActive: r.isActive,
     }));
   } catch {
-    // Database offline — return empty list
     return [];
   }
 }
 
 export async function createIncentiveRuleAction(formData: FormData) {
-  const session = await getSession();
-  if (!session || session.role !== "ADMIN") {
-    return { error: "Unauthorized. Admin authority required." };
-  }
-
-  const campaignId = formData.get("campaignId")?.toString();
-  const role = (formData.get("role")?.toString() || "AGENT") as RoleTarget;
-  const amountPerLead = parseFloat(formData.get("amountPerLead")?.toString() || "15.0");
-  const minLeadsTarget = parseInt(formData.get("minLeadsTarget")?.toString() || "10", 10);
-  const teamBonusPool = parseFloat(formData.get("teamBonusPool")?.toString() || "500.0");
-
-  if (!campaignId) return { error: "Campaign is required." };
-
-  try {
-    await prisma.incentiveRule.create({
-      data: {
-        campaignId,
-        roleTarget: role,
-        amountPerLead,
-        bonusThreshold: minLeadsTarget,
-        bonusAmount: teamBonusPool,
-        isActive: true,
-      },
-    });
-
-    revalidatePath("/admin");
-    revalidatePath("/admin/employees");
-    return { success: true, message: `Custom incentive rule created for ${role}.` };
-  } catch {
-    return { error: "Database is offline. Unable to create incentive rule." };
-  }
+  return saveCampaignIncentiveAction(formData);
 }
 
 export async function deleteIncentiveRuleAction(ruleId: string) {
-  const session = await getSession();
-  if (!session || session.role !== "ADMIN") {
-    return { error: "Unauthorized. Admin authority required." };
-  }
-
-  try {
-    await prisma.incentiveEarning.updateMany({
-      where: { ruleId },
-      data: { ruleId: null },
-    });
-
-    await prisma.incentiveRule.delete({
-      where: { id: ruleId },
-    });
-
-    revalidatePath("/admin");
-    revalidatePath("/admin/employees");
-    return { success: true, message: "Incentive rule removed." };
-  } catch (err: unknown) {
-    return { error: err instanceof Error ? err.message : "Failed to delete incentive rule." };
-  }
+  return deleteCampaignIncentiveAction(ruleId);
 }
 
 export async function toggleIncentiveRuleAction(ruleId: string, isActive: boolean) {
-  const session = await getSession();
-  if (!session || session.role !== "ADMIN") {
-    return { error: "Unauthorized. Admin authority required." };
-  }
-
-  try {
-    await prisma.incentiveRule.update({
-      where: { id: ruleId },
-      data: { isActive },
-    });
-
-    revalidatePath("/admin");
-    revalidatePath("/admin/employees");
-    return { success: true, message: `Rule is now ${isActive ? "Active" : "Disabled"}.` };
-  } catch (err: unknown) {
-    return { error: err instanceof Error ? err.message : "Failed to update incentive rule status." };
-  }
+  return toggleCampaignIncentiveAction(ruleId, isActive);
 }
 
 export async function getUserEarningsSummaryAction(): Promise<UserEarningsSummary> {
