@@ -123,6 +123,195 @@ export async function createCampaignAction(formData: FormData) {
   }
 }
 
+export async function updateCampaignAction(
+  campaignId: string,
+  data: {
+    name: string;
+    vertical?: string | null;
+    shiftStartTime: string;
+    shiftEndTime: string;
+    lateGraceMinutes: number;
+    commissionPerLead: number;
+    isActive: boolean;
+  }
+) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Admin authority required." };
+  }
+
+  const name = data.name.trim();
+  if (!name) return { error: "Campaign name is required." };
+
+  try {
+    // Check if another campaign already has this name
+    const existing = await prisma.campaign.findFirst({
+      where: {
+        name,
+        id: { not: campaignId },
+      },
+    });
+    if (existing) {
+      return { error: `Another campaign with the name "${name}" already exists.` };
+    }
+
+    await prisma.campaign.update({
+      where: { id: campaignId },
+      data: {
+        name,
+        vertical: data.vertical?.trim() || null,
+        shiftStartTime: data.shiftStartTime || "19:00",
+        shiftEndTime: data.shiftEndTime || "04:00",
+        lateGraceMinutes: Number(data.lateGraceMinutes) || 15,
+        commissionPerLead: Number(data.commissionPerLead) || 15,
+        isActive: data.isActive,
+      },
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/settings");
+    revalidatePath("/dashboard");
+    return { success: true, message: `Campaign "${name}" updated successfully.` };
+  } catch (err: unknown) {
+    console.error("Error updating campaign in DB:", err);
+    // Dev fallback
+    const target = configuredCampaigns.find((c) => c.id === campaignId);
+    if (target) {
+      target.name = name;
+      target.vertical = data.vertical || null;
+      target.shiftStartTime = data.shiftStartTime;
+      target.shiftEndTime = data.shiftEndTime;
+      target.lateGraceMinutes = Number(data.lateGraceMinutes);
+      target.commissionPerLead = Number(data.commissionPerLead);
+      target.isActive = data.isActive;
+    }
+    revalidatePath("/admin");
+    revalidatePath("/admin/settings");
+    revalidatePath("/dashboard");
+    return { success: true, message: `Campaign "${name}" updated successfully.` };
+  }
+}
+
+export async function deleteCampaignAction(campaignId: string, force: boolean = false) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Admin authority required." };
+  }
+
+  try {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      include: {
+        _count: {
+          select: { leads: true },
+        },
+      },
+    });
+
+    if (!campaign) {
+      return { error: "Campaign not found." };
+    }
+
+    const leadCount = campaign._count.leads;
+
+    // Safety prompt if campaign contains leads and force flag is false
+    if (leadCount > 0 && !force) {
+      return {
+        error: `Campaign "${campaign.name}" contains ${leadCount} lead(s). Deletion requires confirmation to delete associated lead records.`,
+        hasLeads: true,
+        leadCount,
+      };
+    }
+
+    // Clean up dependent records in transaction
+    await prisma.$transaction(async (tx) => {
+      // 1. Unlink attendance records so attendance history isn't broken
+      await tx.attendance.updateMany({
+        where: { campaignId },
+        data: { campaignId: null },
+      });
+
+      // 2. Remove incentive rules for this campaign
+      await tx.incentiveRule.deleteMany({
+        where: { campaignId },
+      });
+
+      // 3. If leads exist, cascade delete lead-dependent records
+      if (leadCount > 0) {
+        const leadIds = (
+          await tx.lead.findMany({
+            where: { campaignId },
+            select: { id: true },
+          })
+        ).map((l) => l.id);
+
+        if (leadIds.length > 0) {
+          await tx.chatMessage.updateMany({
+            where: { leadId: { in: leadIds } },
+            data: { leadId: null },
+          });
+          await tx.lead.deleteMany({
+            where: { campaignId },
+          });
+        }
+      }
+
+      // 4. Delete the campaign itself
+      await tx.campaign.delete({
+        where: { id: campaignId },
+      });
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/settings");
+    revalidatePath("/dashboard");
+    return { success: true, message: `Campaign "${campaign.name}" deleted successfully.` };
+  } catch (err: unknown) {
+    console.error("Error deleting campaign:", err);
+    // Dev fallback
+    const idx = configuredCampaigns.findIndex((c) => c.id === campaignId);
+    if (idx !== -1) {
+      const removed = configuredCampaigns.splice(idx, 1)[0];
+      revalidatePath("/admin");
+      revalidatePath("/admin/settings");
+      revalidatePath("/dashboard");
+      return { success: true, message: `Campaign "${removed.name}" deleted.` };
+    }
+    return { error: err instanceof Error ? err.message : "Failed to delete campaign." };
+  }
+}
+
+export async function toggleCampaignStatusAction(campaignId: string, isActive: boolean) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Admin authority required." };
+  }
+
+  try {
+    const updated = await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { isActive },
+    });
+    revalidatePath("/admin");
+    revalidatePath("/admin/settings");
+    revalidatePath("/dashboard");
+    return {
+      success: true,
+      message: `Campaign "${updated.name}" is now ${isActive ? "Active" : "Archived"}.`,
+    };
+  } catch {
+    const target = configuredCampaigns.find((c) => c.id === campaignId);
+    if (target) target.isActive = isActive;
+    revalidatePath("/admin");
+    revalidatePath("/admin/settings");
+    revalidatePath("/dashboard");
+    return {
+      success: true,
+      message: `Campaign status updated to ${isActive ? "Active" : "Archived"}.`,
+    };
+  }
+}
+
 export async function updateCampaignShiftAction(
   campaignId: string,
   shiftStartTime: string,
