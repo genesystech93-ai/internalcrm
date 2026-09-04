@@ -15,6 +15,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
+import { ModalPortal } from "@/components/ModalPortal";
 
 export function DatabaseStatusBadge() {
   const [data, setData] = useState<DatabaseDiagnosticResult | null>(null);
@@ -93,12 +94,13 @@ export function DatabaseStatusBadge() {
 
       {/* Quick Diagnostics Pop-up Modal */}
       {isModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsModalOpen(false);
-          }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
-        >
+        <ModalPortal>
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsModalOpen(false);
+            }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
+          >
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-7 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
             {/* Close button */}
             <button
@@ -231,6 +233,7 @@ export function DatabaseStatusBadge() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </>
   );

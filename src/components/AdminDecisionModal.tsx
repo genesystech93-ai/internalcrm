@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { adminDecisionAction, adminReclassifyLeadAction } from "@/app/actions/leads";
 import { LeadStatus } from "@prisma/client";
 import { XCircle, X, ShieldAlert } from "lucide-react";
+import { ModalPortal } from "@/components/ModalPortal";
 
 interface AdminDecisionModalProps {
   isOpen: boolean;
@@ -24,30 +25,20 @@ export function AdminDecisionModal({
   leadCustomerName,
   mode,
   currentStatus,
-  targetStatus = "REJECTED",
+  targetStatus,
 }: AdminDecisionModalProps) {
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
 
-  const isApprovedReversal = currentStatus === "APPROVED" && targetStatus !== "APPROVED";
+  const isApprovedReversal = currentStatus === "APPROVED";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
-      setError("A justification reason is strictly mandatory.");
+      setError("Audit reason is strictly mandatory.");
       return;
     }
 
@@ -57,11 +48,11 @@ export function AdminDecisionModal({
     let res;
     if (mode === "REJECT") {
       res = await adminDecisionAction(leadId, "REJECTED", reason);
-    } else {
+    } else if (targetStatus) {
       res = await adminReclassifyLeadAction(leadId, targetStatus, reason);
     }
 
-    if (res.error) {
+    if (res?.error) {
       setError(res.error);
     } else {
       onSuccess();
@@ -71,20 +62,21 @@ export function AdminDecisionModal({
   };
 
   return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
-    >
-      <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-5 right-5 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-[#64748B] cursor-pointer"
-        >
-          <X className="w-4 h-4" />
-        </button>
+    <ModalPortal>
+      <div
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto"
+      >
+        <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-5 right-5 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-[#64748B] cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
 
         <div className="flex items-center gap-3 mb-4">
           <div
@@ -158,5 +150,6 @@ export function AdminDecisionModal({
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 }

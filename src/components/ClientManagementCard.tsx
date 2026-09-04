@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Building2, Plus, Users, Clock, Mail, Check, AlertCircle, X, ShieldCheck } from "lucide-react";
 import { getClientsAction, createClientAction, ClientItem } from "@/app/actions/clients";
 import { NetTermsType } from "@/lib/client-store";
+import { ModalPortal } from "@/components/ModalPortal";
 
 export function ClientManagementCard() {
   const [clients, setClients] = useState<ClientItem[]>([]);
@@ -178,12 +179,13 @@ export function ClientManagementCard() {
 
       {/* Modal: Register New Client */}
       {isModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsModalOpen(false);
-          }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200"
-        >
+        <ModalPortal>
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsModalOpen(false);
+            }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto"
+          >
           <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-7 border border-white/80 dark:border-slate-700 shadow-2xl relative">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-slate-800">
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
@@ -282,6 +284,7 @@ export function ClientManagementCard() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

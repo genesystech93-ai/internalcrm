@@ -15,6 +15,7 @@ import {
   Clock,
 } from "lucide-react";
 import { LeaveStatus, LeaveType } from "@prisma/client";
+import { ModalPortal } from "./ModalPortal";
 
 interface LeaveItem {
   id: string;
@@ -451,99 +452,101 @@ export function LeaveManagement({ isAdmin = false }: { isAdmin?: boolean }) {
 
       {/* Apply Leave Modal */}
       {showApplyModal && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowApplyModal(false);
-          }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
-        >
-          <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative">
-            <button
-              type="button"
-              onClick={() => setShowApplyModal(false)}
-              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100/70 dark:hover:bg-slate-800 text-[#64748B] dark:text-[#94A3B8] transition-colors cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white mb-4">
-              Apply for Planned Leave
-            </h3>
+        <ModalPortal>
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowApplyModal(false);
+            }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto"
+          >
+            <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative">
+              <button
+                type="button"
+                onClick={() => setShowApplyModal(false)}
+                className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100/70 dark:hover:bg-slate-800 text-[#64748B] dark:text-[#94A3B8] transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white mb-4">
+                Apply for Planned Leave
+              </h3>
 
-            <form onSubmit={handleApply} className="space-y-3.5">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                  Leave Category
-                </label>
-                <select
-                  value={leaveType}
-                  onChange={(e) => setLeaveType(e.target.value as LeaveType)}
-                  className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs focus:outline-none"
-                >
-                  <option value="CASUAL">Casual Leave</option>
-                  <option value="SICK">Sick / Medical Leave</option>
-                  <option value="EMERGENCY">Emergency Leave</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              <form onSubmit={handleApply} className="space-y-3.5">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                    Start Date
+                    Leave Category
                   </label>
-                  <input
-                    type="date"
-                    required
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
-                  />
+                  <select
+                    value={leaveType}
+                    onChange={(e) => setLeaveType(e.target.value as LeaveType)}
+                    className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs focus:outline-none"
+                  >
+                    <option value="CASUAL">Casual Leave</option>
+                    <option value="SICK">Sick / Medical Leave</option>
+                    <option value="EMERGENCY">Emergency Leave</option>
+                  </select>
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                    End Date
+                    Reason for Absence
                   </label>
-                  <input
-                    type="date"
-                    required
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
+                  <textarea
+                    rows={3}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Explain reason for leave..."
+                    className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none resize-none"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                  Reason for Absence
-                </label>
-                <textarea
-                  rows={3}
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Explain reason for leave..."
-                  className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none resize-none"
-                />
-              </div>
-
-              <div className="pt-2 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowApplyModal(false)}
-                  className="liquid-glass-button-secondary flex-1 py-2.5 rounded-xl font-bold text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs"
-                >
-                  {loading ? "Submitting..." : "Submit Application"}
-                </button>
-              </div>
-            </form>
+                <div className="pt-2 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowApplyModal(false)}
+                    className="liquid-glass-button-secondary flex-1 py-2.5 rounded-xl font-bold text-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs"
+                  >
+                    {loading ? "Submitting..." : "Submit Application"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import { getIncentiveRulesAction, createIncentiveRuleAction, IncentiveRuleItem }
 import { getTeamsAction, createTeamAction, TeamItem } from "@/app/actions/teams";
 import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
 import { Users, Clock, Calendar, DollarSign, Award, Plus, Edit2, Check, AlertCircle } from "lucide-react";
+import { ModalPortal } from "./ModalPortal";
 
 export function AdminWorkforceManager() {
   const [activeTab, setActiveTab] = useState<"attendance" | "leaves" | "salaries" | "incentives">("attendance");
@@ -383,165 +384,169 @@ export function AdminWorkforceManager() {
 
           {/* Create Team Modal */}
           {showTeamModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-              <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
-                <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white mb-4">
-                  Create New Floor Team
-                </h3>
+            <ModalPortal>
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+                <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
+                  <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white mb-4">
+                    Create New Floor Team
+                  </h3>
 
-                <form onSubmit={handleCreateTeam} className="space-y-3.5">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                      Team Name
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Alpha Velocity"
-                      value={newTeamName}
-                      onChange={(e) => setNewTeamName(e.target.value)}
-                      className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
+                  <form onSubmit={handleCreateTeam} className="space-y-3.5">
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                        Monthly Target Volume
+                        Team Name
                       </label>
                       <input
-                        type="number"
+                        type="text"
                         required
-                        value={newTeamTarget}
-                        onChange={(e) => setNewTeamTarget(e.target.value)}
-                        className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
+                        placeholder="e.g. Alpha Velocity"
+                        value={newTeamName}
+                        onChange={(e) => setNewTeamName(e.target.value)}
+                        className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
                       />
                     </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                          Monthly Target Volume
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={newTeamTarget}
+                          onChange={(e) => setNewTeamTarget(e.target.value)}
+                          className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                          Bonus Pool (₹)
+                        </label>
+                        <input
+                          type="number"
+                          step="50"
+                          required
+                          value={newTeamPool}
+                          onChange={(e) => setNewTeamPool(e.target.value)}
+                          className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowTeamModal(false)}
+                        className="liquid-glass-button-secondary flex-1 py-2.5 rounded-xl font-bold text-xs"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs"
+                      >
+                        Save Team
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </ModalPortal>
+          )}
+
+          {/* Create Incentive Rule Modal */}
+          {showRuleModal && (
+            <ModalPortal>
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+                <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
+                  <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white mb-4">
+                    Configure New Incentive Rule
+                  </h3>
+
+                  <form onSubmit={handleCreateRule} className="space-y-3.5">
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                        Bonus Pool (₹)
+                        Campaign
+                      </label>
+                      <select
+                        value={campaignId}
+                        onChange={(e) => setCampaignId(e.target.value)}
+                        className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
+                      >
+                        {campaigns.length === 0 ? (
+                          <option value="">No campaigns available</option>
+                        ) : (
+                          campaigns.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                          Commission / Lead (₹)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.50"
+                          required
+                          value={amountPerLead}
+                          onChange={(e) => setAmountPerLead(e.target.value)}
+                          className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                          Team Target Volume
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={minLeadsTarget}
+                          onChange={(e) => setMinLeadsTarget(e.target.value)}
+                          className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                        Team Milestone Bonus Pool (₹)
                       </label>
                       <input
                         type="number"
                         step="50"
                         required
-                        value={newTeamPool}
-                        onChange={(e) => setNewTeamPool(e.target.value)}
+                        value={teamBonusPool}
+                        onChange={(e) => setTeamBonusPool(e.target.value)}
                         className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
                       />
                     </div>
-                  </div>
 
-                  <div className="pt-2 flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowTeamModal(false)}
-                      className="liquid-glass-button-secondary flex-1 py-2.5 rounded-xl font-bold text-xs"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs"
-                    >
-                      Save Team
-                    </button>
-                  </div>
-                </form>
+                    <div className="pt-2 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowRuleModal(false)}
+                        className="liquid-glass-button-secondary flex-1 py-2.5 rounded-xl font-bold text-xs"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs"
+                      >
+                        Save Rule
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Create Incentive Rule Modal */}
-          {showRuleModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-              <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
-                <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white mb-4">
-                  Configure New Incentive Rule
-                </h3>
-
-                <form onSubmit={handleCreateRule} className="space-y-3.5">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                      Campaign
-                    </label>
-                    <select
-                      value={campaignId}
-                      onChange={(e) => setCampaignId(e.target.value)}
-                      className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
-                    >
-                      {campaigns.length === 0 ? (
-                        <option value="">No campaigns available</option>
-                      ) : (
-                        campaigns.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                        Commission / Lead (₹)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.50"
-                        required
-                        value={amountPerLead}
-                        onChange={(e) => setAmountPerLead(e.target.value)}
-                        className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                        Team Target Volume
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        value={minLeadsTarget}
-                        onChange={(e) => setMinLeadsTarget(e.target.value)}
-                        className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                      Team Milestone Bonus Pool (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="50"
-                      required
-                      value={teamBonusPool}
-                      onChange={(e) => setTeamBonusPool(e.target.value)}
-                      className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="pt-2 flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowRuleModal(false)}
-                      className="liquid-glass-button-secondary flex-1 py-2.5 rounded-xl font-bold text-xs"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs"
-                    >
-                      Save Rule
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
+            </ModalPortal>
           )}
         </div>
       )}

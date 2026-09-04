@@ -5,6 +5,7 @@ import { createLeadAction, getCustomStatusesAction, CustomStatusItem } from "@/a
 import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
 import { LeadSource, LeadStatus } from "@prisma/client";
 import { PlusCircle, X, Calendar, Phone, Mail, MapPin, User, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ModalPortal } from "@/components/ModalPortal";
 
 interface LeadEntryModalProps {
   isOpen: boolean;
@@ -106,12 +107,13 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
   };
 
   return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
-    >
+    <ModalPortal>
+      <div
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto"
+      >
       <div className="liquid-glass w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative custom-scrollbar">
         {/* Close Button */}
         <button
@@ -407,5 +409,6 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 }

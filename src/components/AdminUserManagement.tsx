@@ -23,6 +23,7 @@ import {
   Filter,
 } from "lucide-react";
 import { Role } from "@prisma/client";
+import { ModalPortal } from "@/components/ModalPortal";
 
 export function AdminUserManagement() {
   const [users, setUsers] = useState<UserManagementItem[]>([]);
@@ -349,12 +350,13 @@ export function AdminUserManagement() {
 
       {/* Modal 1: Add New Employee */}
       {isAddModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsAddModalOpen(false);
-          }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
-        >
+        <ModalPortal>
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsAddModalOpen(false);
+            }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
+          >
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
             <button
               onClick={() => setIsAddModalOpen(false)}
@@ -502,16 +504,18 @@ export function AdminUserManagement() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Modal 2: Reset Password Modal */}
       {selectedUser && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedUser(null);
-          }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
-        >
+        <ModalPortal>
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSelectedUser(null);
+            }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
+          >
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
             <button
               onClick={() => setSelectedUser(null)}
@@ -600,6 +604,7 @@ export function AdminUserManagement() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import {
   CampaignItem,
 } from "@/app/actions/campaigns";
 import { Layers, Plus, Edit2, Check, AlertCircle } from "lucide-react";
+import { ModalPortal } from "@/components/ModalPortal";
 
 export function CampaignManagement() {
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
@@ -246,12 +247,13 @@ export function CampaignManagement() {
 
       {/* Create Campaign Modal */}
       {showCreateModal && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowCreateModal(false);
-          }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
-        >
+        <ModalPortal>
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowCreateModal(false);
+            }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto"
+          >
           <div className="liquid-glass w-full max-w-md rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative">
             <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white mb-4">
               Add New Campaign & Shift Schedule
@@ -359,6 +361,7 @@ export function CampaignManagement() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

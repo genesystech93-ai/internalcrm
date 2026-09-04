@@ -9,6 +9,7 @@ import { calculateRowHeight } from "@/lib/pretext-measure";
 import { Search, CheckCircle2, XCircle, Clock, Eye, MessageSquare, Check, Building2 } from "lucide-react";
 import { shareLeadToChatAction } from "@/app/actions/messages";
 import { ClientSubmissionModal } from "@/components/ClientSubmissionModal";
+import { ModalPortal } from "@/components/ModalPortal";
 
 interface LeadTableProps {
   leads: LeadItem[];
@@ -335,12 +336,13 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
 
       {/* Inspect Lead Modal */}
       {inspectLead && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setInspectLead(null);
-          }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
-        >
+        <ModalPortal>
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setInspectLead(null);
+            }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto"
+          >
           <div className="liquid-glass w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-700">
               <div>
@@ -429,6 +431,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Client Submission & Net Terms Modal */}

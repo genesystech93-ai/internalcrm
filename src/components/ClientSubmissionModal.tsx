@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { X, Building2, Calendar, Clock, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 import { getClientsAction, submitLeadToClientAction, ClientItem } from "@/app/actions/clients";
 import { NetTermsType, netTermsToDays, calculateApprovalDeadline } from "@/lib/client-store";
+import { ModalPortal } from "@/components/ModalPortal";
 
 interface ClientSubmissionModalProps {
   isOpen: boolean;
@@ -95,12 +96,13 @@ export function ClientSubmissionModal({
   };
 
   return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200"
-    >
+    <ModalPortal>
+      <div
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto"
+      >
       <div className="liquid-glass w-full max-w-lg rounded-3xl p-6 sm:p-7 border border-white/80 dark:border-slate-700 shadow-2xl relative">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-slate-800">
@@ -247,5 +249,6 @@ export function ClientSubmissionModal({
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 }
