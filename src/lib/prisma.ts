@@ -7,7 +7,7 @@ const globalForPrisma = globalThis as unknown as {
 // Robust sanitizer for DATABASE_URL in cloud environments (cPanel/GoDaddy)
 function sanitizeDatabaseUrl(raw?: string): string {
   const fallback =
-    "postgresql://postgres.tcdyyznmarfplpaovcdl:SURAJmagar9890@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require";
+    "postgresql://postgres.tcdyyznmarfplpaovcdl:SURAJmagar9890@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require";
 
   if (!raw) return fallback;
 

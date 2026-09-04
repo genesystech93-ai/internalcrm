@@ -34,24 +34,23 @@ async function run() {
   console.log("==================================================");
 
   // 1. Test Current .env configuration
-  const currentOk = await testUrl("Active .env Configuration (DATABASE_URL)", currentEnvUrl);
-
-  // if (currentOk) {
-  //   console.log("\n>>> Active connection string is working perfectly!");
-  //   return;
-  // }
-
-  console.log("\n>>> Active connection failed. Testing fallback options...\n");
+  await testUrl("Active .env Configuration (DATABASE_URL)", currentEnvUrl);
 
   // 2. Test Pooler Port 6543 (Transaction Mode)
   await testUrl(
-    "Fallback Option A: Pooler Port 6543 (Transaction Mode)",
-    "postgresql://postgres.tcdyyznmarfplpaovcdl:SURAJmagar9890@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require"
+    "Pooler Port 6543 (Transaction Mode)",
+    "postgresql://postgres.tcdyyznmarfplpaovcdl:SURAJmagar9890@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require"
   );
 
-  // 3. Direct DB Host (Port 5432)
+  // 3. Test Pooler Port 5432 (Session Mode)
   await testUrl(
-    "Fallback Option B: Direct DB Host (Port 5432)",
+    "Pooler Port 5432 (Session Mode)",
+    "postgresql://postgres.tcdyyznmarfplpaovcdl:SURAJmagar9890@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require"
+  );
+
+  // 4. Direct DB Host (Port 5432)
+  await testUrl(
+    "Direct DB Host (Port 5432)",
     "postgresql://postgres:SURAJmagar9890@db.tcdyyznmarfplpaovcdl.supabase.co:5432/postgres?sslmode=require"
   );
 

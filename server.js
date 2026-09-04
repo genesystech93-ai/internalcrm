@@ -13,7 +13,7 @@ process.on("unhandledRejection", (reason) => {
   console.error("[CRM Server UnhandledRejection]:", reason);
 });
 
-// 2. Load root .env variables into process.env if not already provided by hosting panel
+// 2. Load root .env variables into process.env if present
 const envPath = path.join(__dirname, ".env");
 if (fs.existsSync(envPath)) {
   try {
@@ -27,11 +27,12 @@ if (fs.existsSync(envPath)) {
         if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
           val = val.slice(1, -1);
         }
-        if (!process.env[key]) {
+        if (val) {
           process.env[key] = val;
         }
       }
     });
+    console.log("[CRM Server] Loaded environment settings from .env file.");
   } catch (e) {
     console.error("[CRM Server] Could not read .env file:", e);
   }
@@ -47,6 +48,84 @@ if (process.env.DATABASE_URL) {
   process.env.DATABASE_URL = u;
 }
 
+// 2c. Fast TCP probe to detect if hosting firewall blocks port 6543 or 5432
+const net = require("net");
+function probeTcpPort(host, port, timeoutMs = 1200) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    let resolved = false;
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => {
+      resolved = true;
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("timeout", () => {
+      if (!resolved) {
+        resolved = true;
+        socket.destroy();
+        resolve(false);
+      }
+    });
+    socket.once("error", () => {
+      if (!resolved) {
+        resolved = true;
+        socket.destroy();
+        resolve(false);
+      }
+    });
+    socket.connect(port, host);
+  });
+}
+
+async function autoDetectDatabasePort() {
+  const rawUrl = process.env.DATABASE_URL;
+  if (!rawUrl || !rawUrl.includes("pooler.supabase.com")) return;
+
+  const host = "aws-0-ap-south-1.pooler.supabase.com";
+  const isPort6543 = rawUrl.includes(":6543");
+  const isPort5432 = rawUrl.includes(":5432");
+
+  if (isPort6543) {
+    const p6543Ok = await probeTcpPort(host, 6543, 1200);
+    if (!p6543Ok) {
+      console.log("[CRM Server] Outbound port 6543 blocked/timed out. Probing fallback port 5432...");
+      const p5432Ok = await probeTcpPort(host, 5432, 1200);
+      if (p5432Ok) {
+        console.log("[CRM Server] Port 5432 is OPEN! Automatically switching DATABASE_URL to Session Mode on port 5432.");
+        process.env.DATABASE_URL = rawUrl
+          .replace(":6543", ":5432")
+          .replace("?pgbouncer=true&connection_limit=1&", "?")
+          .replace("?pgbouncer=true&", "?")
+          .replace("&pgbouncer=true", "")
+          .replace("&connection_limit=1", "");
+      } else {
+        console.warn("[CRM Server] Warning: Both ports 6543 and 5432 appear blocked on this host. Outbound firewall or Supabase Network Restrictions may be active.");
+      }
+    } else {
+      console.log("[CRM Server] Supabase Pooler Port 6543 verified reachable via TCP.");
+    }
+  } else if (isPort5432) {
+    const p5432Ok = await probeTcpPort(host, 5432, 1200);
+    if (!p5432Ok) {
+      console.log("[CRM Server] Outbound port 5432 blocked/timed out. Probing fallback port 6543...");
+      const p6543Ok = await probeTcpPort(host, 6543, 1200);
+      if (p6543Ok) {
+        console.log("[CRM Server] Port 6543 is OPEN! Automatically switching DATABASE_URL to Transaction Mode on port 6543.");
+        const base = rawUrl.replace(":5432", ":6543");
+        if (!base.includes("pgbouncer=true")) {
+          const sep = base.includes("?") ? "&" : "?";
+          process.env.DATABASE_URL = `${base}${sep}pgbouncer=true&connection_limit=1`;
+        } else {
+          process.env.DATABASE_URL = base;
+        }
+      }
+    } else {
+      console.log("[CRM Server] Supabase Pooler Port 5432 verified reachable via TCP.");
+    }
+  }
+}
+
 // 3. Phusion Passenger assigns a dynamic port or socket via process.env.PORT
 const port = process.env.PORT || 3000;
 const dev = false;
@@ -55,8 +134,9 @@ const handle = app.getRequestHandler();
 
 console.log(`[CRM Server] Initializing Next.js application for GoDaddy / Passenger on port ${port}...`);
 
-app
-  .prepare()
+autoDetectDatabasePort().then(() => {
+  return app.prepare();
+})
   .then(() => {
     createServer((req, res) => {
       const parsedUrl = parse(req.url, true);
