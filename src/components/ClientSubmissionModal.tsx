@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Building2, Calendar, Clock, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
+import { X, Building2, Calendar, Clock, AlertCircle, CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
 import { getClientsAction, submitLeadToClientAction, ClientItem } from "@/app/actions/clients";
 import { NetTermsType, netTermsToDays, calculateApprovalDeadline } from "@/lib/client-store";
 import { ModalPortal } from "@/components/ModalPortal";
@@ -240,10 +240,14 @@ export function ClientSubmissionModal({
             <button
               type="submit"
               disabled={isLoading || !selectedClientId}
-              className="liquid-glass-button px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="liquid-glass-button px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              {isLoading ? (
+                <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />
+              ) : (
+                <ArrowRight className="w-3.5 h-3.5 text-white" />
+              )}
               <span>{isLoading ? "Submitting..." : "Confirm Client Submission"}</span>
-              <ArrowRight className="w-3.5 h-3.5 text-white" />
             </button>
           </div>
         </form>

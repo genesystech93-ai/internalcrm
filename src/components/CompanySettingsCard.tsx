@@ -8,7 +8,7 @@ import {
   removeCompanyLogoAction,
   CompanySettings,
 } from "@/app/actions/company-settings";
-import { Building2, Upload, Trash2, CheckCircle2, AlertCircle, Globe, Mail, Phone, MapPin, Sparkles, FileText } from "lucide-react";
+import { Building2, Upload, Trash2, CheckCircle2, AlertCircle, Globe, Mail, Phone, MapPin, Sparkles, FileText, Loader2 } from "lucide-react";
 
 export function CompanySettingsCard() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
@@ -192,9 +192,9 @@ export function CompanySettingsCard() {
               type="button"
               disabled={isUploading}
               onClick={() => fileInputRef.current?.click()}
-              className="liquid-glass-button-primary w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="liquid-glass-button-primary w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Upload className="w-4 h-4" />
+              {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               <span>{isUploading ? "Uploading Logo..." : "Upload New Logo"}</span>
             </button>
 
@@ -337,9 +337,9 @@ export function CompanySettingsCard() {
               <button
                 type="submit"
                 disabled={isSaving}
-                className="liquid-glass-button-primary py-2.5 px-6 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-md shadow-orange-500/20"
+                className="liquid-glass-button-primary py-2.5 px-6 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-orange-500/20"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                 <span>{isSaving ? "Saving..." : "Save Company Profile"}</span>
               </button>
             </div>

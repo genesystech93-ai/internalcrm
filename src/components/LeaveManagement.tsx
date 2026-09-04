@@ -13,6 +13,7 @@ import {
   List,
   CalendarDays,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 import { ModalPortal } from "./ModalPortal";
@@ -33,6 +34,7 @@ export function LeaveManagement({ isAdmin = false }: { isAdmin?: boolean }) {
   const [leaves, setLeaves] = useState<LeaveItem[]>([]);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const [leaveType, setLeaveType] = useState<LeaveType>("CASUAL");
@@ -82,7 +84,7 @@ export function LeaveManagement({ isAdmin = false }: { isAdmin?: boolean }) {
   };
 
   const handleReview = async (leaveId: string, decision: LeaveStatus) => {
-    setLoading(true);
+    setReviewingId(leaveId);
     const res = await reviewLeaveAction(leaveId, decision);
     if (res.error) {
       setMessage({ text: res.error, type: "error" });
@@ -90,7 +92,7 @@ export function LeaveManagement({ isAdmin = false }: { isAdmin?: boolean }) {
       setMessage({ text: res.message || "Status updated.", type: "success" });
       await loadLeaves();
     }
-    setLoading(false);
+    setReviewingId(null);
   };
 
   return (
@@ -423,18 +425,20 @@ export function LeaveManagement({ isAdmin = false }: { isAdmin?: boolean }) {
                           <button
                             type="button"
                             onClick={() => handleReview(l.id, "APPROVED")}
-                            disabled={loading}
-                            className="liquid-glass-button-secondary py-1 px-2.5 rounded-lg text-[11px] font-bold text-[#059669] hover:bg-emerald-500/10 cursor-pointer"
+                            disabled={loading || reviewingId === l.id}
+                            className="liquid-glass-button-secondary py-1 px-2.5 rounded-lg text-[11px] font-bold text-[#059669] hover:bg-emerald-500/10 cursor-pointer flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
                           >
-                            Approve
+                            {reviewingId === l.id && <Loader2 className="w-3 h-3 animate-spin text-[#059669]" />}
+                            <span>Approve</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleReview(l.id, "REJECTED")}
-                            disabled={loading}
-                            className="liquid-glass-button-secondary py-1 px-2.5 rounded-lg text-[11px] font-bold text-[#EF4444] hover:bg-red-500/10 cursor-pointer"
+                            disabled={loading || reviewingId === l.id}
+                            className="liquid-glass-button-secondary py-1 px-2.5 rounded-lg text-[11px] font-bold text-[#EF4444] hover:bg-red-500/10 cursor-pointer flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
                           >
-                            Reject
+                            {reviewingId === l.id && <Loader2 className="w-3 h-3 animate-spin text-[#EF4444]" />}
+                            <span>Reject</span>
                           </button>
                         </div>
                       ) : (
@@ -538,9 +542,10 @@ export function LeaveManagement({ isAdmin = false }: { isAdmin?: boolean }) {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs"
+                    className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {loading ? "Submitting..." : "Submit Application"}
+                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <span>{loading ? "Submitting..." : "Submit Application"}</span>
                   </button>
                 </div>
               </form>

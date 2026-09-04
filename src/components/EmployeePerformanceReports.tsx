@@ -18,6 +18,7 @@ import {
   PieChart,
   LayoutGrid,
   Award,
+  Loader2,
 } from "lucide-react";
 import { useCountUp, MiniSparkline } from "@/components/ui/visual-utils";
 
@@ -193,20 +194,20 @@ export function EmployeePerformanceReports() {
             type="button"
             onClick={handleExportPerformanceCSV}
             disabled={exporting}
-            className="liquid-glass-button-secondary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer hover:border-orange-500/40"
+            className="liquid-glass-button-secondary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer hover:border-orange-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download className="w-3.5 h-3.5 text-[#F97316]" />
-            <span>Export Performance CSV</span>
+            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#F97316]" /> : <Download className="w-3.5 h-3.5 text-[#F97316]" />}
+            <span>{exporting ? "Exporting..." : "Export Performance CSV"}</span>
           </button>
 
           <button
             type="button"
             onClick={handleExportAllLeadsCSV}
             disabled={exporting}
-            className="liquid-glass-button-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md shadow-orange-500/25"
+            className="liquid-glass-button-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md shadow-orange-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Export All Leads & Sales Master</span>
+            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
+            <span>{exporting ? "Exporting..." : "Export All Leads & Sales Master"}</span>
           </button>
         </div>
       </div>

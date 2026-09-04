@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Volume2,
   VolumeX,
+  Loader2,
 } from "lucide-react";
 import {
   getConversationsAction,
@@ -776,10 +777,10 @@ export function EmployeeChatWidget() {
                 <button
                   type="submit"
                   disabled={!inputContent.trim() || isSending}
-                  className="p-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold shadow-md hover:shadow-orange-500/25 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 transition-all cursor-pointer"
+                  className="p-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold shadow-md hover:shadow-orange-500/25 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center"
                   title="Send message (Enter)"
                 >
-                  <Send className="w-4 h-4" />
+                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 </button>
               </form>
             </div>

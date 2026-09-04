@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Hourglass,
   X,
+  Loader2,
 } from "lucide-react";
 import { ModalPortal } from "./ModalPortal";
 
@@ -195,9 +196,9 @@ export function ShiftControls() {
             type="button"
             onClick={handleUndoLogout}
             disabled={loading}
-            className="liquid-glass-button-primary px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md shadow-orange-500/30 whitespace-nowrap"
+            className="liquid-glass-button-primary px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md shadow-orange-500/30 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <Undo2 className="w-4 h-4" />
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
             <span>Resume Shift / Undo Log-Out</span>
           </button>
         </div>
@@ -266,9 +267,10 @@ export function ShiftControls() {
                 type="button"
                 onClick={handleEndBreak}
                 disabled={loading}
-                className="liquid-glass-button-primary py-1.5 px-3 rounded-xl text-xs font-bold cursor-pointer ml-2"
+                className="liquid-glass-button-primary py-1.5 px-3 rounded-xl text-xs font-bold cursor-pointer ml-2 flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                End Break & Resume
+                {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>{loading ? "Resuming..." : "End Break & Resume"}</span>
               </button>
             </div>
           )}
@@ -280,10 +282,10 @@ export function ShiftControls() {
                 type="button"
                 onClick={handleLogin}
                 disabled={loading}
-                className="liquid-glass-button-primary px-6 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-orange-500/25 disabled:opacity-50"
+                className="liquid-glass-button-primary px-6 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-orange-500/25 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <Play className="w-4 h-4 fill-current" />
-                <span>Log In to Shift</span>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                <span>{loading ? "Logging In..." : "Log In to Shift"}</span>
               </button>
             ) : (
               <>
@@ -399,9 +401,11 @@ export function ShiftControls() {
                 <button
                   type="button"
                   onClick={handleLogoutConfirm}
-                  className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 cursor-pointer shadow-red-500/20"
+                  disabled={loading}
+                  className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 cursor-pointer shadow-red-500/20 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Confirm Log Out
+                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>{loading ? "Logging Out..." : "Confirm Log Out"}</span>
                 </button>
               </div>
             </div>
@@ -474,9 +478,11 @@ export function ShiftControls() {
                   <button
                     type="button"
                     onClick={() => handleStartBreak("CUSTOM", customBreakReason || "Custom Break")}
-                    className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs"
+                    disabled={loading}
+                    className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Start Break
+                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <span>{loading ? "Starting..." : "Start Break"}</span>
                   </button>
                 </div>
               </div>

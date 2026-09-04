@@ -8,7 +8,7 @@ import {
   deleteWhitelistedIpAction,
   toggleWhitelistedIpAction,
 } from "@/app/actions/admin-ip";
-import { Plus, Trash2, Globe, Check, AlertCircle, ToggleLeft, ToggleRight, Wifi } from "lucide-react";
+import { Plus, Trash2, Globe, Check, AlertCircle, ToggleLeft, ToggleRight, Wifi, Loader2 } from "lucide-react";
 
 interface WhitelistedIpRecord {
   id: string;
@@ -138,19 +138,21 @@ export function AdminIpManagement() {
           type="button"
           onClick={handleToggleRestriction}
           disabled={loading}
-          className={`liquid-glass-card px-4 py-2 rounded-2xl flex items-center gap-3 border transition-all cursor-pointer ${isRestricted
+          className={`liquid-glass-card px-4 py-2 rounded-2xl flex items-center gap-3 border transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${isRestricted
               ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
               : "border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/60 text-[#64748B] dark:text-[#94A3B8]"
             }`}
         >
-          {isRestricted ? (
+          {loading ? (
+            <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+          ) : isRestricted ? (
             <ToggleRight className="w-6 h-6 text-[#10B981]" />
           ) : (
             <ToggleLeft className="w-6 h-6 text-[#94A3B8]" />
           )}
           <div className="text-left text-xs">
             <p className="font-bold">
-              {isRestricted ? "Global IP Guard: ENFORCED" : "Global IP Guard: DISABLED"}
+              {loading ? "Updating IP Guard..." : isRestricted ? "Global IP Guard: ENFORCED" : "Global IP Guard: DISABLED"}
             </p>
             <p className="text-[10px] opacity-75">
               {isRestricted ? "Restricted to whitelisted Global IPs" : "Open access across all IPs"}
@@ -238,10 +240,10 @@ export function AdminIpManagement() {
           <button
             type="submit"
             disabled={loading}
-            className="liquid-glass-button-primary w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="liquid-glass-button-primary w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Global IP</span>
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+            <span>{loading ? "Adding..." : "Add Global IP"}</span>
           </button>
         </div>
       </form>

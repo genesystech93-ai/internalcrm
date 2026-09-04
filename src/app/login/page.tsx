@@ -4,7 +4,7 @@ import React, { useActionState, useState, useEffect } from "react";
 import { loginAction } from "@/app/actions/auth";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Lock, User, ArrowRight, Shield, Zap, BarChart3, Sparkles } from "lucide-react";
+import { Lock, User, ArrowRight, Shield, Zap, BarChart3, Sparkles, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(loginAction, null);
@@ -187,13 +187,22 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isPending}
-                className="w-full mt-3 py-3.5 px-4 font-bold text-sm rounded-xl flex items-center justify-center gap-2 cursor-pointer bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-indigo-500/25 transition-all duration-200 active:scale-[0.99] disabled:opacity-50 group relative overflow-hidden"
+                className="w-full mt-3 py-3.5 px-4 font-bold text-sm rounded-xl flex items-center justify-center gap-2 cursor-pointer bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-indigo-500/25 transition-all duration-200 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed group relative overflow-hidden"
               >
                 {isPending && (
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
                 )}
-                <span>{isPending ? "Authenticating Session..." : "Log In to Session"}</span>
-                <ArrowRight className={`w-4 h-4 transition-transform ${isPending ? "animate-pulse" : "group-hover:translate-x-0.5"}`} />
+                {isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Authenticating Session...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Log In to Session</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  </>
+                )}
               </button>
             </form>
           </div>

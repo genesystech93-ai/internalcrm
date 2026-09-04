@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { adminDecisionAction, adminReclassifyLeadAction } from "@/app/actions/leads";
 import { LeadStatus } from "@prisma/client";
-import { XCircle, X, ShieldAlert } from "lucide-react";
+import { XCircle, X, ShieldAlert, Loader2 } from "lucide-react";
 import { ModalPortal } from "@/components/ModalPortal";
 
 interface AdminDecisionModalProps {
@@ -138,13 +138,14 @@ export function AdminDecisionModal({
             <button
               type="submit"
               disabled={loading}
-              className={`flex-1 py-2.5 rounded-xl font-bold text-xs text-white shadow-md cursor-pointer ${
+              className={`flex-1 py-2.5 rounded-xl font-bold text-xs text-white shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${
                 isApprovedReversal
                   ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/20"
                   : "bg-red-600 hover:bg-red-700 shadow-red-600/20"
               }`}
             >
-              {loading ? "Processing..." : "Confirm & Log Audit"}
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              <span>{loading ? "Processing..." : "Confirm & Log Audit"}</span>
             </button>
           </div>
         </form>

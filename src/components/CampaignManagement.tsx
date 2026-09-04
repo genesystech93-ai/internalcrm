@@ -20,12 +20,14 @@ import {
   X,
   Power,
   ShieldAlert,
+  Loader2,
 } from "lucide-react";
 import { ModalPortal } from "@/components/ModalPortal";
 
 export function CampaignManagement() {
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // New Campaign Modal Form
@@ -141,7 +143,7 @@ export function CampaignManagement() {
   };
 
   const handleToggleStatus = async (c: CampaignItem) => {
-    setLoading(true);
+    setTogglingId(c.id);
     const res = await toggleCampaignStatusAction(c.id, !c.isActive);
     if (res.error) {
       setMessage({ text: res.error, type: "error" });
@@ -149,7 +151,7 @@ export function CampaignManagement() {
       setMessage({ text: res.message || "Status updated.", type: "success" });
       await loadCampaigns();
     }
-    setLoading(false);
+    setTogglingId(null);
   };
 
   return (
@@ -229,15 +231,20 @@ export function CampaignManagement() {
                     <button
                       type="button"
                       onClick={() => handleToggleStatus(c)}
+                      disabled={togglingId === c.id}
                       title={`Click to ${c.isActive ? "archive" : "activate"} campaign`}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all border ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all border disabled:opacity-60 disabled:cursor-not-allowed ${
                         c.isActive
                           ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 hover:bg-emerald-500/20"
                           : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/25 hover:bg-slate-500/20"
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full ${c.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
-                      <span>{c.isActive ? "Active" : "Archived"}</span>
+                      {togglingId === c.id ? (
+                        <Loader2 className="w-2.5 h-2.5 animate-spin text-orange-500" />
+                      ) : (
+                        <span className={`w-1.5 h-1.5 rounded-full ${c.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
+                      )}
+                      <span>{togglingId === c.id ? "Updating..." : c.isActive ? "Active" : "Archived"}</span>
                     </button>
                   </td>
 
@@ -414,9 +421,10 @@ export function CampaignManagement() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs"
+                    className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Create Campaign
+                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <span>{loading ? "Creating..." : "Create Campaign"}</span>
                   </button>
                 </div>
               </form>
@@ -564,9 +572,10 @@ export function CampaignManagement() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs"
+                    className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {loading ? "Saving..." : "Save Changes"}
+                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <span>{loading ? "Saving..." : "Save Changes"}</span>
                   </button>
                 </div>
               </form>
@@ -644,9 +653,10 @@ export function CampaignManagement() {
                   type="button"
                   onClick={handleDelete}
                   disabled={loading || (deletingCampaign.totalLeads > 0 && !confirmDeleteLeads)}
-                  className="flex-1 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 cursor-pointer shadow-lg shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 cursor-pointer shadow-lg shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
-                  {loading ? "Deleting..." : "Confirm Delete"}
+                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>{loading ? "Deleting..." : "Confirm Delete"}</span>
                 </button>
               </div>
             </div>

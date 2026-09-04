@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Check,
   Building2,
+  Loader2,
 } from "lucide-react";
 import { shareLeadToChatAction } from "@/app/actions/messages";
 import { ModalPortal } from "@/components/ModalPortal";
@@ -43,10 +44,13 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
 
   const [inspectLead, setInspectLead] = useState<LeadItem | null>(null);
   const [shareSuccess, setShareSuccess] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [sharingId, setSharingId] = useState<string | null>(null);
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
   const handleShareLead = async (lead: LeadItem) => {
+    setSharingId(lead.id);
     const res = await shareLeadToChatAction({
       leadId: lead.id,
       note: `Sharing Lead: ${lead.customerName} (${lead.campaignName || "Campaign"}) - Status: ${lead.status}`,
@@ -55,13 +59,16 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
       setShareSuccess(`Lead "${lead.customerName}" shared to Pulse Chat!`);
       setTimeout(() => setShareSuccess(null), 3500);
     }
+    setSharingId(null);
   };
 
   const handleFastApprove = async (leadId: string) => {
+    setApprovingId(leadId);
     const res = await adminDecisionAction(leadId, "APPROVED");
     if (!res.error) {
       onRefresh();
     }
+    setApprovingId(null);
   };
 
   const handleStartReject = (lead: LeadItem) => {
@@ -265,10 +272,15 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
                               e.stopPropagation();
                               handleShareLead(lead);
                             }}
+                            disabled={sharingId === lead.id}
                             title="Share Lead to Floor Pulse Chat"
-                            className="p-1 rounded-lg hover:bg-orange-500/15 text-[#EA580C] dark:text-orange-400 cursor-pointer transition-colors"
+                            className="p-1 rounded-lg hover:bg-orange-500/15 text-[#EA580C] dark:text-orange-400 cursor-pointer transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                           >
-                            <MessageSquare className="w-3 h-3" />
+                            {sharingId === lead.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-[#EA580C]" />
+                            ) : (
+                              <MessageSquare className="w-3 h-3" />
+                            )}
                           </button>
                         </div>
 
@@ -278,10 +290,15 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
                               <button
                                 type="button"
                                 onClick={() => handleFastApprove(lead.id)}
+                                disabled={approvingId === lead.id}
                                 title="Approve Lead & Credit Incentive"
-                                className="p-1 rounded-lg hover:bg-emerald-500/15 text-[#059669] cursor-pointer"
+                                className="p-1 rounded-lg hover:bg-emerald-500/15 text-[#059669] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                               >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                {approvingId === lead.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#059669]" />
+                                ) : (
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                )}
                               </button>
                             )}
 

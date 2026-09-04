@@ -21,6 +21,7 @@ import {
   UserPlus,
   Trash2,
   Filter,
+  Loader2,
 } from "lucide-react";
 import { Role } from "@prisma/client";
 import { ModalPortal } from "@/components/ModalPortal";
@@ -28,6 +29,7 @@ import { ModalPortal } from "@/components/ModalPortal";
 export function AdminUserManagement() {
   const [users, setUsers] = useState<UserManagementItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [togglingUsername, setTogglingUsername] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
 
   // Change Password Modal
@@ -122,6 +124,7 @@ export function AdminUserManagement() {
   };
 
   const handleToggleStatus = async (username: string) => {
+    setTogglingUsername(username);
     const res = await toggleEmployeeStatusAction(username);
     if (res.error) {
       setNotification({ type: "error", text: res.error });
@@ -129,6 +132,7 @@ export function AdminUserManagement() {
       setNotification({ type: "success", text: res.message || "Status updated." });
       await loadUsers();
     }
+    setTogglingUsername(null);
   };
 
   const handleDeleteEmployee = async (username: string, name: string) => {
@@ -300,17 +304,21 @@ export function AdminUserManagement() {
                   <td className="py-3 px-3">
                     <button
                       type="button"
-                      disabled={u.username === "admin"}
+                      disabled={u.username === "admin" || togglingUsername === u.username}
                       onClick={() => handleToggleStatus(u.username)}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                         u.isActive
                           ? "bg-emerald-500/10 text-[#10B981] border border-emerald-500/20 hover:bg-emerald-500/20"
                           : "bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20 hover:bg-rose-500/20"
                       } ${u.username === "admin" ? "cursor-default opacity-80" : ""}`}
                       title={u.username === "admin" ? "Admin cannot be deactivated" : "Click to toggle Active / Inactive"}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full ${u.isActive ? "bg-[#10B981]" : "bg-rose-500"}`} />
-                      <span>{u.isActive ? "Active" : "Deactivated"}</span>
+                      {togglingUsername === u.username ? (
+                        <Loader2 className="w-2.5 h-2.5 animate-spin text-orange-500" />
+                      ) : (
+                        <span className={`w-1.5 h-1.5 rounded-full ${u.isActive ? "bg-[#10B981]" : "bg-rose-500"}`} />
+                      )}
+                      <span>{togglingUsername === u.username ? "Updating..." : u.isActive ? "Active" : "Deactivated"}</span>
                     </button>
                   </td>
 
@@ -496,9 +504,10 @@ export function AdminUserManagement() {
                 <button
                   type="submit"
                   disabled={isCreating}
-                  className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {isCreating ? "Creating..." : "Save Employee"}
+                  {isCreating && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>{isCreating ? "Creating..." : "Save Employee"}</span>
                 </button>
               </div>
             </form>
@@ -596,9 +605,10 @@ export function AdminUserManagement() {
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {isPending ? "Saving..." : "Update Password"}
+                  {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>{isPending ? "Updating..." : "Update Password"}</span>
                 </button>
               </div>
             </form>

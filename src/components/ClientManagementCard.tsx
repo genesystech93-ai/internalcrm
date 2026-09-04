@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Building2, Plus, Users, Clock, Mail, Check, AlertCircle, X, ShieldCheck } from "lucide-react";
+import { Building2, Plus, Users, Clock, Mail, Check, AlertCircle, X, ShieldCheck, Loader2 } from "lucide-react";
 import { getClientsAction, createClientAction, ClientItem } from "@/app/actions/clients";
 import { NetTermsType } from "@/lib/client-store";
 import { ModalPortal } from "@/components/ModalPortal";
@@ -276,9 +276,10 @@ export function ClientManagementCard() {
                 <button
                   type="submit"
                   disabled={isSubmitting || !name.trim()}
-                  className="liquid-glass-button px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50"
+                  className="liquid-glass-button px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {isSubmitting ? "Registering..." : "Save Client"}
+                  {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />}
+                  <span>{isSubmitting ? "Registering..." : "Save Client"}</span>
                 </button>
               </div>
             </form>
