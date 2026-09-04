@@ -40,11 +40,11 @@ if (fs.existsSync(envPath)) {
 
 // 2b. Assemble DATABASE_URL from individual DB_* environment variables if provided
 if (process.env.DB_HOST && process.env.DB_USER && (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("<from-hosting>"))) {
-  const host = process.env.DB_HOST.trim();
-  const port = (process.env.DB_PORT || (host.includes("pooler.supabase.com") ? "6543" : "5432")).trim();
-  const dbName = (process.env.DB_NAME || "postgres").trim();
-  const user = encodeURIComponent(process.env.DB_USER.trim());
-  const pass = encodeURIComponent(process.env.DB_PASSWORD ? process.env.DB_PASSWORD.trim() : "");
+  const host = String(process.env.DB_HOST).replace(/['"]/g, "").trim();
+  const port = String(process.env.DB_PORT || (host.includes("pooler.supabase.com") ? "6543" : "5432")).replace(/['"]/g, "").trim();
+  const dbName = String(process.env.DB_NAME || "postgres").replace(/['"]/g, "").trim();
+  const user = encodeURIComponent(String(process.env.DB_USER).replace(/['"]/g, "").trim());
+  const pass = encodeURIComponent(process.env.DB_PASSWORD ? String(process.env.DB_PASSWORD).replace(/^['"]|['"]$/g, "") : "");
 
   let params = "";
   if (host.includes("pooler.supabase.com")) {
