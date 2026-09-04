@@ -90,9 +90,54 @@ export async function createIncentiveRuleAction(formData: FormData) {
     });
 
     revalidatePath("/admin");
-    return { success: true, message: "Custom incentive rule created successfully." };
+    revalidatePath("/admin/employees");
+    return { success: true, message: `Custom incentive rule created for ${role}.` };
   } catch {
     return { error: "Database is offline. Unable to create incentive rule." };
+  }
+}
+
+export async function deleteIncentiveRuleAction(ruleId: string) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Admin authority required." };
+  }
+
+  try {
+    await prisma.incentiveEarning.updateMany({
+      where: { ruleId },
+      data: { ruleId: null },
+    });
+
+    await prisma.incentiveRule.delete({
+      where: { id: ruleId },
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/employees");
+    return { success: true, message: "Incentive rule removed." };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : "Failed to delete incentive rule." };
+  }
+}
+
+export async function toggleIncentiveRuleAction(ruleId: string, isActive: boolean) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Admin authority required." };
+  }
+
+  try {
+    await prisma.incentiveRule.update({
+      where: { id: ruleId },
+      data: { isActive },
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/employees");
+    return { success: true, message: `Rule is now ${isActive ? "Active" : "Disabled"}.` };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : "Failed to update incentive rule status." };
   }
 }
 

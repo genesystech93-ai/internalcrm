@@ -388,17 +388,81 @@ export async function adminDecisionAction(
       },
     });
 
-    // If APPROVED, auto-credit incentive to the agent
+    // If APPROVED, auto-credit incentives to Agent AND Closer based on active IncentiveRules
     if (decision === "APPROVED") {
-      const commission = Number(lead.campaign?.commissionPerLead || 15.0);
-      await prisma.incentiveEarning.create({
-        data: {
-          leadId,
-          userId: lead.agentId,
-          amount: commission,
-          status: "ACCRUED",
+      // 1. Fetch active incentive rules for this campaign (or general floor)
+      const rules = await prisma.incentiveRule.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { campaignId: lead.campaignId },
+            { campaignId: null },
+          ],
         },
       });
+
+      const agentRule = rules.find((r) => r.roleTarget === "AGENT" && (r.campaignId === lead.campaignId || !r.campaignId));
+      const closerRule = rules.find((r) => r.roleTarget === "CLOSER" && (r.campaignId === lead.campaignId || !r.campaignId));
+
+      const agentCommission = agentRule ? Number(agentRule.amountPerLead) : Number(lead.campaign?.commissionPerLead || 15.0);
+
+      // A. Credit Intake Agent
+      if (lead.agentId) {
+        await prisma.incentiveEarning.create({
+          data: {
+            leadId,
+            userId: lead.agentId,
+            ruleId: agentRule?.id || null,
+            amount: agentCommission,
+            status: "ACCRUED",
+          },
+        });
+      }
+
+      // B. Credit Closer with separate closer incentive rate
+      if (lead.closerName && lead.closerName.trim()) {
+        const closerNameTrim = lead.closerName.trim();
+        let closerUserId: string | null = null;
+
+        if (/self/i.test(closerNameTrim)) {
+          closerUserId = lead.agentId;
+        } else {
+          // Check if format has @username (e.g. "Akash M (@akashm)")
+          const usernameMatch = closerNameTrim.match(/@([a-zA-Z0-9_.-]+)/);
+          const extractedUsername = usernameMatch ? usernameMatch[1] : null;
+
+          const closerUser = await prisma.user.findFirst({
+            where: {
+              isActive: true,
+              OR: [
+                ...(extractedUsername ? [{ username: { equals: extractedUsername, mode: "insensitive" as const } }] : []),
+                { name: { equals: closerNameTrim, mode: "insensitive" } },
+                { username: { equals: closerNameTrim, mode: "insensitive" } },
+                { id: closerNameTrim },
+              ],
+            },
+          });
+          if (closerUser) {
+            closerUserId = closerUser.id;
+          }
+        }
+
+        if (closerUserId) {
+          const closerCommission = closerRule
+            ? Number(closerRule.amountPerLead)
+            : Number(lead.campaign?.commissionPerLead || 15.0);
+
+          await prisma.incentiveEarning.create({
+            data: {
+              leadId,
+              userId: closerUserId,
+              ruleId: closerRule?.id || null,
+              amount: closerCommission,
+              status: "ACCRUED",
+            },
+          });
+        }
+      }
     }
 
     revalidatePath("/admin");

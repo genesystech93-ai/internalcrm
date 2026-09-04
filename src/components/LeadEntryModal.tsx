@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createLeadAction, getCustomStatusesAction, CustomStatusItem } from "@/app/actions/leads";
 import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
+import { getAssignableStaffAction, AssignableStaffItem } from "@/app/actions/teams";
 import { LeadSource, LeadStatus } from "@prisma/client";
 import { PlusCircle, X, Calendar, Phone, Mail, MapPin, User, Clock, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { ModalPortal } from "@/components/ModalPortal";
@@ -32,6 +33,7 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
 
   const [customStatuses, setCustomStatuses] = useState<CustomStatusItem[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
+  const [staffSuggestions, setStaffSuggestions] = useState<AssignableStaffItem[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -42,6 +44,7 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
           setCampaignId(res[0].id);
         }
       });
+      getAssignableStaffAction().then((res) => setStaffSuggestions(res));
     }
   }, [isOpen, campaignId]);
 
@@ -322,13 +325,25 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
               </div>
               <input
                 type="text"
+                list="closer-suggestions"
                 required
                 maxLength={100}
                 value={closerName}
                 onChange={(e) => setCloserName(e.target.value)}
-                placeholder="e.g. Self, or Closer Name"
+                placeholder="e.g. Self, or select closer..."
                 className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold focus:outline-none"
               />
+              <datalist id="closer-suggestions">
+                <option value="Self (Agent Closed)" />
+                {staffSuggestions.map((s) => (
+                  <option
+                    key={s.id}
+                    value={s.name ? `${s.name} (@${s.username})` : `@${s.username}`}
+                  >
+                    {s.role} {s.currentTeamName ? `• ${s.currentTeamName}` : ""}
+                  </option>
+                ))}
+              </datalist>
             </div>
           </div>
 

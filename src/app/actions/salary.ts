@@ -88,18 +88,21 @@ export async function getSalaryProfilesAction(): Promise<SalaryProfileItem[]> {
 export async function updateSalaryProfileAction(
   userId: string,
   baseSalary: number,
-  payFrequency = "MONTHLY"
+  payFrequency = "MONTHLY",
+  effectiveDateStr?: string
 ) {
   const session = await getSession();
   if (!session || session.role !== "ADMIN") {
     return { error: "Unauthorized. Admin authority required." };
   }
 
+  const effectiveDate = effectiveDateStr ? new Date(effectiveDateStr) : new Date();
+
   try {
     await prisma.salaryProfile.upsert({
       where: { userId },
-      update: { baseSalary, payFrequency, effectiveDate: new Date() },
-      create: { userId, baseSalary, payFrequency, effectiveDate: new Date() },
+      update: { baseSalary, payFrequency, effectiveDate },
+      create: { userId, baseSalary, payFrequency, effectiveDate },
     });
 
     revalidatePath("/admin");
@@ -107,11 +110,11 @@ export async function updateSalaryProfileAction(
     return { success: true, message: "Salary profile updated successfully." };
   } catch {
     // Offline Dev Fallback: Persist in memory so the Admin sees immediate updates
-    const today = new Date().toISOString().split("T")[0];
+    const targetDate = effectiveDateStr || new Date().toISOString().split("T")[0];
     devSalaryOverrides.set(userId, {
       baseSalary,
       payFrequency,
-      effectiveDate: today,
+      effectiveDate: targetDate,
     });
 
     revalidatePath("/admin");

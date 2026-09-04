@@ -4,10 +4,42 @@ import React, { useState, useEffect } from "react";
 import { AdminAttendanceBoard } from "@/components/AdminAttendanceBoard";
 import { LeaveManagement } from "@/components/LeaveManagement";
 import { getSalaryProfilesAction, updateSalaryProfileAction, SalaryProfileItem } from "@/app/actions/salary";
-import { getIncentiveRulesAction, createIncentiveRuleAction, IncentiveRuleItem } from "@/app/actions/incentives";
-import { getTeamsAction, createTeamAction, TeamItem } from "@/app/actions/teams";
+import {
+  getIncentiveRulesAction,
+  createIncentiveRuleAction,
+  deleteIncentiveRuleAction,
+  toggleIncentiveRuleAction,
+  IncentiveRuleItem,
+} from "@/app/actions/incentives";
+import {
+  getTeamsAction,
+  createTeamAction,
+  assignTeamMembersAction,
+  deleteTeamAction,
+  getAssignableStaffAction,
+  TeamItem,
+  AssignableStaffItem,
+} from "@/app/actions/teams";
 import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
-import { Users, Clock, Calendar, DollarSign, Award, Plus, Edit2, Check, AlertCircle, RefreshCw } from "lucide-react";
+import {
+  Users,
+  Clock,
+  Calendar,
+  DollarSign,
+  Award,
+  Plus,
+  Edit2,
+  Check,
+  AlertCircle,
+  RefreshCw,
+  Trash2,
+  Power,
+  UserCheck,
+  UserPlus,
+  Search,
+  X,
+  Loader2,
+} from "lucide-react";
 import { ModalPortal } from "./ModalPortal";
 
 export function AdminWorkforceManager() {
@@ -18,6 +50,8 @@ export function AdminWorkforceManager() {
   const [salaries, setSalaries] = useState<SalaryProfileItem[]>([]);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [newSalaryVal, setNewSalaryVal] = useState<number>(25000);
+  const [newFrequencyVal, setNewFrequencyVal] = useState<string>("MONTHLY");
+  const [newEffectiveDateVal, setNewEffectiveDateVal] = useState<string>("");
 
   // Incentive Rules state
   const [rules, setRules] = useState<IncentiveRuleItem[]>([]);
@@ -35,6 +69,14 @@ export function AdminWorkforceManager() {
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamTarget, setNewTeamTarget] = useState("200");
   const [newTeamPool, setNewTeamPool] = useState("10000");
+
+  // Manage Team Members state
+  const [managingTeam, setManagingTeam] = useState<TeamItem | null>(null);
+  const [assignableStaff, setAssignableStaff] = useState<AssignableStaffItem[]>([]);
+  const [selectedLeaderId, setSelectedLeaderId] = useState<string>("");
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [isSavingMembers, setIsSavingMembers] = useState(false);
 
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
@@ -74,11 +116,16 @@ export function AdminWorkforceManager() {
   }, []);
 
   const handleUpdateSalary = async (userId: string) => {
-    const res = await updateSalaryProfileAction(userId, newSalaryVal);
+    const res = await updateSalaryProfileAction(
+      userId,
+      newSalaryVal,
+      newFrequencyVal,
+      newEffectiveDateVal
+    );
     if (res.error) {
       setMessage({ text: res.error, type: "error" });
     } else {
-      setMessage({ text: res.message || "Salary updated.", type: "success" });
+      setMessage({ text: res.message || "Salary profile updated.", type: "success" });
       setEditingUserId(null);
       await loadData();
     }
@@ -102,6 +149,50 @@ export function AdminWorkforceManager() {
     }
   };
 
+  const openManageMembers = async (team: TeamItem) => {
+    setManagingTeam(team);
+    setSelectedLeaderId(team.leaderId || "");
+    setSelectedMemberIds(team.members.map((m) => m.id));
+    setMemberSearch("");
+    const staff = await getAssignableStaffAction();
+    setAssignableStaff(staff);
+  };
+
+  const handleSaveTeamMembers = async () => {
+    if (!managingTeam) return;
+    setIsSavingMembers(true);
+    const res = await assignTeamMembersAction(
+      managingTeam.id,
+      selectedMemberIds,
+      selectedLeaderId || null
+    );
+    if (res.error) {
+      setMessage({ text: res.error, type: "error" });
+    } else {
+      setMessage({ text: res.message || "Team members assigned successfully.", type: "success" });
+      setManagingTeam(null);
+      await loadData();
+    }
+    setIsSavingMembers(false);
+  };
+
+  const handleDeleteTeam = async (teamId: string, teamName: string) => {
+    if (!confirm(`Are you sure you want to delete team "${teamName}"? Associated members will be unassigned to General Floor.`)) return;
+    const res = await deleteTeamAction(teamId);
+    if (res.error) {
+      setMessage({ text: res.error, type: "error" });
+    } else {
+      setMessage({ text: res.message || "Team deleted.", type: "success" });
+      await loadData();
+    }
+  };
+
+  const toggleMemberSelection = (userId: string) => {
+    setSelectedMemberIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
   const handleCreateRule = async (e: React.FormEvent) => {
     e.preventDefault();
     const fd = new FormData();
@@ -117,6 +208,27 @@ export function AdminWorkforceManager() {
     } else {
       setMessage({ text: res.message || "Incentive rule saved.", type: "success" });
       setShowRuleModal(false);
+      await loadData();
+    }
+  };
+
+  const handleDeleteRule = async (ruleId: string) => {
+    if (!confirm("Are you sure you want to delete this incentive rule?")) return;
+    const res = await deleteIncentiveRuleAction(ruleId);
+    if (res.error) {
+      setMessage({ text: res.error, type: "error" });
+    } else {
+      setMessage({ text: res.message || "Rule deleted.", type: "success" });
+      await loadData();
+    }
+  };
+
+  const handleToggleRule = async (ruleId: string, currentStatus: boolean) => {
+    const res = await toggleIncentiveRuleAction(ruleId, !currentStatus);
+    if (res.error) {
+      setMessage({ text: res.error, type: "error" });
+    } else {
+      setMessage({ text: res.message || "Rule status updated.", type: "success" });
       await loadData();
     }
   };
@@ -273,29 +385,65 @@ export function AdminWorkforceManager() {
                             type="number"
                             value={newSalaryVal}
                             onChange={(e) => setNewSalaryVal(Number(e.target.value))}
-                            className="liquid-glass-input w-28 px-2 py-1 rounded-lg text-xs"
+                            className="liquid-glass-input w-28 px-2 py-1 rounded-lg text-xs font-mono font-bold"
                           />
                         ) : (
                           `₹${s.baseSalary.toLocaleString("en-IN")}`
                         )}
                       </td>
-                      <td className="py-3 px-3 font-mono">{s.payFrequency}</td>
-                      <td className="py-3 px-3 text-[#64748B] dark:text-[#94A3B8]">{s.effectiveDate}</td>
+                      <td className="py-3 px-3 font-mono">
+                        {editingUserId === s.userId ? (
+                          <select
+                            value={newFrequencyVal}
+                            onChange={(e) => setNewFrequencyVal(e.target.value)}
+                            className="liquid-glass-input px-2 py-1 rounded-lg text-xs font-mono font-semibold"
+                          >
+                            <option value="MONTHLY">MONTHLY</option>
+                            <option value="BI_WEEKLY">BI_WEEKLY</option>
+                            <option value="WEEKLY">WEEKLY</option>
+                          </select>
+                        ) : (
+                          s.payFrequency
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        {editingUserId === s.userId ? (
+                          <input
+                            type="date"
+                            value={newEffectiveDateVal}
+                            onChange={(e) => setNewEffectiveDateVal(e.target.value)}
+                            className="liquid-glass-input px-2 py-1 rounded-lg text-xs font-mono"
+                          />
+                        ) : (
+                          <span className="text-[#64748B] dark:text-[#94A3B8] font-mono">{s.effectiveDate}</span>
+                        )}
+                      </td>
                       <td className="py-3 px-3 text-right">
                         {editingUserId === s.userId ? (
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateSalary(s.userId)}
-                            className="liquid-glass-button-primary py-1 px-3 rounded-lg text-xs font-bold"
-                          >
-                            Save
-                          </button>
+                          <div className="flex items-center gap-1.5 justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateSalary(s.userId)}
+                              className="liquid-glass-button-primary py-1 px-3 rounded-lg text-xs font-bold cursor-pointer"
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingUserId(null)}
+                              className="liquid-glass-button-secondary py-1 px-2 rounded-lg text-xs cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         ) : (
                           <button
                             type="button"
                             onClick={() => {
                               setEditingUserId(s.userId);
                               setNewSalaryVal(s.baseSalary);
+                              setNewFrequencyVal(s.payFrequency);
+                              setNewEffectiveDateVal(s.effectiveDate);
                             }}
                             className="liquid-glass-button-secondary py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1.5 ml-auto cursor-pointer"
                           >
@@ -342,6 +490,21 @@ export function AdminWorkforceManager() {
               </button>
             </div>
 
+            {/* Quick Incentive Setup Tip */}
+            <div className="mb-5 p-3.5 rounded-2xl bg-orange-500/5 dark:bg-orange-500/10 border border-orange-500/20 text-xs text-[#0F172A] dark:text-white flex items-start gap-3">
+              <div className="p-1 rounded-lg bg-orange-500/20 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5">
+                <Award className="w-4 h-4" />
+              </div>
+              <div className="space-y-1">
+                <span className="font-bold text-[#EA580C] dark:text-[#FB923C] block">
+                  How to Enter Separate Incentives for Closers vs. Agents
+                </span>
+                <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] leading-relaxed">
+                  Click <strong>&quot;Create Incentive Rule&quot;</strong> and select <strong>Applicable Role: &quot;Agent&quot;</strong> for intake agents (e.g. ₹200/lead). Then click it again for the same campaign and select <strong>Applicable Role: &quot;Closer&quot;</strong> with the closer rate (e.g. ₹500/lead). When an admin approves a lead that has an assigned Closer, the system automatically pays both the intake Agent and the Closing Agent!
+                </p>
+              </div>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
@@ -349,26 +512,65 @@ export function AdminWorkforceManager() {
                     <th className="py-2.5 px-3">Campaign</th>
                     <th className="py-2.5 px-3">Eligible Role</th>
                     <th className="py-2.5 px-3">Per-Lead Commission</th>
-                    <th className="py-2.5 px-3">Team Monthly Target</th>
+                    <th className="py-2.5 px-3">Team Target</th>
                     <th className="py-2.5 px-3">Team Bonus Pool</th>
                     <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {rules.map((r) => (
-                    <tr key={r.id} className="hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3 px-3 font-bold text-[#0F172A] dark:text-white">{r.campaignName}</td>
-                      <td className="py-3 px-3 font-semibold">{r.role}</td>
-                      <td className="py-3 px-3 font-mono font-bold text-[#10B981]">${r.amountPerLead.toFixed(2)}</td>
-                      <td className="py-3 px-3 font-mono">{r.minLeadsTarget} Approved</td>
-                      <td className="py-3 px-3 font-mono font-bold text-[#EA580C]">${r.teamBonusPool.toFixed(2)}</td>
-                      <td className="py-3 px-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-[#059669] dark:text-emerald-400 border border-emerald-500/20">
-                          Active
-                        </span>
+                  {rules.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-[#94A3B8]">
+                        No incentive rules created yet. Click &quot;Create Incentive Rule&quot; to define commissions for Closers, Agents, or Team Leads.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    rules.map((r) => (
+                      <tr key={r.id} className="hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-3 px-3 font-bold text-[#0F172A] dark:text-white">{r.campaignName}</td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                              r.role === "CLOSER"
+                                ? "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/25"
+                                : r.role === "TL"
+                                ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
+                                : "bg-emerald-500/10 text-[#059669] dark:text-emerald-400 border-emerald-500/25"
+                            }`}
+                          >
+                            {r.role === "CLOSER" ? "🎯 Closer" : r.role === "TL" ? "⭐ Team Lead" : "📞 Agent"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-mono font-bold text-[#10B981]">₹{r.amountPerLead.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                        <td className="py-3 px-3 font-mono">{r.minLeadsTarget} Approved</td>
+                        <td className="py-3 px-3 font-mono font-bold text-[#EA580C]">₹{r.teamBonusPool.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                        <td className="py-3 px-3">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRule(r.id, r.isActive)}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border cursor-pointer transition-all ${
+                              r.isActive
+                                ? "bg-emerald-500/10 text-[#059669] dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                                : "bg-slate-500/10 text-slate-500 border-slate-500/20 hover:bg-slate-500/20"
+                            }`}
+                          >
+                            {r.isActive ? "Active" : "Paused"}
+                          </button>
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteRule(r.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                            title="Delete Rule"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -383,7 +585,7 @@ export function AdminWorkforceManager() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-[#0F172A] dark:text-white">Active Floor Teams</h3>
-                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">Assigned Team Leaders and mapped dialer campaigns.</p>
+                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">Assigned Team Leaders, mapped dialer campaigns, and assigned members.</p>
                 </div>
               </div>
               <button
@@ -397,29 +599,79 @@ export function AdminWorkforceManager() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {teams.map((t) => (
-                <div key={t.id} className="p-4 rounded-2xl bg-white/50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-extrabold text-[#0F172A] dark:text-white">{t.name}</h4>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/10 text-[#0284C7]">
-                      {t.memberCount} Members
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-                    Team Lead: <strong className="text-[#0F172A] dark:text-white">{t.leaderName || "Unassigned"}</strong> (@{t.leaderUsername})
-                  </p>
-                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
-                    Monthly Milestone: <strong className="font-mono text-[#0F172A] dark:text-white">{t.targetVolume} Leads</strong> $\rightarrow$ <strong className="font-mono text-[#10B981]">${t.poolAmount} Bonus Pool</strong>
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {t.campaigns.map((c) => (
-                      <span key={c} className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 dark:bg-slate-700 text-[#475569] dark:text-[#94A3B8]">
-                        {c}
-                      </span>
-                    ))}
-                  </div>
+              {teams.length === 0 ? (
+                <div className="col-span-full py-8 text-center text-[#94A3B8]">
+                  No teams created yet. Click &quot;Create Team&quot; to establish operational floor units.
                 </div>
-              ))}
+              ) : (
+                teams.map((t) => (
+                  <div key={t.id} className="p-5 rounded-2xl bg-white/50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-extrabold text-[#0F172A] dark:text-white text-sm">{t.name}</h4>
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-sky-500/10 text-[#0284C7] border border-sky-500/20">
+                          {t.memberCount} Members
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                        Team Leader: <strong className="text-[#0F172A] dark:text-white">{t.leaderName || "Unassigned"}</strong> {t.leaderUsername ? `(@${t.leaderUsername})` : ""}
+                      </p>
+                      <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
+                        Monthly Milestone: <strong className="font-mono text-[#0F172A] dark:text-white">{t.targetVolume} Leads</strong> &rarr; <strong className="font-mono text-[#10B981]">₹{t.poolAmount} Bonus Pool</strong>
+                      </p>
+
+                      {/* Member Avatars / Chips */}
+                      <div className="mt-3">
+                        <p className="text-[10px] font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider mb-1.5">
+                          Assigned Staff Roster:
+                        </p>
+                        {t.members && t.members.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {t.members.map((m) => (
+                              <span
+                                key={m.id}
+                                className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold border flex items-center gap-1 ${
+                                  m.id === t.leaderId
+                                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                                    : m.role === "CLOSER"
+                                    ? "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30"
+                                    : "bg-slate-100 dark:bg-slate-700 text-[#475569] dark:text-[#94A3B8] border-slate-200 dark:border-slate-600"
+                                }`}
+                              >
+                                <span>{m.name}</span>
+                                <span className="opacity-70 text-[9px]">({m.role})</span>
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] italic text-[#94A3B8]">No members assigned yet. Click &quot;Assign Members&quot; below.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Team Action Buttons */}
+                    <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openManageMembers(t)}
+                        className="liquid-glass-button-primary py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span>Assign Members & Leader</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTeam(t.id, t.name)}
+                        className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                        title="Delete Team"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -491,6 +743,173 @@ export function AdminWorkforceManager() {
                       </button>
                     </div>
                   </form>
+                </div>
+              </div>
+            </ModalPortal>
+          )}
+
+          {/* Manage Team Members & Leader Modal */}
+          {managingTeam && (
+            <ModalPortal>
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+                <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] flex flex-col my-auto">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white flex items-center gap-2">
+                        <Users className="w-5 h-5 text-[#F97316]" />
+                        <span>Manage Team: {managingTeam.name}</span>
+                      </h3>
+                      <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
+                        Designate team leader and assign floor agents to this team roster.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setManagingTeam(null)}
+                      className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Team Leader Selector */}
+                  <div className="mb-4">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                      Designated Team Leader
+                    </label>
+                    <select
+                      value={selectedLeaderId}
+                      onChange={(e) => setSelectedLeaderId(e.target.value)}
+                      className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
+                    >
+                      <option value="">-- No Leader Assigned --</option>
+                      {assignableStaff.map((staff) => (
+                        <option key={staff.id} value={staff.id}>
+                          {staff.name || staff.username} ({staff.role}) {staff.currentTeamName ? `- Currently: ${staff.currentTeamName}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Search Staff */}
+                  <div className="mb-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8]">
+                        Floor Members ({selectedMemberIds.length} Selected)
+                      </label>
+                      <span className="text-[10px] text-slate-400">
+                        Check to assign to this team
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Search staff by name or username..."
+                        value={memberSearch}
+                        onChange={(e) => setMemberSearch(e.target.value)}
+                        className="liquid-glass-input w-full pl-8 pr-3 py-1.5 rounded-xl text-xs focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Staff List */}
+                  <div className="flex-1 overflow-y-auto max-h-[260px] divide-y divide-slate-100 dark:divide-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-2xl p-1 mb-4 custom-scrollbar">
+                    {assignableStaff
+                      .filter((s) => {
+                        if (!memberSearch) return true;
+                        const term = memberSearch.toLowerCase();
+                        return (
+                          (s.name && s.name.toLowerCase().includes(term)) ||
+                          s.username.toLowerCase().includes(term) ||
+                          s.role.toLowerCase().includes(term)
+                        );
+                      })
+                      .map((staff) => {
+                        const isSelected = selectedMemberIds.includes(staff.id);
+                        const isLeader = selectedLeaderId === staff.id;
+                        const isCurrentTeam = staff.currentTeamId === managingTeam.id;
+
+                        return (
+                          <div
+                            key={staff.id}
+                            onClick={() => toggleMemberSelection(staff.id)}
+                            className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all ${
+                              isSelected
+                                ? "bg-orange-500/10 dark:bg-orange-500/15 border border-orange-500/20"
+                                : "hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {}}
+                                className="w-4 h-4 rounded text-[#F97316] focus:ring-[#F97316] border-slate-300 dark:border-slate-700 pointer-events-none"
+                              />
+                              <div>
+                                <div className="text-xs font-bold text-[#0F172A] dark:text-white flex items-center gap-1.5">
+                                  <span>{staff.name || staff.username}</span>
+                                  {isLeader && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                                      Leader
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">
+                                  @{staff.username} • {staff.role}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-[10px]">
+                              {isCurrentTeam ? (
+                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                  Current Member
+                                </span>
+                              ) : staff.currentTeamName ? (
+                                <span className="text-slate-400">
+                                  In: {staff.currentTeamName}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">Unassigned</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    {assignableStaff.length === 0 && (
+                      <div className="text-center py-6 text-xs text-slate-400">
+                        No assignable staff found. Add employees in User Management first.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setManagingTeam(null)}
+                      disabled={isSavingMembers}
+                      className="liquid-glass-button-secondary flex-1 py-2.5 rounded-xl font-bold text-xs"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveTeamMembers}
+                      disabled={isSavingMembers}
+                      className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2"
+                    >
+                      {isSavingMembers ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <span>Save Team Roster</span>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </ModalPortal>

@@ -22,6 +22,8 @@ export interface UserManagementItem {
   role: Role;
   isActive: boolean;
   campaignName?: string | null;
+  teamId?: string | null;
+  teamName?: string | null;
   createdAt: string;
 }
 
@@ -50,6 +52,8 @@ export async function getAdminUsersAction(): Promise<UserManagementItem[]> {
         role: u.role,
         isActive: u.isActive,
         campaignName: u.team?.name || "General Floor",
+        teamId: u.teamId,
+        teamName: u.team?.name || null,
         createdAt: u.createdAt.toISOString(),
       }));
     }
@@ -143,6 +147,8 @@ export async function createEmployeeAction(formData: FormData) {
   const rawRole = (formData.get("role")?.toString() || "AGENT") as Role;
   const rawEmail = formData.get("email")?.toString().trim();
   const campaignName = sanitizeText(formData.get("campaign") || formData.get("campaignId"), 100) || "General Floor";
+  const rawTeamId = formData.get("teamId")?.toString().trim();
+  const teamId = rawTeamId && rawTeamId !== "NONE" ? rawTeamId : null;
 
   const userVal = validateUsername(rawUsername);
   if (!userVal.valid) {
@@ -186,6 +192,7 @@ export async function createEmployeeAction(formData: FormData) {
         role: rawRole,
         email,
         isActive: true,
+        teamId,
         ...(rawRole !== "ADMIN"
           ? {
               salaryProfile: {

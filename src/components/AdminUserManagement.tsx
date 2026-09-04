@@ -10,6 +10,7 @@ import {
   UserManagementItem,
 } from "@/app/actions/admin-users";
 import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
+import { getTeamsAction, TeamItem } from "@/app/actions/teams";
 import {
   KeyRound,
   ShieldAlert,
@@ -46,18 +47,22 @@ export function AdminUserManagement() {
   const [addPassword, setAddPassword] = useState("");
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [addCampaign, setAddCampaign] = useState("");
+  const [teams, setTeams] = useState<TeamItem[]>([]);
+  const [addTeamId, setAddTeamId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [notification, setNotification] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const [data, campList] = await Promise.all([
+      const [data, campList, teamList] = await Promise.all([
         getAdminUsersAction(),
         getCampaignsAction(),
+        getTeamsAction(),
       ]);
       setUsers(data);
       setCampaigns(campList);
+      setTeams(teamList);
       if (campList.length > 0 && !addCampaign) {
         setAddCampaign(campList[0].name);
       }
@@ -107,6 +112,9 @@ export function AdminUserManagement() {
     formData.append("email", addEmail);
     formData.append("password", addPassword);
     formData.append("campaignId", addCampaign);
+    if (addTeamId) {
+      formData.append("teamId", addTeamId);
+    }
 
     const res = await createEmployeeAction(formData);
     if (res.error) {
@@ -118,6 +126,7 @@ export function AdminUserManagement() {
       setAddName("");
       setAddEmail("");
       setAddPassword("");
+      setAddTeamId("");
       await loadUsers();
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("crm:employee-updated"));
@@ -263,7 +272,7 @@ export function AdminUserManagement() {
             <tr className="border-b border-slate-200/80 dark:border-slate-700 text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider">
               <th className="py-3 px-3">Employee</th>
               <th className="py-3 px-3">Role</th>
-              <th className="py-3 px-3">Campaign Assignment</th>
+              <th className="py-3 px-3">Team & Campaign</th>
               <th className="py-3 px-3">Account Status</th>
               <th className="py-3 px-3 text-right">Admin Actions</th>
             </tr>
@@ -306,8 +315,13 @@ export function AdminUserManagement() {
                     </span>
                   </td>
 
-                  <td className="py-3 px-3 text-[#475569] dark:text-[#94A3B8] font-medium">
-                    {u.campaignName || "General Floor"}
+                  <td className="py-3 px-3">
+                    <div className="font-semibold text-[#0F172A] dark:text-white">
+                      {u.teamName || "Unassigned Floor"}
+                    </div>
+                    <div className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">
+                      {u.campaignName || "General Campaign"}
+                    </div>
                   </td>
 
                   <td className="py-3 px-3">
@@ -454,25 +468,44 @@ export function AdminUserManagement() {
                 />
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
-                  Assigned Campaign
-                </label>
-                <select
-                  value={addCampaign}
-                  onChange={(e) => setAddCampaign(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
-                >
-                  {campaigns.length === 0 ? (
-                    <option value="General Floor">General Floor</option>
-                  ) : (
-                    campaigns.map((c) => (
-                      <option key={c.id} value={c.name}>
-                        {c.name}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                    Assigned Campaign
+                  </label>
+                  <select
+                    value={addCampaign}
+                    onChange={(e) => setAddCampaign(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
+                  >
+                    {campaigns.length === 0 ? (
+                      <option value="General Floor">General Floor</option>
+                    ) : (
+                      campaigns.map((c) => (
+                        <option key={c.id} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                    Floor Team (Optional)
+                  </label>
+                  <select
+                    value={addTeamId}
+                    onChange={(e) => setAddTeamId(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
+                  >
+                    <option value="">-- No Team (General) --</option>
+                    {teams.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
                       </option>
-                    ))
-                  )}
-                </select>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
