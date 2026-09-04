@@ -12,6 +12,9 @@ interface LogoProps {
   href?: string | null;
   brandName?: string;
   brandHighlight?: string;
+  variant?: "default" | "on-dark";
+  imageBadge?: boolean;
+  textClassName?: string;
 }
 
 export function Logo({
@@ -21,6 +24,9 @@ export function Logo({
   href = "/",
   brandName,
   brandHighlight,
+  variant = "default",
+  imageBadge = false,
+  textClassName,
 }: LogoProps) {
   const [hasLogoImg, setHasLogoImg] = useState(true);
   const [displayName, setDisplayName] = useState<{ main: string; highlight: string }>({
@@ -63,16 +69,28 @@ export function Logo({
     <span className={`inline-flex items-center gap-2.5 select-none ${className}`}>
       {/* Official user-supplied logo image slot with graceful fallback */}
       {hasLogoImg ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src="/api/logo"
-          alt="CRM Logo"
-          className={`${currentSize.img} object-contain`}
-          onError={() => setHasLogoImg(false)}
-        />
+        imageBadge ? (
+          <div className="p-2 rounded-2xl bg-white/95 dark:bg-slate-900/90 shadow-md border border-white/60 dark:border-slate-700/60 flex items-center justify-center backdrop-blur-md flex-shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/api/logo"
+              alt="CRM Logo"
+              className={`${currentSize.img} object-contain max-w-[140px]`}
+              onError={() => setHasLogoImg(false)}
+            />
+          </div>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src="/api/logo"
+            alt="CRM Logo"
+            className={`${currentSize.img} object-contain`}
+            onError={() => setHasLogoImg(false)}
+          />
+        )
       ) : (
         <div
-          className={`${currentSize.box} rounded-xl bg-gradient-to-br from-[#FB923C] to-[#F97316] text-white flex items-center justify-center font-extrabold shadow-md shadow-orange-500/20 border border-white/40`}
+          className={`${currentSize.box} rounded-xl bg-gradient-to-br from-[#FB923C] to-[#F97316] text-white flex items-center justify-center font-extrabold shadow-md shadow-orange-500/20 border border-white/40 flex-shrink-0`}
           title={`${displayName.main} ${displayName.highlight}`}
         >
           <ShieldCheck className={currentSize.icon} />
@@ -80,10 +98,24 @@ export function Logo({
       )}
 
       {showText && (
-        <span className={`font-extrabold tracking-tight text-[#0F172A] dark:text-white ${currentSize.text}`}>
+        <span
+          className={`font-extrabold tracking-tight ${
+            variant === "on-dark"
+              ? "text-white"
+              : textClassName || "text-[#0F172A] dark:text-white"
+          } ${currentSize.text}`}
+        >
           {displayName.main}{" "}
           {displayName.highlight && (
-            <span className="text-[#F97316]">{displayName.highlight}</span>
+            <span
+              className={
+                variant === "on-dark"
+                  ? "text-amber-400"
+                  : "text-[#F97316]"
+              }
+            >
+              {displayName.highlight}
+            </span>
           )}
         </span>
       )}
