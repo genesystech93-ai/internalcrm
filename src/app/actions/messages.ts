@@ -43,6 +43,7 @@ export interface ChatMessageView {
   content: string;
   leadId?: string | null;
   metadata?: {
+    leadId?: string;
     customerName?: string;
     mobile?: string;
     campaign?: string;
@@ -327,6 +328,12 @@ export async function getMessagesAction(conversationId: string): Promise<ChatMes
           } catch {
             // ignore
           }
+        }
+
+        if (parsedMetadata && m.leadId && !parsedMetadata.leadId) {
+          parsedMetadata.leadId = m.leadId;
+        } else if (!parsedMetadata && m.leadId) {
+          parsedMetadata = { leadId: m.leadId };
         }
 
         return {
@@ -619,6 +626,7 @@ export async function shareLeadToChatAction(params: {
   if (!session) return { success: false, error: "Unauthorized." };
 
   let leadDetails: {
+    leadId: string;
     customerName: string;
     mobile: string;
     campaign: string;
@@ -633,6 +641,7 @@ export async function shareLeadToChatAction(params: {
 
     if (lead) {
       leadDetails = {
+        leadId: lead.id,
         customerName: lead.customerName || "Lead",
         mobile: lead.mobile || "",
         campaign: lead.campaign?.name || "General Campaign",
@@ -649,6 +658,7 @@ export async function shareLeadToChatAction(params: {
       const devL = devLeads.find((l) => l.id === params.leadId);
       if (devL) {
         leadDetails = {
+          leadId: devL.id,
           customerName: devL.customerName || "Lead",
           mobile: devL.mobile || "",
           campaign: devL.campaignName || "General Campaign",

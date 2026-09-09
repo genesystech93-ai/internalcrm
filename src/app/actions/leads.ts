@@ -245,6 +245,74 @@ export async function createLeadAction(formData: FormData) {
   }
 }
 
+// Internal mapper from DB Lead to LeadItem
+function mapDbLeadToLeadItem(l: any): LeadItem {
+  let daysRemaining: number | null = null;
+  let isOverdue: boolean = false;
+  let slaLabel: string | null = null;
+
+  if (l.expectedApprovalDate) {
+    const sla = computeApprovalSLA(l.expectedApprovalDate);
+    daysRemaining = sla.daysRemaining;
+    isOverdue = sla.isOverdue;
+    slaLabel = sla.statusLabel;
+  }
+
+  let customStatusLabel: string | null = null;
+  if (l.status === "CUSTOM") {
+    if (l.rejectionReason?.startsWith("CUSTOM:")) {
+      customStatusLabel = l.rejectionReason.replace("CUSTOM:", "").trim();
+    } else if (l.rejectionReason) {
+      customStatusLabel = l.rejectionReason.trim();
+    } else {
+      customStatusLabel = "Custom Status";
+    }
+  }
+
+  return {
+    id: l.id,
+    customerName: l.customerName,
+    dob: l.dob ? (typeof l.dob === "string" ? l.dob : l.dob.toISOString().split("T")[0]) : "1990-01-01",
+    mobile: l.mobile,
+    address: l.address,
+    email: l.email,
+    campaignId: l.campaignId,
+    campaignName: l.campaign?.name || "General Campaign",
+    source: l.source,
+    closerName: l.closerName,
+    status: l.status,
+    callBackTime: l.callBackTime ? (typeof l.callBackTime === "string" ? l.callBackTime : l.callBackTime.toISOString()) : null,
+    rejectionReason: l.rejectionReason,
+    customStatusLabel,
+    agentId: l.agentId,
+    agentName: l.agent?.name || "Agent",
+    agentUsername: l.agent?.username || "agent",
+    notes: l.notes,
+    approvedAt: l.approvedAt ? (typeof l.approvedAt === "string" ? l.approvedAt : l.approvedAt.toISOString()) : null,
+    createdAt: l.createdAt ? (typeof l.createdAt === "string" ? l.createdAt : l.createdAt.toISOString()) : new Date().toISOString(),
+    clientId: l.clientId,
+    clientName: l.client ? l.client.name : null,
+    clientNetTerms: l.clientNetTerms,
+    clientSubmittedAt: l.clientSubmittedAt ? (typeof l.clientSubmittedAt === "string" ? l.clientSubmittedAt : l.clientSubmittedAt.toISOString()) : null,
+    expectedApprovalDate: l.expectedApprovalDate ? (typeof l.expectedApprovalDate === "string" ? l.expectedApprovalDate : l.expectedApprovalDate.toISOString()) : null,
+    daysRemaining,
+    isOverdue,
+    slaLabel,
+    clientApprovalStatus: l.clientApprovalStatus,
+    clientDecisionReason: l.clientDecisionReason,
+    history: Array.isArray(l.statusHistory)
+      ? l.statusHistory.map((h: any) => ({
+          id: h.id,
+          fromStatus: h.previousStatus as LeadStatus,
+          toStatus: h.newStatus as LeadStatus,
+          changedByName: h.changedBy ? h.changedBy.name : "System",
+          reason: h.reason,
+          createdAt: h.createdAt ? (typeof h.createdAt === "string" ? h.createdAt : h.createdAt.toISOString()) : new Date().toISOString(),
+        }))
+      : [],
+  };
+}
+
 // 2. Get Leads Action (Admin sees all; Agent sees assigned)
 export async function getLeadsAction(params?: { campaignId?: string; status?: string; search?: string }): Promise<LeadItem[]> {
   const session = await getSession();
@@ -300,70 +368,7 @@ export async function getLeadsAction(params?: { campaignId?: string; status?: st
       orderBy: { createdAt: "desc" },
     });
 
-    return leads.map((l: any) => {
-      let daysRemaining: number | null = null;
-      let isOverdue: boolean = false;
-      let slaLabel: string | null = null;
-
-      if (l.expectedApprovalDate) {
-        const sla = computeApprovalSLA(l.expectedApprovalDate);
-        daysRemaining = sla.daysRemaining;
-        isOverdue = sla.isOverdue;
-        slaLabel = sla.statusLabel;
-      }
-
-      let customStatusLabel: string | null = null;
-      if (l.status === "CUSTOM") {
-        if (l.rejectionReason?.startsWith("CUSTOM:")) {
-          customStatusLabel = l.rejectionReason.replace("CUSTOM:", "").trim();
-        } else if (l.rejectionReason) {
-          customStatusLabel = l.rejectionReason.trim();
-        } else {
-          customStatusLabel = "Custom Status";
-        }
-      }
-
-      return {
-        id: l.id,
-        customerName: l.customerName,
-        dob: l.dob.toISOString().split("T")[0],
-        mobile: l.mobile,
-        address: l.address,
-        email: l.email,
-        campaignId: l.campaignId,
-        campaignName: l.campaign.name,
-        source: l.source,
-        closerName: l.closerName,
-        status: l.status,
-        callBackTime: l.callBackTime ? l.callBackTime.toISOString() : null,
-        rejectionReason: l.rejectionReason,
-        customStatusLabel,
-        agentId: l.agentId,
-        agentName: l.agent.name,
-        agentUsername: l.agent.username,
-        notes: l.notes,
-        approvedAt: l.approvedAt ? l.approvedAt.toISOString() : null,
-        createdAt: l.createdAt.toISOString(),
-        clientId: l.clientId,
-        clientName: l.client ? l.client.name : null,
-        clientNetTerms: l.clientNetTerms,
-        clientSubmittedAt: l.clientSubmittedAt ? l.clientSubmittedAt.toISOString() : null,
-        expectedApprovalDate: l.expectedApprovalDate ? l.expectedApprovalDate.toISOString() : null,
-        daysRemaining,
-        isOverdue,
-        slaLabel,
-        clientApprovalStatus: l.clientApprovalStatus,
-        clientDecisionReason: l.clientDecisionReason,
-        history: l.statusHistory.map((h: any) => ({
-          id: h.id,
-          fromStatus: h.previousStatus as LeadStatus,
-          toStatus: h.newStatus as LeadStatus,
-          changedByName: h.changedBy.name,
-          reason: h.reason,
-          createdAt: h.createdAt.toISOString(),
-        })),
-      };
-    });
+    return leads.map((l: any) => mapDbLeadToLeadItem(l));
   } catch {
     // Database offline fallback
   }
@@ -411,6 +416,43 @@ export async function getLeadsAction(params?: { campaignId?: string; status?: st
     );
   }
   return result;
+}
+
+// 2b. Get Single Lead By ID Action (used for Chat Shared Leads & Direct Inspection)
+export async function getLeadByIdAction(leadId: string): Promise<LeadItem | null> {
+  const session = await getSession();
+  if (!session) return null;
+
+  try {
+    const l = await db.lead.findUnique({
+      where: { id: leadId },
+      include: {
+        agent: true,
+        campaign: true,
+        client: true,
+        statusHistory: {
+          include: { changedBy: true },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+
+    if (l) {
+      return mapDbLeadToLeadItem(l);
+    }
+  } catch (err) {
+    console.error("Failed to query lead by ID from database:", err);
+  }
+
+  // Fallback: in-memory dev leads
+  try {
+    const devL = devLeads.find((dl) => dl.id === leadId);
+    if (devL) return devL;
+  } catch {
+    // dev fallback
+  }
+
+  return null;
 }
 
 // 3. Admin Decision Action (Approve / Reject with auto-incentive crediting)

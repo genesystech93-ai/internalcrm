@@ -30,6 +30,8 @@ import {
   RotateCcw,
   Shield,
   Eye,
+  PanelLeft,
+  PanelLeftClose,
 } from "lucide-react";
 import {
   getConversationsAction,
@@ -43,8 +45,10 @@ import {
   ChatMessageView,
   RecentLeadForChat,
 } from "@/app/actions/messages";
+import { getLeadByIdAction, LeadItem } from "@/app/actions/leads";
+import { LeadDetailsModal } from "@/components/LeadDetailsModal";
 import { StaffMember } from "@/lib/chat-store";
-import { Role } from "@prisma/client";
+import { Role, LeadStatus } from "@prisma/client";
 
 // Default Canned Operational Quick Replies for Call Center Floor
 const DEFAULT_QUICK_REPLIES = [
@@ -114,6 +118,13 @@ export function EmployeeChatWidget() {
   // In-Thread Search State
   const [showInThreadSearch, setShowInThreadSearch] = useState(false);
   const [inThreadSearchQuery, setInThreadSearchQuery] = useState("");
+
+  // Left Sidebar visibility state (defaults to true on desktop)
+  const [showSidebar, setShowSidebar] = useState<boolean>(true);
+
+  // Shared Lead Details Modal inspection state
+  const [selectedLeadForDetails, setSelectedLeadForDetails] = useState<LeadItem | null>(null);
+  const [loadingLeadId, setLoadingLeadId] = useState<string | null>(null);
 
   // Transcript Copy State
   const [transcriptCopied, setTranscriptCopied] = useState(false);
@@ -424,6 +435,55 @@ export function EmployeeChatWidget() {
     setTimeout(() => setTranscriptCopied(false), 2500);
   };
 
+  // Inspect shared lead in full Lead Details Modal
+  const handleOpenSharedLead = async (leadId?: string | null, metadata?: any) => {
+    const targetLeadId = leadId || metadata?.leadId;
+    if (!targetLeadId && !metadata) return;
+
+    if (targetLeadId) {
+      setLoadingLeadId(targetLeadId);
+      try {
+        const fullLead = await getLeadByIdAction(targetLeadId);
+        if (fullLead) {
+          setSelectedLeadForDetails(fullLead);
+          setLoadingLeadId(null);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to load lead details from chat:", err);
+      } finally {
+        setLoadingLeadId(null);
+      }
+    }
+
+    // Resilient fallback from chat metadata so clicking ALWAYS opens the modal
+    if (metadata) {
+      const fallbackLead: LeadItem = {
+        id: targetLeadId || `shared-${Date.now()}`,
+        customerName: metadata.customerName || "Floor Lead",
+        dob: "1990-01-01",
+        mobile: metadata.mobile || "N/A",
+        address: "Contact Floor Agent for details",
+        email: "floor.lead@internalcrm.local",
+        campaignId: "",
+        campaignName: metadata.campaign || "Floor Campaign",
+        source: "REFERENCE",
+        closerName: "Unassigned",
+        status: (metadata.status as LeadStatus) || "PENDING_VERIFICATION",
+        callBackTime: null,
+        rejectionReason: null,
+        agentId: "",
+        agentName: "Floor Staff",
+        agentUsername: "floor",
+        notes: "Shared lead attachment from pulse chat.",
+        approvedAt: null,
+        createdAt: new Date().toISOString(),
+        history: [],
+      };
+      setSelectedLeadForDetails(fallbackLead);
+    }
+  };
+
   // Role pill styling
   const getRoleBadge = (role?: string) => {
     switch (role) {
@@ -549,75 +609,67 @@ export function EmployeeChatWidget() {
         )}
       </div>
 
-      {/* Main Chat Window (Compact Docked or Maximized 2-Column Mode) */}
+      {/* Main Chat Window (Docked Workspace or Maximized Screen) */}
       {isOpen && (
         <div
           className={`fixed z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
             isMaximized
-              ? "bottom-2 sm:bottom-6 right-2 sm:right-6 left-2 sm:left-auto sm:w-[94vw] sm:max-w-[920px] h-[92vh] sm:h-[720px] max-h-[96dvh] rounded-2xl sm:rounded-3xl"
-              : "bottom-20 sm:bottom-6 right-3 sm:right-6 left-3 sm:left-auto w-auto sm:w-[430px] h-[78vh] sm:h-[620px] max-h-[calc(100dvh-6rem)] sm:max-h-[85vh] rounded-2xl sm:rounded-3xl"
+              ? "bottom-2 sm:bottom-6 right-2 sm:right-6 left-2 sm:left-auto sm:w-[94vw] sm:max-w-[1050px] h-[92vh] sm:h-[740px] max-h-[96dvh] rounded-2xl sm:rounded-3xl"
+              : "bottom-20 sm:bottom-6 right-3 sm:right-6 left-3 sm:left-auto w-auto sm:w-[780px] md:w-[840px] max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-3rem)] h-[80vh] sm:h-[650px] max-h-[calc(100dvh-5.5rem)] sm:max-h-[85vh] rounded-2xl sm:rounded-3xl"
           }`}
         >
           {/* Top Bar / Global Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5">
-              {!isMaximized && activeConversation ? (
+              {/* Left Bar Toggle (Desktop) */}
+              <button
+                type="button"
+                onClick={() => setShowSidebar(!showSidebar)}
+                className={`p-1.5 rounded-xl border transition-colors cursor-pointer hidden sm:flex items-center gap-1.5 text-xs font-semibold ${
+                  showSidebar
+                    ? "bg-orange-500/10 text-orange-600 border-orange-500/30 dark:bg-orange-950/30 dark:text-orange-400"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-orange-500"
+                }`}
+                title={showSidebar ? "Hide Chats & Channels Sidebar" : "Show Chats & Channels Sidebar"}
+              >
+                <PanelLeft className="w-4 h-4" />
+                <span className="text-[11px] hidden md:inline">
+                  {showSidebar ? "Hide Sidebar" : "Chats"}
+                </span>
+              </button>
+
+              {/* Mobile Back Button when activeConversation is selected */}
+              {activeConversation && (
                 <button
+                  type="button"
                   onClick={() => setActiveConversation(null)}
-                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-                  title="Back to conversations"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer sm:hidden flex items-center gap-1 text-xs font-bold"
+                  title="Back to conversations list"
                 >
                   <ArrowLeft className="w-4 h-4" />
+                  <span>Chats</span>
                 </button>
-              ) : (
-                <div className="w-8 h-8 rounded-xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-orange-600 dark:text-orange-400">
-                  <Radio className="w-4 h-4 animate-pulse" />
-                </div>
               )}
 
+              <div className="w-8 h-8 rounded-xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
+                <Radio className="w-4 h-4 animate-pulse" />
+              </div>
+
               <div>
-                {!isMaximized && activeConversation ? (
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[190px]">
-                        {activeConversation.name}
-                      </span>
-                      {activeConversation.isSupervisorView && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 flex items-center gap-0.5">
-                          <Eye className="w-2.5 h-2.5" />
-                          <span>Monitor</span>
-                        </span>
-                      )}
-                      {activeConversation.recipientRole && (
-                        <span
-                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${getRoleBadge(
-                            activeConversation.recipientRole
-                          )}`}
-                        >
-                          {activeConversation.recipientRole}
-                        </span>
-                      )}
-                    </div>
-                    <div>{getStatusDot(activeConversation.recipientShiftStatus)}</div>
-                  </div>
-                ) : (
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <span>Live Pulse Chat</span>
-                      {currentUser?.role === "ADMIN" && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 text-[9px] font-bold border border-purple-500/20 flex items-center gap-1">
-                          <Shield className="w-2.5 h-2.5" />
-                          <span>Floor Supervisor</span>
-                        </span>
-                      )}
-                    </h3>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                      {currentUser?.role === "ADMIN"
-                        ? "Full floor oversight & team communication"
-                        : "Internal messaging & team channels"}
-                    </p>
-                  </div>
-                )}
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <span>Live Pulse Chat</span>
+                  {currentUser?.role === "ADMIN" && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 text-[9px] font-bold border border-purple-500/20 flex items-center gap-1">
+                      <Shield className="w-2.5 h-2.5" />
+                      <span>Floor Supervisor</span>
+                    </span>
+                  )}
+                </h3>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[180px] sm:max-w-none">
+                  {currentUser?.role === "ADMIN"
+                    ? "Full floor oversight & team communication"
+                    : "Internal messaging & floor channels"}
+                </p>
               </div>
             </div>
 
@@ -640,7 +692,7 @@ export function EmployeeChatWidget() {
               <button
                 onClick={() => setIsMaximized(!isMaximized)}
                 className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
-                title={isMaximized ? "Restore compact view" : "Expand to 2-column workspace"}
+                title={isMaximized ? "Restore standard view" : "Maximize chat view"}
               >
                 {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
@@ -665,13 +717,15 @@ export function EmployeeChatWidget() {
             </div>
           </div>
 
-          {/* Chat Body: Split 2-Column in Maximized Mode OR Single Column in Compact Mode */}
+          {/* Chat Body: 2-Column Responsive Workspace */}
           <div className="flex-1 flex min-h-0 overflow-hidden">
-            {/* COLUMN 1: Conversations List / Staff Directory (Always visible when maximized, or when !activeConversation in compact) */}
-            {(isMaximized || !activeConversation) && (
+            {/* COLUMN 1: Conversations List / Staff Directory (Visible when showSidebar is true on desktop, or when !activeConversation on mobile) */}
+            {(showSidebar || !activeConversation) && (
               <div
-                className={`flex flex-col min-h-0 bg-slate-50/70 dark:bg-slate-900/70 border-r border-slate-200/70 dark:border-slate-800 ${
-                  isMaximized ? "w-[310px] shrink-0" : "flex-1"
+                className={`flex flex-col min-h-0 bg-slate-50/70 dark:bg-slate-900/70 border-r border-slate-200/70 dark:border-slate-800 transition-all ${
+                  activeConversation
+                    ? "hidden sm:flex sm:w-[290px] md:w-[310px] shrink-0"
+                    : "flex-1 sm:w-[290px] md:w-[310px] sm:flex-none shrink-0"
                 }`}
               >
                 {/* Search & Navigation Tabs */}
@@ -894,7 +948,7 @@ export function EmployeeChatWidget() {
                 {/* Active Thread Toolbar (Search & Export Transcript) */}
                 <div className="px-3 py-2 bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate max-w-[180px] sm:max-w-[240px]">
                       {activeConversation.name}
                     </span>
                     {activeConversation.isSupervisorView && (
@@ -902,6 +956,16 @@ export function EmployeeChatWidget() {
                         👑 Supervisor Monitor Mode
                       </span>
                     )}
+                    {activeConversation.recipientRole && (
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${getRoleBadge(
+                          activeConversation.recipientRole
+                        )}`}
+                      >
+                        {activeConversation.recipientRole}
+                      </span>
+                    )}
+                    <div>{getStatusDot(activeConversation.recipientShiftStatus)}</div>
                   </div>
 
                   <div className="flex items-center gap-1">
@@ -1026,28 +1090,44 @@ export function EmployeeChatWidget() {
                               {/* Text Content */}
                               <p className="whitespace-pre-wrap leading-relaxed break-words">{msg.content}</p>
 
-                              {/* Rich Lead Card if attached */}
-                              {msg.metadata && (
+                              {/* Rich Clickable Lead Card if attached */}
+                              {(msg.metadata || msg.leadId) && (
                                 <div
-                                  className={`mt-2 p-2.5 rounded-xl border text-[11px] space-y-1.5 ${
+                                  onClick={() => handleOpenSharedLead(msg.leadId, msg.metadata)}
+                                  role="button"
+                                  tabIndex={0}
+                                  title="Click to view full lead details and intake profile"
+                                  className={`mt-2 p-2.5 rounded-xl border text-[11px] space-y-1.5 cursor-pointer transition-all duration-150 group/leadcard ${
                                     msg.isOwn
-                                      ? "bg-orange-700/30 border-orange-400/40 text-orange-50"
-                                      : "bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                                      ? "bg-orange-700/40 hover:bg-orange-700/60 border-orange-400/50 hover:border-orange-300 text-orange-50 shadow-xs"
+                                      : "bg-slate-50 dark:bg-slate-900/80 hover:bg-orange-50/60 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-500/50 text-slate-700 dark:text-slate-200 shadow-xs"
                                   }`}
                                 >
                                   <div className="flex items-center justify-between font-bold">
-                                    <span className="flex items-center gap-1">
-                                      <span>📋 Lead:</span>
-                                      <span>{msg.metadata.customerName || "Customer"}</span>
+                                    <span className="flex items-center gap-1.5 truncate">
+                                      <FileText className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                                      <span className="truncate">{msg.metadata?.customerName || "Lead Details"}</span>
                                     </span>
-                                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-orange-500/20 text-orange-600 dark:text-orange-300 border border-orange-500/30">
-                                      {msg.metadata.status || "ACTIVE"}
+                                    <span className="flex items-center gap-1 shrink-0">
+                                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-orange-500/20 text-orange-600 dark:text-orange-300 border border-orange-500/30 font-bold">
+                                        {msg.metadata?.status || "ACTIVE"}
+                                      </span>
+                                      <ExternalLink className="w-3 h-3 text-orange-500 opacity-70 group-hover/leadcard:opacity-100 group-hover/leadcard:translate-x-0.5 transition-all" />
                                     </span>
                                   </div>
 
                                   <div className="text-[10px] opacity-90 flex items-center justify-between font-mono">
-                                    <span>📱 {msg.metadata.mobile || "10-digit"}</span>
-                                    <span>{msg.metadata.campaign || "Campaign"}</span>
+                                    <span>📱 {msg.metadata?.mobile || "No phone"}</span>
+                                    <span className="truncate max-w-[130px]">{msg.metadata?.campaign || "Floor Campaign"}</span>
+                                  </div>
+
+                                  <div className="pt-1 border-t border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between text-[9px] font-medium text-orange-600 dark:text-orange-400">
+                                    <span>Click to open lead modal</span>
+                                    {loadingLeadId === (msg.leadId || msg.metadata?.leadId) ? (
+                                      <Loader2 className="w-3 h-3 animate-spin text-orange-500" />
+                                    ) : (
+                                      <span className="group-hover/leadcard:underline font-bold">View Intake & Profile ↗</span>
+                                    )}
                                   </div>
                                 </div>
                               )}
@@ -1280,8 +1360,8 @@ export function EmployeeChatWidget() {
                 </form>
               </div>
             ) : (
-              /* Empty State for Maximized Mode when no chat is currently selected */
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/40 dark:bg-slate-950/40">
+              /* Empty State for when no chat is currently selected (shown on desktop alongside sidebar) */
+              <div className="hidden sm:flex flex-1 flex-col items-center justify-center p-8 text-center bg-slate-50/40 dark:bg-slate-950/40">
                 <div className="w-16 h-16 rounded-3xl bg-orange-500/10 text-orange-500 flex items-center justify-center mb-4 shadow-inner">
                   <MessageSquare className="w-8 h-8" />
                 </div>
@@ -1437,6 +1517,16 @@ export function EmployeeChatWidget() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Lead Details Modal for Inspecting Shared Leads from Chat */}
+      {selectedLeadForDetails && (
+        <LeadDetailsModal
+          lead={selectedLeadForDetails}
+          isOpen={!!selectedLeadForDetails}
+          onClose={() => setSelectedLeadForDetails(null)}
+          isAdmin={currentUser?.role === "ADMIN"}
+        />
       )}
     </>
   );
