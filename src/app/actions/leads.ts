@@ -860,7 +860,7 @@ export async function deleteLeadAction(leadId: string): Promise<{ success?: bool
     }
 
     // Safely unlink chat mentions and purge associated earnings/history
-    await prisma.chatMessage.updateMany({
+    await (prisma as any).chatMessage.updateMany({
       where: { leadId },
       data: { leadId: null },
     });

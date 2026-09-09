@@ -246,7 +246,7 @@ export async function deleteCampaignAction(campaignId: string, force: boolean = 
         ).map((l) => l.id);
 
         if (leadIds.length > 0) {
-          await tx.chatMessage.updateMany({
+          await (tx as any).chatMessage.updateMany({
             where: { leadId: { in: leadIds } },
             data: { leadId: null },
           });
