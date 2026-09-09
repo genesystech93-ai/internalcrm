@@ -64,6 +64,8 @@ export function AdminWorkforceManager() {
 
   // August 2026 Payroll & Banking Ledger (from Aug.xlsx)
   const [augustLedger, setAugustLedger] = useState<AugustLedgerItem[]>([]);
+  const [payrollEmployeeFilter, setPayrollEmployeeFilter] = useState<string>("ALL");
+  const [payrollMonthFilter, setPayrollMonthFilter] = useState<string>("2026-08");
 
   // Unified Campaign Incentive Rules state
   const [campaignIncentives, setCampaignIncentives] = useState<CampaignIncentiveItem[]>([]);
@@ -601,28 +603,80 @@ export function AdminWorkforceManager() {
                 </button>
               </div>
 
+              {/* Employee & Month Filter Controls */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-6 p-4 rounded-2xl bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                  <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+                    <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <select
+                      value={payrollEmployeeFilter}
+                      onChange={(e) => setPayrollEmployeeFilter(e.target.value)}
+                      className="liquid-glass-input px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none"
+                    >
+                      <option value="ALL">👥 All Employees ({augustLedger.length} Staff)</option>
+                      {augustLedger.map((emp) => (
+                        <option key={emp.userId} value={emp.userId}>
+                          {emp.name} (@{emp.username})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+                    <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                    <select
+                      value={payrollMonthFilter}
+                      onChange={(e) => setPayrollMonthFilter(e.target.value)}
+                      className="liquid-glass-input px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none"
+                    >
+                      <option value="2026-08">August 2026 (Aug.xlsx Verified)</option>
+                      <option value="2026-09">September 2026 (Current Active)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {payrollEmployeeFilter !== "ALL" && (
+                  <button
+                    type="button"
+                    onClick={() => setPayrollEmployeeFilter("ALL")}
+                    className="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer self-end"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Show All Staff</span>
+                  </button>
+                )}
+              </div>
+
               {/* Summary Metrics */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                 <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
                   <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Total Staff</p>
-                  <p className="text-lg font-extrabold text-[#0F172A] dark:text-white font-mono">{augustLedger.length}</p>
+                  <p className="text-lg font-extrabold text-[#0F172A] dark:text-white font-mono">
+                    {augustLedger.filter((i) => payrollEmployeeFilter === "ALL" || i.userId === payrollEmployeeFilter || i.username.toLowerCase() === payrollEmployeeFilter.toLowerCase()).length}
+                  </p>
                 </div>
                 <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
                   <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Shift Logs Recorded</p>
                   <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
-                    {augustLedger.length * 31}
+                    {augustLedger.filter((i) => payrollEmployeeFilter === "ALL" || i.userId === payrollEmployeeFilter || i.username.toLowerCase() === payrollEmployeeFilter.toLowerCase()).length * 31}
                   </p>
                 </div>
                 <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
                   <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Gross Base Payroll</p>
                   <p className="text-lg font-extrabold text-[#0F172A] dark:text-white font-mono">
-                    ₹{augustLedger.reduce((sum, item) => sum + item.basicSalary, 0).toLocaleString("en-IN")}
+                    ₹{augustLedger
+                      .filter((i) => payrollEmployeeFilter === "ALL" || i.userId === payrollEmployeeFilter || i.username.toLowerCase() === payrollEmployeeFilter.toLowerCase())
+                      .reduce((sum, item) => sum + item.basicSalary, 0)
+                      .toLocaleString("en-IN")}
                   </p>
                 </div>
                 <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
                   <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">August Net Payout</p>
                   <p className="text-lg font-extrabold text-[#EA580C] dark:text-[#FB923C] font-mono">
-                    ₹{augustLedger.reduce((sum, item) => sum + item.augNetSalary, 0).toLocaleString("en-IN")}
+                    ₹{augustLedger
+                      .filter((i) => payrollEmployeeFilter === "ALL" || i.userId === payrollEmployeeFilter || i.username.toLowerCase() === payrollEmployeeFilter.toLowerCase())
+                      .reduce((sum, item) => sum + item.augNetSalary, 0)
+                      .toLocaleString("en-IN")}
                   </p>
                 </div>
               </div>
@@ -641,7 +695,9 @@ export function AdminWorkforceManager() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {augustLedger.map((item) => (
+                    {augustLedger
+                      .filter((i) => payrollEmployeeFilter === "ALL" || i.userId === payrollEmployeeFilter || i.username.toLowerCase() === payrollEmployeeFilter.toLowerCase())
+                      .map((item) => (
                       <tr key={item.userId} className="hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="py-3 px-3">
                           <p className="font-bold text-[#0F172A] dark:text-white">{item.name}</p>

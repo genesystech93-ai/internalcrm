@@ -28,17 +28,23 @@ export function AdminDecisionModal({
   targetStatus,
 }: AdminDecisionModalProps) {
   const [reason, setReason] = useState("");
+  const [customStatusName, setCustomStatusName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const isApprovedReversal = currentStatus === "APPROVED";
+  const isCustomTarget = targetStatus === "CUSTOM";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
       setError("Audit reason is strictly mandatory.");
+      return;
+    }
+    if (isCustomTarget && !customStatusName.trim()) {
+      setError("Please specify a custom status label.");
       return;
     }
 
@@ -49,7 +55,7 @@ export function AdminDecisionModal({
     if (mode === "REJECT") {
       res = await adminDecisionAction(leadId, "REJECTED", reason);
     } else if (targetStatus) {
-      res = await adminReclassifyLeadAction(leadId, targetStatus, reason);
+      res = await adminReclassifyLeadAction(leadId, targetStatus, reason, customStatusName.trim());
     }
 
     if (res?.error) {
@@ -113,6 +119,35 @@ export function AdminDecisionModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isCustomTarget && (
+            <div className="p-3.5 rounded-2xl bg-pink-500/10 border border-pink-500/25">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-pink-700 dark:text-pink-300 mb-1">
+                Custom Status Title / Label *
+              </label>
+              <input
+                type="text"
+                required
+                maxLength={100}
+                value={customStatusName}
+                onChange={(e) => setCustomStatusName(e.target.value)}
+                placeholder="e.g. Callback Tomorrow, Docs Awaiting Verification..."
+                className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs font-bold focus:outline-none border-pink-400/40 text-[#0F172A] dark:text-white"
+              />
+              <div className="flex flex-wrap gap-1 mt-2">
+                {["Docs Pending", "Callback Tomorrow", "VIP High Priority", "Manager Check"].map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setCustomStatusName(tag)}
+                    className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/70 dark:bg-slate-800 text-pink-700 dark:text-pink-300 border border-pink-500/30 hover:bg-pink-500/20 cursor-pointer"
+                  >
+                    + {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
               Mandatory Audit Reason *

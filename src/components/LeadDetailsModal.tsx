@@ -135,6 +135,8 @@ export function LeadDetailsModal({
         return "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30";
       case "VOICEMAIL":
         return "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30";
+      case "CUSTOM":
+        return "bg-pink-500/15 text-pink-700 dark:text-pink-400 border-pink-500/30";
       case "UPLOADED":
       default:
         return "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30";
@@ -160,7 +162,7 @@ export function LeadDetailsModal({
                   {lead.customerName}
                 </h2>
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${getStatusBadgeClass(lead.status)}`}>
-                  ● {lead.status.replace("_", " ")}
+                  ● {lead.status === "CUSTOM" && lead.customStatusLabel ? `Custom: ${lead.customStatusLabel}` : lead.status.replace("_", " ")}
                 </span>
                 <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20">
                   {lead.campaignName || "General Campaign"}
@@ -190,6 +192,18 @@ export function LeadDetailsModal({
                   <p className="font-bold text-xs">Scheduled Floor Call Back</p>
                   <p className="text-[11px] opacity-90">
                     Agent scheduled callback for: <strong>{new Date(lead.callBackTime).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</strong>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {lead.status === "CUSTOM" && (
+              <div className="p-3.5 rounded-2xl bg-pink-500/10 border border-pink-500/25 text-pink-900 dark:text-pink-300 flex items-center gap-3">
+                <span className="text-lg">✨</span>
+                <div>
+                  <p className="font-bold text-xs">Custom Operational Status</p>
+                  <p className="text-[11px] opacity-90 mt-0.5">
+                    Tag Label: <strong>{lead.customStatusLabel || "Custom Status"}</strong>
                   </p>
                 </div>
               </div>

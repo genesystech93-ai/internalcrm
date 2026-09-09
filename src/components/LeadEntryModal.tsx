@@ -30,6 +30,7 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
   const [status, setStatus] = useState<LeadStatus>("UPLOADED");
   const [callBackTime, setCallBackTime] = useState("");
   const [notes, setNotes] = useState("");
+  const [customStatusName, setCustomStatusName] = useState("");
 
   const [customStatuses, setCustomStatuses] = useState<CustomStatusItem[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
@@ -84,6 +85,9 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
     fd.append("source", source);
     fd.append("closerName", closerName);
     fd.append("status", status);
+    if (status === "CUSTOM" && customStatusName.trim()) {
+      fd.append("customStatusName", customStatusName.trim());
+    }
     if (status === "CALL_BACK" && callBackTime) {
       fd.append("callBackTime", callBackTime);
     }
@@ -105,6 +109,7 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
         setEmail("");
         setCloserName("");
         setStatus("UPLOADED");
+        setCustomStatusName("");
         setCallBackTime("");
         setNotes("");
         setMessage(null);
@@ -365,13 +370,18 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
               </label>
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value as LeadStatus)}
+                onChange={(e) => {
+                  const val = e.target.value as LeadStatus;
+                  setStatus(val);
+                  if (val !== "CUSTOM") setCustomStatusName("");
+                }}
                 className="liquid-glass-input w-full px-3 py-2.5 rounded-xl text-xs font-bold focus:outline-none"
               >
                 <option value="UPLOADED">Uploaded (Awaiting Admin Review)</option>
                 <option value="PENDING_VERIFICATION">Pending Verification</option>
                 <option value="CALL_BACK">Call Back (Requires Date & Time)</option>
                 <option value="VOICEMAIL">Voicemail</option>
+                <option value="CUSTOM">✨ Custom Status (Enter Name Below)</option>
                 {customStatuses.map((cs) => (
                   <option key={cs.id} value="CUSTOM">Custom: {cs.name}</option>
                 ))}
@@ -396,6 +406,48 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
               </div>
             </div>
           </div>
+
+          {/* Row 5b: Custom Status Input Field & Fast Tag Selection */}
+          {status === "CUSTOM" && (
+            <div className="p-3.5 rounded-2xl bg-pink-500/10 border border-pink-500/25 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-pink-700 dark:text-pink-300">
+                  Enter Custom Status Label *
+                </label>
+                <span className="text-[10px] text-pink-600 dark:text-pink-400 font-semibold">
+                  Saved to lead & pipeline
+                </span>
+              </div>
+              <input
+                type="text"
+                required
+                maxLength={100}
+                value={customStatusName}
+                onChange={(e) => setCustomStatusName(e.target.value)}
+                placeholder="e.g. Docs Under Review, VIP Follow-Up, Awaiting OTP..."
+                className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs font-bold focus:outline-none border-pink-400/40 text-[#0F172A] dark:text-white"
+              />
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8]">Quick presets:</span>
+                {[
+                  "Docs Under Review",
+                  "Callback Tomorrow",
+                  "VIP High Priority",
+                  "Payment Link Sent",
+                  "Manager Review",
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setCustomStatusName(preset)}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-white/70 dark:bg-slate-800 text-pink-700 dark:text-pink-300 border border-pink-500/30 hover:bg-pink-500/20 transition-all cursor-pointer"
+                  >
+                    + {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Row 6: Agent Notes (Field 11) */}
           <div>

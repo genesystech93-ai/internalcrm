@@ -34,6 +34,10 @@ export function AdminAttendanceBoard() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [historyStatusFilter, setHistoryStatusFilter] = useState<string>("ALL");
 
+  // Single Employee & Single Month Filters
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("ALL");
+  const [selectedMonth, setSelectedMonth] = useState<string>("ALL");
+
   // Edit Shift Times Modal state
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [editStartTime, setEditStartTime] = useState<string>("19:00");
@@ -42,10 +46,10 @@ export function AdminAttendanceBoard() {
   const [isSavingTimes, setIsSavingTimes] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
-  const fetchDashboardSummary = async () => {
+  const fetchDashboardSummary = async (emp = selectedEmployee, mth = selectedMonth) => {
     setLoading(true);
     try {
-      const data = await getAttendanceDashboardSummaryAction();
+      const data = await getAttendanceDashboardSummaryAction(emp, mth);
       setSummary(data);
       if (data?.globalShiftStartTime) setEditStartTime(data.globalShiftStartTime);
       if (data?.globalShiftEndTime) setEditEndTime(data.globalShiftEndTime);
@@ -56,10 +60,10 @@ export function AdminAttendanceBoard() {
   };
 
   useEffect(() => {
-    fetchDashboardSummary();
-    const interval = setInterval(fetchDashboardSummary, 30000);
+    fetchDashboardSummary(selectedEmployee, selectedMonth);
+    const interval = setInterval(() => fetchDashboardSummary(selectedEmployee, selectedMonth), 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedEmployee, selectedMonth]);
 
   const formatMinutes = (mins: number) => {
     const hrs = Math.floor(mins / 60);
@@ -293,7 +297,7 @@ export function AdminAttendanceBoard() {
           {/* Refresh Button */}
           <button
             type="button"
-            onClick={fetchDashboardSummary}
+            onClick={() => fetchDashboardSummary()}
             disabled={loading}
             className="liquid-glass-button-secondary p-2.5 rounded-2xl text-xs flex items-center justify-center cursor-pointer shadow-sm"
             title="Refresh Attendance Roster"
@@ -329,6 +333,187 @@ export function AdminAttendanceBoard() {
           </button>
         </div>
       )}
+
+      {/* Interactive Single Employee & Single Month Filter Command Bar */}
+      <div className="p-4 sm:p-5 rounded-3xl mb-7 bg-white/70 dark:bg-slate-900/80 border border-slate-200/90 dark:border-slate-800 shadow-lg backdrop-blur-md relative z-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3 flex-1">
+            {/* Employee Selector */}
+            <div className="flex items-center gap-2 flex-1 min-w-[240px]">
+              <div className="w-8 h-8 rounded-xl bg-orange-500/15 flex items-center justify-center text-[#EA580C] shrink-0">
+                <User className="w-4 h-4" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8] mb-0.5">
+                  Filter by Staff Member
+                </label>
+                <select
+                  value={selectedEmployee}
+                  onChange={(e) => setSelectedEmployee(e.target.value)}
+                  className="liquid-glass-input w-full px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none"
+                >
+                  <option value="ALL">👥 All Staff Members ({summary?.staffSummaries?.length || 12} enrolled)</option>
+                  {(summary?.allStaffList?.length ? summary.allStaffList : summary?.staffSummaries?.map(s => ({ id: s.userId, name: s.name, username: s.username, role: s.role })) || []).map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} (@{emp.username}) · {emp.role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Month Selector */}
+            <div className="flex items-center gap-2 flex-1 min-w-[210px]">
+              <div className="w-8 h-8 rounded-xl bg-purple-500/15 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
+                <CalendarCheck2 className="w-4 h-4" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8] mb-0.5">
+                  Filter by Month
+                </label>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="liquid-glass-input w-full px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none"
+                >
+                  <option value="ALL">📅 All Months (Lifetime Shift History)</option>
+                  <option value="2026-08">August 2026 (Aug.xlsx Ingested)</option>
+                  <option value="2026-09">September 2026 (Active Roster Floor)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Filter Reset & Status Pills */}
+          <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+            {(selectedEmployee !== "ALL" || selectedMonth !== "ALL") && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedEmployee("ALL");
+                  setSelectedMonth("ALL");
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[#475569] dark:text-[#CBD5E1] transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Reset Filters</span>
+              </button>
+            )}
+            <span className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20">
+              {selectedMonth === "ALL" ? "All Time" : selectedMonth === "2026-08" ? "Aug 2026" : "Sep 2026"} · {selectedEmployee === "ALL" ? "All Staff" : "Single Staff"}
+            </span>
+          </div>
+        </div>
+
+        {/* Single Employee Drilldown Spotlight Card */}
+        {summary?.singleEmployeeStats && (
+          <div className="mt-4 pt-4 border-t border-slate-200/70 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-br from-orange-500/10 via-purple-500/10 to-transparent border border-orange-500/20">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white font-extrabold text-lg flex items-center justify-center shadow-md shadow-orange-500/20">
+                  {summary.singleEmployeeStats.name.charAt(0)}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white">
+                      {summary.singleEmployeeStats.name}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/20 text-[#EA580C] dark:text-[#FB923C]">
+                      {summary.singleEmployeeStats.role}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                      {summary.singleEmployeeStats.teamName}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8] font-mono">
+                    @{summary.singleEmployeeStats.username} · {selectedMonth === "ALL" ? "Lifetime Shift Record" : `Month: ${selectedMonth}`}
+                  </p>
+                </div>
+              </div>
+
+              {/* Individual Metrics Badges */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold text-center">
+                  <p className="text-[10px] uppercase opacity-80">Present</p>
+                  <p className="text-sm font-mono">{summary.singleEmployeeStats.presentDays}d</p>
+                </div>
+                <div className="px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold text-center">
+                  <p className="text-[10px] uppercase opacity-80">Half Days</p>
+                  <p className="text-sm font-mono">{summary.singleEmployeeStats.halfDays}d</p>
+                </div>
+                <div className="px-3 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-bold text-center">
+                  <p className="text-[10px] uppercase opacity-80">Absent</p>
+                  <p className="text-sm font-mono">{summary.singleEmployeeStats.absentDays}d</p>
+                </div>
+                <div className="px-3 py-1.5 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-300 text-xs font-bold text-center">
+                  <p className="text-[10px] uppercase opacity-80">Late Marks</p>
+                  <p className="text-sm font-mono">{summary.singleEmployeeStats.lateMarks}</p>
+                </div>
+                <div className="px-3 py-1.5 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-700 dark:text-sky-300 text-xs font-bold text-center">
+                  <p className="text-[10px] uppercase opacity-80">Shift Hours</p>
+                  <p className="text-sm font-mono">{summary.singleEmployeeStats.totalShiftHours}h</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Daily Shift Timeline for this Single Employee */}
+            {summary.singleEmployeeStats.dailyLogs.length > 0 && (
+              <div className="mt-3 overflow-x-auto max-h-56 custom-scrollbar rounded-xl border border-slate-200/80 dark:border-slate-800">
+                <table className="w-full text-left text-[11px]">
+                  <thead className="bg-slate-50 dark:bg-slate-800/80 sticky top-0 text-[#64748B] dark:text-[#94A3B8] font-bold uppercase">
+                    <tr>
+                      <th className="py-2 px-3">Date</th>
+                      <th className="py-2 px-3">Status</th>
+                      <th className="py-2 px-3">Login</th>
+                      <th className="py-2 px-3">Logout</th>
+                      <th className="py-2 px-3 text-right">Productive Mins</th>
+                      <th className="py-2 px-3 text-right">Breaks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white/40 dark:bg-slate-900/40">
+                    {summary.singleEmployeeStats.dailyLogs.map((log, idx) => (
+                      <tr key={idx} className="hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors">
+                        <td className="py-2 px-3 font-mono font-bold text-[#0F172A] dark:text-white">
+                          {log.date} <span className="text-[10px] text-slate-400 font-normal">({log.dayName})</span>
+                        </td>
+                        <td className="py-2 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                              log.status === "PRESENT"
+                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                                : log.status === "LATE"
+                                ? "bg-purple-500/15 text-purple-700 dark:text-purple-400"
+                                : log.status === "HALF_DAY"
+                                ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                                : "bg-rose-500/15 text-rose-700 dark:text-rose-400"
+                            }`}
+                          >
+                            ● {log.status}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 font-mono">
+                          {new Date(log.loginAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </td>
+                        <td className="py-2 px-3 font-mono">
+                          {log.logoutAt
+                            ? new Date(log.logoutAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                            : "Active Floor"}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          {log.productiveMins}m ({Math.round((log.productiveMins / 60) * 10) / 10}h)
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono text-slate-500">
+                          {log.breakMins}m
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Key Metric KPI Cards (5 Cards Grid) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 mb-7">

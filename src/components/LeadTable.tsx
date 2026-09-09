@@ -118,6 +118,8 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
         return "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30";
       case "VOICEMAIL":
         return "bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30";
+      case "CUSTOM":
+        return "bg-pink-500/15 text-pink-700 dark:text-pink-400 border border-pink-500/30";
       default:
         return "bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30";
     }
@@ -276,7 +278,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                       </td>
                       <td className="py-3 px-3">
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusBadge(lead.status)}`}>
-                          ● {lead.status}
+                          ● {lead.status === "CUSTOM" && lead.customStatusLabel ? `✨ ${lead.customStatusLabel}` : lead.status}
                         </span>
                         {lead.status === "CALL_BACK" && lead.callBackTime && (
                           <p className="font-mono text-[10px] text-purple-600 dark:text-purple-400 mt-1 flex items-center gap-1">

@@ -2,13 +2,9 @@ import { getSession } from "@/lib/auth";
 import { logoutAction } from "@/app/actions/auth";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { ShiftControls } from "@/components/ShiftControls";
-import { AgentIncentiveTracker } from "@/components/AgentIncentiveTracker";
-import { AgentPerformanceDashboard } from "@/components/AgentPerformanceDashboard";
-import { LeadWorkspace } from "@/components/LeadWorkspace";
-import { LeaveManagement } from "@/components/LeaveManagement";
 import { EmployeeChatWidget } from "@/components/EmployeeChatWidget";
 import { AgentDashboardHeader } from "@/components/AgentDashboardHeader";
+import { AgentWorkspaceContainer } from "@/components/AgentWorkspaceContainer";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { LogOut } from "lucide-react";
 
@@ -55,28 +51,12 @@ export default async function AgentDashboardPage() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 sm:p-8 relative z-10">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 sm:p-8 relative z-10 space-y-6">
         {/* Animated Welcome Header */}
         <AgentDashboardHeader sessionName={session?.name || "Agent"} />
 
-        {/* Active Shift Controls (Log In / Log Out, 15m Grace Window & Multiple Breaks) */}
-        <div data-section="shift-controls">
-          <ShiftControls />
-        </div>
-
-        {/* Personal Target & Streak Performance Snapshot */}
-        <AgentPerformanceDashboard />
-
-        {/* Real-Time Commission & Milestone Tracker */}
-        <AgentIncentiveTracker />
-
-        {/* Lead Workspace: Dual-View Kanban & Pretext Virtualized Data Grid */}
-        <div data-section="lead-workspace">
-          <LeadWorkspace isAdmin={false} />
-        </div>
-
-        {/* Planned Leave Management */}
-        <LeaveManagement isAdmin={false} />
+        {/* Tab-Segmented Agent Workspace (Decluttered, High-Focus Workspaces) */}
+        <AgentWorkspaceContainer sessionName={session?.name || "Agent"} />
       </main>
 
       {/* Internal Staff Floor Messaging & Team Chat Widget */}

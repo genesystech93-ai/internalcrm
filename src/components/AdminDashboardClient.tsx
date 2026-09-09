@@ -18,14 +18,6 @@ import {
 import { AnimatedGreeting, PageTransition } from "@/components/ui/visual-utils";
 
 export function AdminDashboardClient({ sessionName }: { sessionName: string }) {
-  const scrollToLeads = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const el = document.getElementById("leads-workspace");
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
   return (
     <PageTransition>
       <div className="mb-6">
@@ -50,8 +42,7 @@ export function AdminDashboardClient({ sessionName }: { sessionName: string }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
         {/* Tile 1: Leads Pipeline */}
         <a
-          href="#leads-workspace"
-          onClick={scrollToLeads}
+          href="#leads"
           className="liquid-glass-card p-5 rounded-3xl group cursor-pointer animate-in fade-in slide-in-from-bottom-2 duration-500 border border-white/80 dark:border-slate-800 hover:border-emerald-500/40 transition-all flex flex-col justify-between"
         >
           <div>
@@ -73,20 +64,20 @@ export function AdminDashboardClient({ sessionName }: { sessionName: string }) {
               <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
               <span>Review Queue</span>
             </span>
-            <ArrowDown className="w-3.5 h-3.5 group-hover:translate-y-0.5 transition-transform" />
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </a>
 
-        {/* Tile 2: Shift Schedule & Auto Cutoff */}
-        <Link
-          href="/admin/settings#shifts"
+        {/* Tile 2: Shift Schedule & Attendance */}
+        <a
+          href="#attendance"
           className="liquid-glass-card p-5 rounded-3xl group cursor-pointer animate-in fade-in slide-in-from-bottom-2 duration-500 border border-white/80 dark:border-slate-800 hover:border-purple-500/40 transition-all flex flex-col justify-between"
           style={{ animationDelay: "75ms" }}
         >
           <div>
             <div className="flex items-center justify-between mb-2.5">
               <span className="text-[11px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
-                Floor Shift
+                Floor Attendance
               </span>
               <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
                 <Moon className="w-4 h-4" />
@@ -94,66 +85,66 @@ export function AdminDashboardClient({ sessionName }: { sessionName: string }) {
             </div>
             <p className="text-2xl font-extrabold font-mono text-[#0F172A] dark:text-white">19:00 - 04:00</p>
             <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
-              Auto Cutoff & Late Grace Window
+              Shift Records & Auto Cutoff
             </p>
           </div>
           <div className="mt-4 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-purple-600 dark:text-purple-400 font-semibold">
-            <span>Configure Shift Hours</span>
+            <span>Workforce Shifts</span>
             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </div>
-        </Link>
+        </a>
 
-        {/* Tile 3: Workforce Hub */}
-        <Link
-          href="/admin/employees"
+        {/* Tile 3: Workforce & Payroll */}
+        <a
+          href="#payroll"
           className="liquid-glass-card p-5 rounded-3xl group cursor-pointer animate-in fade-in slide-in-from-bottom-2 duration-500 border border-white/80 dark:border-slate-800 hover:border-sky-500/40 transition-all flex flex-col justify-between"
           style={{ animationDelay: "150ms" }}
         >
           <div>
             <div className="flex items-center justify-between mb-2.5">
               <span className="text-[11px] font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider">
-                Workforce Hub
+                Workforce & Payroll
               </span>
               <div className="w-8 h-8 rounded-xl bg-sky-500/10 flex items-center justify-center text-[#0284C7] group-hover:scale-110 transition-transform">
                 <Users className="w-4 h-4" />
               </div>
             </div>
-            <p className="text-2xl font-extrabold text-[#0F172A] dark:text-white">12 Staff</p>
+            <p className="text-2xl font-extrabold text-[#0F172A] dark:text-white">Salaries & Teams</p>
             <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
-              Accounts, Teams & Salaries
+              Monthly Ledgers & Banking
             </p>
           </div>
           <div className="mt-4 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-[#0284C7] dark:text-[#38BDF8] font-semibold">
-            <span>Manage Workforce</span>
+            <span>Open Master Ledger</span>
             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </div>
-        </Link>
+        </a>
 
-        {/* Tile 4: Performance Reports */}
-        <Link
-          href="/admin/reports"
+        {/* Tile 4: Analytics & Live Timeline */}
+        <a
+          href="#analytics"
           className="liquid-glass-card p-5 rounded-3xl group cursor-pointer animate-in fade-in slide-in-from-bottom-2 duration-500 border border-white/80 dark:border-slate-800 hover:border-orange-500/40 transition-all flex flex-col justify-between"
           style={{ animationDelay: "225ms" }}
         >
           <div>
             <div className="flex items-center justify-between mb-2.5">
               <span className="text-[11px] font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider">
-                Reports & Payroll
+                Analytics & Timeline
               </span>
               <div className="w-8 h-8 rounded-xl bg-orange-500/10 flex items-center justify-center text-[#F97316] group-hover:scale-110 transition-transform">
                 <FileSpreadsheet className="w-4 h-4" />
               </div>
             </div>
-            <p className="text-2xl font-extrabold text-[#0F172A] dark:text-white">Aug Ledger</p>
+            <p className="text-2xl font-extrabold text-[#0F172A] dark:text-white">Live Funnel</p>
             <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
-              Bank Payroll & Audit Export
+              Conversion & Real-Time Events
             </p>
           </div>
           <div className="mt-4 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-[#EA580C] dark:text-[#FB923C] font-semibold">
-            <span>Download Reports CSV</span>
+            <span>View Floor Stream</span>
             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </div>
-        </Link>
+        </a>
       </div>
     </PageTransition>
   );

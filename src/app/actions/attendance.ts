@@ -674,6 +674,28 @@ export interface StaffAttendanceSummary {
   currentShiftStatus: string;
 }
 
+export interface SingleEmployeeAttendanceStats {
+  userId: string;
+  name: string;
+  username: string;
+  role: string;
+  teamName: string;
+  presentDays: number;
+  halfDays: number;
+  absentDays: number;
+  lateMarks: number;
+  totalShiftHours: number;
+  dailyLogs: Array<{
+    date: string;
+    dayName: string;
+    status: string;
+    loginAt: string;
+    logoutAt: string | null;
+    productiveMins: number;
+    breakMins: number;
+  }>;
+}
+
 export interface AttendanceDashboardSummary {
   totalStaffEnrolled: number;
   totalShiftsRecorded: number;
@@ -683,6 +705,11 @@ export interface AttendanceDashboardSummary {
   lateTodayCount: number;
   globalShiftStartTime: string;
   globalShiftEndTime: string;
+  selectedUserId?: string;
+  selectedMonth?: string;
+  availableMonths: Array<{ value: string; label: string }>;
+  allStaffList: Array<{ id: string; name: string; username: string; role: string }>;
+  singleEmployeeStats?: SingleEmployeeAttendanceStats | null;
   staffSummaries: StaffAttendanceSummary[];
   recentShiftLogs: Array<{
     id: string;
@@ -701,8 +728,11 @@ export interface AttendanceDashboardSummary {
   }>;
 }
 
-// 9. Comprehensive Attendance Dashboard Summary Action
-export async function getAttendanceDashboardSummaryAction(): Promise<AttendanceDashboardSummary> {
+// 9. Comprehensive Attendance Dashboard Summary Action with Single Employee & Month Filtering
+export async function getAttendanceDashboardSummaryAction(
+  filterUserId = "ALL",
+  filterMonth = "ALL"
+): Promise<AttendanceDashboardSummary> {
   const session = await getSession();
   if (!session || session.role !== "ADMIN") throw new Error("Unauthorized");
 
@@ -712,17 +742,35 @@ export async function getAttendanceDashboardSummaryAction(): Promise<AttendanceD
   let shiftStartTime = "19:00";
   let shiftEndTime = "04:00";
 
+  const availableMonths = [
+    { value: "ALL", label: "All Months (Lifetime)" },
+    { value: "2026-08", label: "August 2026 (Aug.xlsx Imported)" },
+    { value: "2026-09", label: "September 2026 (Active Roster)" },
+  ];
+
   try {
     const startSetting = await prisma.systemSetting.findUnique({ where: { key: "global_shift_start_time" } });
     const endSetting = await prisma.systemSetting.findUnique({ where: { key: "global_shift_end_time" } });
     if (startSetting?.value) shiftStartTime = startSetting.value;
     if (endSetting?.value) shiftEndTime = endSetting.value;
 
+    // Date range filter
+    let monthStart: Date | null = null;
+    let monthEnd: Date | null = null;
+    if (filterMonth === "2026-08") {
+      monthStart = new Date("2026-08-01T00:00:00.000Z");
+      monthEnd = new Date("2026-08-31T23:59:59.999Z");
+    } else if (filterMonth === "2026-09") {
+      monthStart = new Date("2026-09-01T00:00:00.000Z");
+      monthEnd = new Date("2026-09-30T23:59:59.999Z");
+    }
+
     const staffUsers = await prisma.user.findMany({
       where: { role: { not: "ADMIN" } },
       include: {
         team: true,
         attendances: {
+          where: monthStart && monthEnd ? { shiftDate: { gte: monthStart, lte: monthEnd } } : undefined,
           orderBy: { loginAt: "desc" },
           include: { breaks: true, campaign: true },
         },
@@ -730,10 +778,19 @@ export async function getAttendanceDashboardSummaryAction(): Promise<AttendanceD
       orderBy: { name: "asc" },
     });
 
-    const totalAttendanceCount = await prisma.attendance.count();
+    const allStaffList = staffUsers.map((u) => ({
+      id: u.id,
+      name: u.name,
+      username: u.username,
+      role: u.role,
+    }));
+
+    const totalAttendanceCount = await prisma.attendance.count({
+      where: monthStart && monthEnd ? { shiftDate: { gte: monthStart, lte: monthEnd } } : undefined,
+    });
 
     // Staff Aggregates
-    const staffSummaries: StaffAttendanceSummary[] = staffUsers.map((u) => {
+    let staffSummaries: StaffAttendanceSummary[] = staffUsers.map((u) => {
       const present = u.attendances.filter((a) => a.status === "PRESENT").length;
       const half = u.attendances.filter((a) => a.status === "HALF_DAY").length;
       const absent = u.attendances.filter((a) => a.status === "ABSENT").length;
@@ -766,9 +823,64 @@ export async function getAttendanceDashboardSummaryAction(): Promise<AttendanceD
       };
     });
 
-    // Recent shift logs (last 50)
+    // Single Employee detailed breakdown if an employee is specifically selected
+    let singleEmployeeStats: SingleEmployeeAttendanceStats | null = null;
+    if (filterUserId && filterUserId !== "ALL") {
+      const targetUser = staffUsers.find((u) => u.id === filterUserId || u.username.toLowerCase() === filterUserId.toLowerCase());
+      if (targetUser) {
+        const present = targetUser.attendances.filter((a) => a.status === "PRESENT").length;
+        const half = targetUser.attendances.filter((a) => a.status === "HALF_DAY").length;
+        const absent = targetUser.attendances.filter((a) => a.status === "ABSENT").length;
+        const late = targetUser.attendances.filter((a) => a.status === "LATE").length;
+        const totalMins = targetUser.attendances.reduce((sum, a) => sum + a.totalMinutes, 0);
+
+        const dailyLogs = targetUser.attendances.map((a) => {
+          const shiftDateObj = new Date(a.shiftDate);
+          const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+          const dayName = days[shiftDateObj.getUTCDay()];
+          const breakMins = a.breaks.reduce((sum, b) => sum + (b.durationMinutes || 0), 0);
+          return {
+            date: a.shiftDate.toISOString().split("T")[0],
+            dayName,
+            status: a.status,
+            loginAt: a.loginAt.toISOString(),
+            logoutAt: a.logoutAt ? a.logoutAt.toISOString() : null,
+            productiveMins: a.totalMinutes,
+            breakMins,
+          };
+        });
+
+        singleEmployeeStats = {
+          userId: targetUser.id,
+          name: targetUser.name,
+          username: targetUser.username,
+          role: targetUser.role,
+          teamName: targetUser.team?.name || "General Floor",
+          presentDays: present,
+          halfDays: half,
+          absentDays: absent,
+          lateMarks: late,
+          totalShiftHours: Math.round((totalMins / 60) * 10) / 10,
+          dailyLogs,
+        };
+
+        // Also prioritize / isolate this user in staffSummaries
+        staffSummaries = staffSummaries.filter((s) => s.userId === targetUser.id);
+      }
+    }
+
+    // Recent shift logs
+    const whereRecent: any = {};
+    if (monthStart && monthEnd) {
+      whereRecent.shiftDate = { gte: monthStart, lte: monthEnd };
+    }
+    if (filterUserId && filterUserId !== "ALL") {
+      whereRecent.userId = filterUserId;
+    }
+
     const recentLogs = await prisma.attendance.findMany({
-      take: 50,
+      where: Object.keys(whereRecent).length > 0 ? whereRecent : undefined,
+      take: filterUserId !== "ALL" ? 100 : 50,
       orderBy: { loginAt: "desc" },
       include: {
         user: true,
@@ -815,6 +927,11 @@ export async function getAttendanceDashboardSummaryAction(): Promise<AttendanceD
       lateTodayCount,
       globalShiftStartTime: shiftStartTime,
       globalShiftEndTime: shiftEndTime,
+      selectedUserId: filterUserId,
+      selectedMonth: filterMonth,
+      availableMonths,
+      allStaffList,
+      singleEmployeeStats,
       staffSummaries,
       recentShiftLogs,
     };
@@ -829,9 +946,98 @@ export async function getAttendanceDashboardSummaryAction(): Promise<AttendanceD
       lateTodayCount: 0,
       globalShiftStartTime: shiftStartTime,
       globalShiftEndTime: shiftEndTime,
+      selectedUserId: filterUserId,
+      selectedMonth: filterMonth,
+      availableMonths,
+      allStaffList: [],
+      singleEmployeeStats: null,
       staffSummaries: [],
       recentShiftLogs: [],
     };
+  }
+}
+
+// 9b. Personal Attendance Record for Logged-In Employee
+export async function getMyAttendanceSummaryAction(
+  filterMonth = "2026-08"
+): Promise<{
+  summary: SingleEmployeeAttendanceStats | null;
+  availableMonths: Array<{ value: string; label: string }>;
+}> {
+  const session = await getSession();
+  const availableMonths = [
+    { value: "2026-08", label: "August 2026 (Aug.xlsx Imported)" },
+    { value: "2026-09", label: "September 2026 (Active)" },
+    { value: "ALL", label: "All Months" },
+  ];
+
+  if (!session) return { summary: null, availableMonths };
+
+  try {
+    let monthStart: Date | null = null;
+    let monthEnd: Date | null = null;
+    if (filterMonth === "2026-08") {
+      monthStart = new Date("2026-08-01T00:00:00.000Z");
+      monthEnd = new Date("2026-08-31T23:59:59.999Z");
+    } else if (filterMonth === "2026-09") {
+      monthStart = new Date("2026-09-01T00:00:00.000Z");
+      monthEnd = new Date("2026-09-30T23:59:59.999Z");
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      include: {
+        team: true,
+        attendances: {
+          where: monthStart && monthEnd ? { shiftDate: { gte: monthStart, lte: monthEnd } } : undefined,
+          orderBy: { shiftDate: "desc" },
+          include: { breaks: true },
+        },
+      },
+    });
+
+    if (!user) return { summary: null, availableMonths };
+
+    const present = user.attendances.filter((a) => a.status === "PRESENT").length;
+    const half = user.attendances.filter((a) => a.status === "HALF_DAY").length;
+    const absent = user.attendances.filter((a) => a.status === "ABSENT").length;
+    const late = user.attendances.filter((a) => a.status === "LATE").length;
+    const totalMins = user.attendances.reduce((sum, a) => sum + a.totalMinutes, 0);
+
+    const dailyLogs = user.attendances.map((a) => {
+      const shiftDateObj = new Date(a.shiftDate);
+      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const dayName = days[shiftDateObj.getUTCDay()];
+      const breakMins = a.breaks.reduce((sum, b) => sum + (b.durationMinutes || 0), 0);
+      return {
+        date: a.shiftDate.toISOString().split("T")[0],
+        dayName,
+        status: a.status,
+        loginAt: a.loginAt.toISOString(),
+        logoutAt: a.logoutAt ? a.logoutAt.toISOString() : null,
+        productiveMins: a.totalMinutes,
+        breakMins,
+      };
+    });
+
+    return {
+      summary: {
+        userId: user.id,
+        name: user.name,
+        username: user.username,
+        role: user.role,
+        teamName: user.team?.name || "General Floor",
+        presentDays: present,
+        halfDays: half,
+        absentDays: absent,
+        lateMarks: late,
+        totalShiftHours: Math.round((totalMins / 60) * 10) / 10,
+        dailyLogs,
+      },
+      availableMonths,
+    };
+  } catch {
+    return { summary: null, availableMonths };
   }
 }
 

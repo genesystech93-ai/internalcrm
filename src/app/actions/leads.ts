@@ -41,6 +41,7 @@ export interface LeadItem {
   slaLabel?: string | null;
   clientApprovalStatus?: "PENDING" | "APPROVED" | "REJECTED" | null;
   clientDecisionReason?: string | null;
+  customStatusLabel?: string | null;
   history: Array<{
     id: string;
     fromStatus: LeadStatus;
@@ -82,6 +83,8 @@ export async function createLeadAction(formData: FormData) {
   const status = (formData.get("status")?.toString() || "UPLOADED") as LeadStatus;
   const callBackTimeStr = formData.get("callBackTime")?.toString();
   const notes = sanitizeText(formData.get("notes"), 1000);
+  const rawCustomStatus = formData.get("customStatusName")?.toString()?.trim();
+  const customStatusName = rawCustomStatus ? sanitizeText(rawCustomStatus, 100) : "";
 
   // Validation: Required fields
   if (!customerName || !dobStr || !rawMobile || !address || !rawEmail || !campaignId || !closerName) {
@@ -141,6 +144,10 @@ export async function createLeadAction(formData: FormData) {
       };
     }
 
+    const rejectionReasonVal = status === "CUSTOM"
+      ? (customStatusName ? `CUSTOM:${customStatusName}` : "Custom Status")
+      : null;
+
     const created = await prisma.lead.create({
       data: {
         customerName,
@@ -153,20 +160,31 @@ export async function createLeadAction(formData: FormData) {
         closerName,
         status,
         callBackTime,
+        rejectionReason: rejectionReasonVal,
         agentId: session.userId,
         notes: notes || null,
       },
       include: { campaign: true },
     });
 
+    if (status === "CUSTOM" && customStatusName) {
+      try {
+        await prisma.customStatus.upsert({
+          where: { name: customStatusName },
+          update: {},
+          create: { name: customStatusName, colorHex: "#EC4899", category: "ACTIVE" },
+        });
+      } catch {}
+    }
+
     // Record initial status history
     await prisma.leadStatusHistory.create({
       data: {
         leadId: created.id,
         previousStatus: status,
-        newStatus: status,
+        newStatus: status === "CUSTOM" && customStatusName ? `CUSTOM (${customStatusName})` : status,
         changedById: session.userId,
-        reason: "Initial lead submission.",
+        reason: status === "CUSTOM" && customStatusName ? `Custom status: ${customStatusName}` : "Initial lead submission.",
       },
     });
 
@@ -183,6 +201,10 @@ export async function createLeadAction(formData: FormData) {
     }
 
     const campaignName = campaignId || "General Floor";
+    const rejectionReasonVal = status === "CUSTOM"
+      ? (customStatusName ? `CUSTOM:${customStatusName}` : "Custom Status")
+      : null;
+
     const newLead: LeadItem = {
       id: `dev-lead-${Date.now()}`,
       customerName,
@@ -196,7 +218,8 @@ export async function createLeadAction(formData: FormData) {
       closerName,
       status,
       callBackTime: callBackTimeStr || null,
-      rejectionReason: null,
+      rejectionReason: rejectionReasonVal,
+      customStatusLabel: status === "CUSTOM" ? (customStatusName || "Custom Status") : null,
       agentId: session.userId,
       agentName: session.name,
       agentUsername: session.username,
@@ -209,7 +232,7 @@ export async function createLeadAction(formData: FormData) {
           fromStatus: status,
           toStatus: status,
           changedByName: session.name,
-          reason: "Initial lead submission (Dev Mode).",
+          reason: status === "CUSTOM" && customStatusName ? `Custom: ${customStatusName}` : "Initial lead submission (Dev Mode).",
           createdAt: new Date().toISOString(),
         },
       ],
@@ -289,6 +312,17 @@ export async function getLeadsAction(params?: { campaignId?: string; status?: st
         slaLabel = sla.statusLabel;
       }
 
+      let customStatusLabel: string | null = null;
+      if (l.status === "CUSTOM") {
+        if (l.rejectionReason?.startsWith("CUSTOM:")) {
+          customStatusLabel = l.rejectionReason.replace("CUSTOM:", "").trim();
+        } else if (l.rejectionReason) {
+          customStatusLabel = l.rejectionReason.trim();
+        } else {
+          customStatusLabel = "Custom Status";
+        }
+      }
+
       return {
         id: l.id,
         customerName: l.customerName,
@@ -303,6 +337,7 @@ export async function getLeadsAction(params?: { campaignId?: string; status?: st
         status: l.status,
         callBackTime: l.callBackTime ? l.callBackTime.toISOString() : null,
         rejectionReason: l.rejectionReason,
+        customStatusLabel,
         agentId: l.agentId,
         agentName: l.agent.name,
         agentUsername: l.agent.username,
@@ -340,6 +375,13 @@ export async function getLeadsAction(params?: { campaignId?: string; status?: st
       l.daysRemaining = sla.daysRemaining;
       l.isOverdue = sla.isOverdue;
       l.slaLabel = sla.statusLabel;
+    }
+    if (l.status === "CUSTOM" && !l.customStatusLabel) {
+      if (l.rejectionReason?.startsWith("CUSTOM:")) {
+        l.customStatusLabel = l.rejectionReason.replace("CUSTOM:", "").trim();
+      } else {
+        l.customStatusLabel = l.rejectionReason || "Custom Status";
+      }
     }
   }
   let result = isAdmin
@@ -524,7 +566,8 @@ export async function adminDecisionAction(
 export async function adminReclassifyLeadAction(
   leadId: string,
   newStatus: LeadStatus,
-  mandatoryReason: string
+  mandatoryReason: string,
+  customStatusName?: string
 ) {
   const session = await getSession();
   if (!session || session.role !== "ADMIN") {
@@ -536,17 +579,26 @@ export async function adminReclassifyLeadAction(
     return { error: "Mandatory justification is required when reclassifying a lead status." };
   }
 
+  const cleanCustomName = customStatusName ? sanitizeText(customStatusName, 100) : "";
+
   try {
     const lead = await prisma.lead.findUnique({ where: { id: leadId } });
     if (!lead) return { error: "Lead not found." };
     const oldStatus = lead.status;
+
+    let rejectionReasonVal: string | null = null;
+    if (newStatus === "REJECTED") {
+      rejectionReasonVal = sanitizedMandatoryReason;
+    } else if (newStatus === "CUSTOM") {
+      rejectionReasonVal = cleanCustomName ? `CUSTOM:${cleanCustomName}` : `CUSTOM:${sanitizedMandatoryReason}`;
+    }
 
     // Update lead
     await prisma.lead.update({
       where: { id: leadId },
       data: {
         status: newStatus,
-        rejectionReason: newStatus === "REJECTED" ? sanitizedMandatoryReason : null,
+        rejectionReason: rejectionReasonVal,
         approvedAt: newStatus === "APPROVED" ? new Date() : null,
       },
     });
@@ -562,12 +614,23 @@ export async function adminReclassifyLeadAction(
       });
     }
 
+    // If CUSTOM, ensure it's saved to CustomStatus table
+    if (newStatus === "CUSTOM" && cleanCustomName) {
+      try {
+        await prisma.customStatus.upsert({
+          where: { name: cleanCustomName },
+          update: {},
+          create: { name: cleanCustomName, colorHex: "#EC4899", category: "ACTIVE" },
+        });
+      } catch {}
+    }
+
     // Log status history
     await prisma.leadStatusHistory.create({
       data: {
         leadId,
         previousStatus: oldStatus,
-        newStatus: newStatus,
+        newStatus: newStatus === "CUSTOM" && cleanCustomName ? `CUSTOM (${cleanCustomName})` : newStatus,
         changedById: session.userId,
         reason: sanitizedMandatoryReason,
       },
@@ -575,13 +638,15 @@ export async function adminReclassifyLeadAction(
 
     revalidatePath("/admin");
     revalidatePath("/dashboard");
-    return { success: true, message: `Status updated to ${newStatus}. Audit reason logged.` };
+    return { success: true, message: `Status updated to ${newStatus === "CUSTOM" && cleanCustomName ? cleanCustomName : newStatus}. Audit reason logged.` };
   } catch {
     // Offline Dev Fallback
     const target = devLeads.find((l) => l.id === leadId);
     if (target) {
       const old = target.status;
       target.status = newStatus;
+      target.rejectionReason = newStatus === "CUSTOM" ? (cleanCustomName ? `CUSTOM:${cleanCustomName}` : "Custom Status") : (newStatus === "REJECTED" ? sanitizedMandatoryReason : null);
+      target.customStatusLabel = newStatus === "CUSTOM" ? (cleanCustomName || "Custom Status") : null;
       target.history.unshift({
         id: `hist-${Date.now()}`,
         fromStatus: old,
@@ -597,7 +662,108 @@ export async function adminReclassifyLeadAction(
   }
 }
 
-// 5. Custom Status Builder Actions
+// 4b. Universal Update Lead Status Action (Used by both Agents and Admins to set standard or Custom status)
+export async function updateLeadStatusWithCustomAction(
+  leadId: string,
+  newStatus: LeadStatus,
+  customStatusName?: string,
+  reason?: string
+) {
+  const session = await getSession();
+  if (!session) return { error: "Unauthorized. Please log in." };
+
+  if (newStatus === "APPROVED" && session.role !== "ADMIN") {
+    return { error: "Permission Denied: Only Admins can approve leads." };
+  }
+  if (newStatus === "REJECTED" && session.role !== "ADMIN") {
+    return { error: "Permission Denied: Only Admins can reject leads." };
+  }
+
+  const cleanCustomName = customStatusName ? sanitizeText(customStatusName, 100) : "";
+  const auditReason = reason ? sanitizeText(reason, 500) : (newStatus === "CUSTOM" && cleanCustomName ? `Custom status: ${cleanCustomName}` : `Moved to ${newStatus}`);
+
+  try {
+    const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+    if (!lead) return { error: "Lead record not found." };
+    const oldStatus = lead.status;
+
+    if (oldStatus === "APPROVED" && session.role !== "ADMIN") {
+      return { error: "Only Admins can reclassify Approved leads." };
+    }
+
+    let rejectionReasonVal: string | null = null;
+    if (newStatus === "REJECTED") {
+      rejectionReasonVal = auditReason;
+    } else if (newStatus === "CUSTOM") {
+      rejectionReasonVal = cleanCustomName ? `CUSTOM:${cleanCustomName}` : "Custom Status";
+    }
+
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: {
+        status: newStatus,
+        rejectionReason: rejectionReasonVal,
+        approvedAt: newStatus === "APPROVED" ? new Date() : null,
+      },
+    });
+
+    if (oldStatus === "APPROVED" && newStatus !== "APPROVED") {
+      await prisma.incentiveEarning.updateMany({
+        where: { leadId },
+        data: {
+          status: "VOIDED",
+          reversalReason: `Reversed due to status update to ${newStatus}: ${auditReason}`,
+        },
+      });
+    }
+
+    if (newStatus === "CUSTOM" && cleanCustomName) {
+      try {
+        await prisma.customStatus.upsert({
+          where: { name: cleanCustomName },
+          update: {},
+          create: { name: cleanCustomName, colorHex: "#EC4899", category: "ACTIVE" },
+        });
+      } catch {}
+    }
+
+    await prisma.leadStatusHistory.create({
+      data: {
+        leadId,
+        previousStatus: oldStatus,
+        newStatus: newStatus === "CUSTOM" && cleanCustomName ? `CUSTOM (${cleanCustomName})` : newStatus,
+        changedById: session.userId,
+        reason: auditReason,
+      },
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/dashboard");
+    return { success: true, message: `Lead updated to ${newStatus === "CUSTOM" && cleanCustomName ? cleanCustomName : newStatus}.` };
+  } catch {
+    // Offline Dev Fallback
+    const target = devLeads.find((l) => l.id === leadId);
+    if (target) {
+      const old = target.status;
+      target.status = newStatus;
+      target.rejectionReason = newStatus === "CUSTOM" ? (cleanCustomName ? `CUSTOM:${cleanCustomName}` : "Custom Status") : (newStatus === "REJECTED" ? auditReason : null);
+      target.customStatusLabel = newStatus === "CUSTOM" ? (cleanCustomName || "Custom Status") : null;
+      target.history.unshift({
+        id: `hist-${Date.now()}`,
+        fromStatus: old,
+        toStatus: newStatus,
+        changedByName: session.name || "User",
+        reason: auditReason,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    revalidatePath("/admin");
+    revalidatePath("/dashboard");
+    return { success: true, message: `Lead updated to ${newStatus === "CUSTOM" && cleanCustomName ? cleanCustomName : newStatus} (Dev Mode).` };
+  }
+}
+
+// 5. Custom Status Builder Actions (Available to both Admin and Agents)
 export async function getCustomStatusesAction(): Promise<CustomStatusItem[]> {
   try {
     const list = await prisma.customStatus.findMany({ orderBy: { name: "asc" } });
@@ -615,30 +781,37 @@ export async function getCustomStatusesAction(): Promise<CustomStatusItem[]> {
   return devCustomStatuses;
 }
 
-export async function createCustomStatusAction(name: string, colorHex = "#F97316") {
+export async function createCustomStatusAction(name: string, colorHex = "#EC4899") {
   const session = await getSession();
-  if (!session || session.role !== "ADMIN") {
-    return { error: "Unauthorized. Admin authority required." };
+  if (!session) {
+    return { error: "Unauthorized. Please log in." };
+  }
+
+  const cleanName = name.trim();
+  if (!cleanName) {
+    return { error: "Custom status name cannot be empty." };
   }
 
   try {
-    await prisma.customStatus.create({
-      data: { name: name.trim(), colorHex, category: "ACTIVE" },
+    await prisma.customStatus.upsert({
+      where: { name: cleanName },
+      update: { colorHex },
+      create: { name: cleanName, colorHex, category: "ACTIVE" },
     });
     revalidatePath("/admin");
     revalidatePath("/dashboard");
-    return { success: true, message: `Status "${name}" created.` };
+    return { success: true, message: `Status "${cleanName}" created.` };
   } catch {
     devCustomStatuses.push({
       id: `cs-${Date.now()}`,
-      name: name.trim(),
+      name: cleanName,
       colorHex,
       category: "ACTIVE",
     });
-    revalidatePath("/admin");
-    revalidatePath("/dashboard");
-    return { success: true, message: `Status "${name}" created (Dev Mode).` };
   }
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  return { success: true, message: `Status "${cleanName}" created.` };
 }
 
 export async function updateLeadCloserAction(leadId: string, newCloserName: string) {
