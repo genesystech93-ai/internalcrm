@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { getFloorAttendanceAction } from "@/app/actions/attendance";
-import { Clock, Coffee, User, RefreshCw } from "lucide-react";
+import { Clock, Coffee, User, RefreshCw, Moon } from "lucide-react";
 
 interface FloorRecord {
   id: string;
@@ -80,6 +80,10 @@ export function AdminAttendanceBoard() {
             </span>
             <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20">
               ⚠️ {lateCount} Late
+            </span>
+            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
+              <Moon className="w-3 h-3" />
+              <span>Auto Log-Out @ 4AM</span>
             </span>
           </div>
 

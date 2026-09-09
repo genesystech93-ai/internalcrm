@@ -58,10 +58,115 @@ function calculateShiftDate(now: Date, shiftStartHour = 19): Date {
   return d;
 }
 
+// Helper: Calculate scheduled shift conclusion timestamp (e.g. 04:00 AM next morning for 19:00 - 04:00 shift)
+function getScheduledShiftEndTime(
+  shiftDate: Date | string,
+  shiftStartTime = "19:00",
+  shiftEndTime = "04:00"
+): Date {
+  const [startH] = (shiftStartTime || "19:00").split(":").map(Number);
+  const [endH, endM] = (shiftEndTime || "04:00").split(":").map(Number);
+
+  const base = new Date(shiftDate);
+  const endDateTime = new Date(base.getFullYear(), base.getMonth(), base.getDate(), endH, endM, 0, 0);
+  // If end hour is less than start hour (e.g. overnight shift 19:00 to 04:00), end time is next morning
+  if (endH < startH) {
+    endDateTime.setDate(endDateTime.getDate() + 1);
+  }
+  return endDateTime;
+}
+
+// Core Engine: Auto Shift Log Out After 04:00 AM
+export async function autoLogoutExpiredShifts(targetUserId?: string): Promise<number> {
+  const now = new Date();
+  let count = 0;
+
+  try {
+    const openAttendances = await prisma.attendance.findMany({
+      where: {
+        logoutAt: null,
+        ...(targetUserId ? { userId: targetUserId } : {}),
+      },
+      include: {
+        campaign: true,
+        breaks: true,
+      },
+    });
+
+    for (const att of openAttendances) {
+      const shiftStartTimeStr = att.campaign?.shiftStartTime || "19:00";
+      const shiftEndTimeStr = att.campaign?.shiftEndTime || "04:00";
+      const scheduledEnd = getScheduledShiftEndTime(att.shiftDate, shiftStartTimeStr, shiftEndTimeStr);
+
+      // Check if current time has passed scheduled shift conclusion (e.g. after 04:00 AM)
+      if (now.getTime() >= scheduledEnd.getTime()) {
+        let additionalBreakMins = 0;
+        for (const b of att.breaks) {
+          if (b.endTime === null) {
+            const bDuration = Math.max(0, Math.round((scheduledEnd.getTime() - new Date(b.startTime).getTime()) / 60000));
+            await prisma.breakLog.update({
+              where: { id: b.id },
+              data: {
+                endTime: scheduledEnd,
+                durationMinutes: bDuration,
+              },
+            });
+            additionalBreakMins += bDuration;
+          }
+        }
+
+        const closedBreaksDuration = att.breaks
+          .filter((b) => b.endTime !== null)
+          .reduce((sum, b) => sum + (b.durationMinutes || 0), 0) + additionalBreakMins;
+
+        const grossMinutes = Math.max(
+          0,
+          Math.round((scheduledEnd.getTime() - new Date(att.loginAt).getTime()) / 60000)
+        );
+        const netMinutes = Math.max(0, grossMinutes - closedBreaksDuration);
+
+        await prisma.attendance.update({
+          where: { id: att.id },
+          data: {
+            logoutAt: scheduledEnd,
+            totalMinutes: netMinutes,
+          },
+        });
+        count++;
+      }
+    }
+  } catch {
+    // Offline Dev Fallback
+    for (const devAtt of devAttendances) {
+      if (devAtt.logoutAt === null && (!targetUserId || devAtt.userId === targetUserId)) {
+        const scheduledEnd = getScheduledShiftEndTime(devAtt.shiftDate, "19:00", "04:00");
+        if (now.getTime() >= scheduledEnd.getTime()) {
+          devAtt.logoutAt = scheduledEnd;
+          const totalBreakMinutes = devAtt.breaks.reduce((acc, b) => {
+            if (b.endTime === null) {
+              b.endTime = scheduledEnd;
+              b.durationMinutes = Math.max(0, Math.round((scheduledEnd.getTime() - new Date(b.startTime).getTime()) / 60000));
+            }
+            return acc + (b.durationMinutes || 0);
+          }, 0);
+          const grossMinutes = Math.max(0, Math.round((scheduledEnd.getTime() - new Date(devAtt.loginAt).getTime()) / 60000));
+          devAtt.totalMinutes = Math.max(0, grossMinutes - totalBreakMinutes);
+          count++;
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
 // 1. Shift Log In Action
 export async function loginShiftAction(campaignId?: string): Promise<AttendanceResult> {
   const session = await getSession();
   if (!session) return { error: "You must be logged in to log in to a shift." };
+
+  // First auto-logout any expired past shifts before starting/resuming
+  await autoLogoutExpiredShifts(session.userId);
 
   const now = new Date();
   let shiftStartTimeStr = "19:00";
@@ -356,6 +461,9 @@ export async function getActiveShiftStatusAction() {
   const session = await getSession();
   if (!session) return null;
 
+  // Auto-logout expired shift if past 04:00 AM
+  await autoLogoutExpiredShifts(session.userId);
+
   const now = new Date();
 
   try {
@@ -462,6 +570,9 @@ export async function getFloorAttendanceAction() {
   const session = await getSession();
   if (!session || session.role !== "ADMIN") throw new Error("Unauthorized");
 
+  // Auto-logout any expired shifts across the entire floor
+  await autoLogoutExpiredShifts();
+
   try {
     const list = await prisma.attendance.findMany({
       orderBy: { loginAt: "desc" },
@@ -520,3 +631,17 @@ export async function getFloorAttendanceAction() {
     };
   });
 }
+
+// 8. Auto Logout Expired Shifts Server Action (Manual / Scheduled Trigger)
+export async function autoLogoutExpiredShiftsAction(): Promise<{ success: boolean; count: number; message: string }> {
+  const session = await getSession();
+  if (!session) return { success: false, count: 0, message: "Unauthorized" };
+
+  const count = await autoLogoutExpiredShifts();
+  return {
+    success: true,
+    count,
+    message: count > 0 ? `Auto-logged out ${count} expired shift(s) after 04:00 AM.` : "No expired shifts requiring auto-logout.",
+  };
+}
+

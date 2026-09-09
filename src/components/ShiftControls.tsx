@@ -84,6 +84,24 @@ export function ShiftControls() {
   useEffect(() => {
     const timer = setInterval(() => {
       if (shiftData && !shiftData.isLoggedOut && shiftData.loginAt) {
+        // Auto Shift Log-out Check: If time passes scheduled shift end (e.g. 04:00 AM)
+        const [startH] = (shiftData.shiftStartTime || "19:00").split(":").map(Number);
+        const [endH, endM] = (shiftData.shiftEndTime || "04:00").split(":").map(Number);
+        const base = new Date(shiftData.loginAt);
+        const scheduledEnd = new Date(base.getFullYear(), base.getMonth(), base.getDate(), endH, endM, 0, 0);
+        if (endH < startH) {
+          scheduledEnd.setDate(scheduledEnd.getDate() + 1);
+        }
+
+        if (Date.now() >= scheduledEnd.getTime()) {
+          fetchStatus();
+          setMessage({
+            text: `Shift concluded: Automatically logged out at ${shiftData.shiftEndTime || "04:00"}.`,
+            type: "success",
+          });
+          return;
+        }
+
         const diff = Math.max(0, Math.floor((Date.now() - new Date(shiftData.loginAt).getTime()) / 1000));
         setElapsedShiftSeconds(diff);
       }
@@ -219,6 +237,10 @@ export function ShiftControls() {
                 </h3>
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20">
                   {shiftData?.shiftStartTime || "19:00"} – {shiftData?.shiftEndTime || "04:00"}
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20 flex items-center gap-1">
+                  <Moon className="w-3 h-3" />
+                  <span>Auto Log-Out @ {shiftData?.shiftEndTime || "04:00"}</span>
                 </span>
                 {shiftData?.status && (
                   <span
