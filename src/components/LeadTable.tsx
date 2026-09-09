@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { LeadItem, adminDecisionAction, updateLeadCloserAction } from "@/app/actions/leads";
+import { LeadItem, adminDecisionAction } from "@/app/actions/leads";
 import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
 import { LeadStatus } from "@prisma/client";
 import { AdminDecisionModal } from "@/components/AdminDecisionModal";
+import { LeadDetailsModal } from "@/components/LeadDetailsModal";
 import { calculateRowHeight } from "@/lib/pretext-measure";
-import { Search, CheckCircle2, XCircle, Clock, Eye, MessageSquare, Check, Building2, Loader2, Edit2 } from "lucide-react";
+import { Search, CheckCircle2, XCircle, Clock, Eye, MessageSquare, Check, Building2, Loader2 } from "lucide-react";
 import { shareLeadToChatAction } from "@/app/actions/messages";
 import { ClientSubmissionModal } from "@/components/ClientSubmissionModal";
-import { ModalPortal } from "@/components/ModalPortal";
 
 interface LeadTableProps {
   leads: LeadItem[];
@@ -38,9 +38,6 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
   } | null>(null);
 
   const [shareSuccess, setShareSuccess] = useState<string | null>(null);
-  const [isEditingCloser, setIsEditingCloser] = useState(false);
-  const [editCloserVal, setEditCloserVal] = useState("");
-  const [isSavingCloser, setIsSavingCloser] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
 
@@ -191,10 +188,12 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                   return (
                     <tr
                       key={lead.id}
-                      className="hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors"
+                      onClick={() => setInspectLead(lead)}
+                      className="hover:bg-orange-500/5 dark:hover:bg-slate-800/80 transition-colors cursor-pointer group"
+                      title="Click row to view lead details"
                     >
                       <td className="py-3 px-4">
-                        <p className="font-extrabold text-[#0F172A] dark:text-white">{lead.customerName}</p>
+                        <p className="font-extrabold text-[#0F172A] dark:text-white group-hover:text-[#EA580C] transition-colors">{lead.customerName}</p>
                         <p className="font-mono text-[10px] text-[#64748B] dark:text-[#94A3B8]">DOB: {lead.dob}</p>
                       </td>
                       <td className="py-3 px-3">
@@ -232,7 +231,10 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                         ) : isAdmin ? (
                           <button
                             type="button"
-                            onClick={() => setClientSubmitLead(lead)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setClientSubmitLead(lead);
+                            }}
                             className="px-2 py-1 rounded-xl text-[10px] font-bold bg-orange-500/10 hover:bg-orange-500/20 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20 transition-all flex items-center gap-1 cursor-pointer"
                           >
                             <Building2 className="w-3 h-3" />
@@ -270,7 +272,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                           <p className="text-[10px] text-[#94A3B8] line-clamp-1 italic mt-0.5">&ldquo;{lead.notes}&rdquo;</p>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
@@ -360,175 +362,23 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
         />
       )}
 
-      {/* Inspect Lead Modal */}
-      {inspectLead && (
-        <ModalPortal>
-          <div
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setInspectLead(null);
-            }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto"
-          >
-          <div className="liquid-glass w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-white/90 dark:border-slate-700 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-700">
-              <div>
-                <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white">
-                  {inspectLead.customerName}
-                </h3>
-                <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-                  {inspectLead.campaignName} • Source: {inspectLead.source}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setInspectLead(null)}
-                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-[#64748B] cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs mb-6">
-              <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-white/50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700">
-                <div>
-                  <span className="text-[10px] text-[#94A3B8] font-bold uppercase">Mobile Number</span>
-                  <p className="font-mono font-bold text-[#0F172A] dark:text-white mt-0.5">{inspectLead.mobile}</p>
-                </div>
-                <div>
-                  <span className="text-[10px] text-[#94A3B8] font-bold uppercase">Date of Birth</span>
-                  <p className="font-mono text-[#0F172A] dark:text-white mt-0.5">{inspectLead.dob}</p>
-                </div>
-                <div>
-                  <span className="text-[10px] text-[#94A3B8] font-bold uppercase">Email Address</span>
-                  <p className="font-semibold text-[#0F172A] dark:text-white mt-0.5">{inspectLead.email}</p>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-[#94A3B8] font-bold uppercase">Assigned Closer</span>
-                    {!isEditingCloser && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditCloserVal(inspectLead.closerName);
-                          setIsEditingCloser(true);
-                        }}
-                        className="text-[10px] font-bold text-[#EA580C] dark:text-[#FB923C] hover:underline cursor-pointer flex items-center gap-1"
-                      >
-                        <Edit2 className="w-2.5 h-2.5" />
-                        <span>Edit / Self-Close</span>
-                      </button>
-                    )}
-                  </div>
-                  {isEditingCloser ? (
-                    <div className="mt-1 space-y-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="text"
-                          value={editCloserVal}
-                          onChange={(e) => setEditCloserVal(e.target.value)}
-                          placeholder="Closer Name or Self"
-                          className="liquid-glass-input w-full px-2 py-1 text-xs rounded-lg focus:outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setEditCloserVal("Self (Agent Closed)")}
-                          className="px-2 py-1 rounded-lg text-[9px] font-bold bg-orange-500/15 text-[#EA580C] whitespace-nowrap cursor-pointer hover:bg-orange-500/25"
-                          title="Mark as Self-Closed by intake agent"
-                        >
-                          + Self
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={isSavingCloser}
-                          onClick={async () => {
-                            if (!editCloserVal.trim()) return;
-                            setIsSavingCloser(true);
-                            await updateLeadCloserAction(inspectLead.id, editCloserVal.trim());
-                            inspectLead.closerName = editCloserVal.trim();
-                            setIsSavingCloser(false);
-                            setIsEditingCloser(false);
-                            onRefresh();
-                          }}
-                          className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
-                        >
-                          {isSavingCloser ? "Saving..." : "Save"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isSavingCloser}
-                          onClick={() => setIsEditingCloser(false)}
-                          className="px-2 py-0.5 rounded-lg text-[10px] text-slate-500 hover:text-slate-700 cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="font-semibold text-[#0F172A] dark:text-white mt-0.5 flex items-center gap-1.5">
-                      <span>{inspectLead.closerName}</span>
-                      {inspectLead.closerName.toLowerCase().includes("self") && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                          Self-Closed
-                        </span>
-                      )}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-[#94A3B8] font-bold uppercase">Street Address</span>
-                <p className="p-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700 text-[#475569] dark:text-[#CBD5E1] mt-1">
-                  {inspectLead.address}
-                </p>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-[#94A3B8] font-bold uppercase">Agent Notes</span>
-                <p className="p-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700 text-[#475569] dark:text-[#CBD5E1] mt-1">
-                  {inspectLead.notes || "No notes recorded."}
-                </p>
-              </div>
-
-              {/* Status History Audit Trail */}
-              <div>
-                <span className="text-[10px] text-[#94A3B8] font-bold uppercase">Audit Trail & Status History</span>
-                <div className="mt-1.5 space-y-2">
-                  {inspectLead.history.map((h) => (
-                    <div key={h.id} className="p-2.5 rounded-xl bg-slate-100/70 dark:bg-slate-800/70 text-[11px]">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-[#0F172A] dark:text-white">
-                          {h.fromStatus} $\rightarrow$ {h.toStatus}
-                        </span>
-                        <span className="text-[10px] text-[#94A3B8] font-mono">
-                          {new Date(h.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                      </div>
-                      <p className="text-[#64748B] dark:text-[#94A3B8]">
-                        By <strong>{h.changedByName}</strong>: {h.reason || "Updated"}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  handleShareLead(inspectLead);
-                }}
-                className="liquid-glass-button w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer mt-4"
-              >
-                <MessageSquare className="w-3.5 h-3.5 text-white" />
-                <span>Share Lead into Floor Pulse Chat</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        </ModalPortal>
-      )}
+      {/* Unified High-Contrast Lead Details Modal */}
+      <LeadDetailsModal
+        isOpen={!!inspectLead}
+        lead={inspectLead}
+        onClose={() => setInspectLead(null)}
+        isAdmin={isAdmin}
+        onRefresh={onRefresh}
+        onOpenDecision={(lead, mode, targetStatus) => {
+          setSelectedLeadForDecision({
+            leadId: lead.id,
+            leadCustomerName: lead.customerName,
+            mode,
+            currentStatus: lead.status,
+            targetStatus,
+          });
+        }}
+      />
 
       {/* Client Submission & Net Terms Modal */}
       {clientSubmitLead && (

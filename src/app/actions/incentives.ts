@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { RoleTarget } from "@prisma/client";
+import { getDevLeads } from "@/app/actions/leads";
 
 export interface IncentiveRuleItem {
   id: string;
@@ -31,6 +32,10 @@ export interface CampaignIncentiveItem {
 
 export interface UserEarningsSummary {
   approvedLeadsCount: number;
+  submittedLeadsCount: number;
+  pendingLeadsCount: number;
+  callbackLeadsCount: number;
+  rejectedLeadsCount: number;
   individualCommissions: number;
   teamPoolBonus: number;
   totalEarnings: number;
@@ -47,6 +52,10 @@ export interface UserEarningsSummary {
 
 const emptyEarnings: UserEarningsSummary = {
   approvedLeadsCount: 0,
+  submittedLeadsCount: 0,
+  pendingLeadsCount: 0,
+  callbackLeadsCount: 0,
+  rejectedLeadsCount: 0,
   individualCommissions: 0,
   teamPoolBonus: 0,
   totalEarnings: 0,
@@ -285,7 +294,7 @@ export async function getUserEarningsSummaryAction(): Promise<UserEarningsSummar
   if (!session) return emptyEarnings;
 
   try {
-    const [earnings, user] = await Promise.all([
+    const [earnings, user, userLeads] = await Promise.all([
       prisma.incentiveEarning.findMany({
         where: { userId: session.userId },
         include: {
@@ -298,38 +307,86 @@ export async function getUserEarningsSummaryAction(): Promise<UserEarningsSummar
         where: { id: session.userId },
         include: { team: true },
       }),
+      prisma.lead.findMany({
+        where: {
+          OR: [
+            { agentId: session.userId },
+            { closerName: { contains: session.name, mode: "insensitive" } },
+            { closerName: { contains: session.username, mode: "insensitive" } },
+          ],
+        },
+        select: { status: true },
+      }),
     ]);
 
     const teamName = user?.team?.name;
 
-    if (earnings.length > 0) {
-      const individual = earnings
-        .filter((e) => !e.rule || Number(e.rule.amountPerLead) > 0)
-        .reduce((sum, e) => sum + Number(e.amount), 0);
-      const teamPool = earnings
-        .filter((e) => e.rule && Number(e.rule.bonusAmount) > 0)
-        .reduce((sum, e) => sum + Number(e.amount), 0);
+    const submittedLeadsCount = userLeads.length;
+    const pendingLeadsCount = userLeads.filter(
+      (l) => l.status === "PENDING_VERIFICATION" || l.status === "UPLOADED" || l.status === "CUSTOM"
+    ).length;
+    const callbackLeadsCount = userLeads.filter(
+      (l) => l.status === "CALL_BACK" || l.status === "VOICEMAIL"
+    ).length;
+    const rejectedLeadsCount = userLeads.filter((l) => l.status === "REJECTED").length;
+    const approvedLeadsCount =
+      earnings.length > 0 ? earnings.length : userLeads.filter((l) => l.status === "APPROVED").length;
 
-      return {
-        approvedLeadsCount: earnings.length,
-        individualCommissions: individual,
-        teamPoolBonus: teamPool,
-        totalEarnings: individual + teamPool,
-        teamName,
-        history: earnings.map((e) => ({
-          id: e.id,
-          leadCustomerName: e.lead?.customerName || "Approved Lead",
-          campaignName: e.lead?.campaign?.name || "General Campaign",
-          amount: Number(e.amount),
-          ruleType: e.rule ? `RULE_${e.rule.roleTarget}` : "INDIVIDUAL",
-          createdAt: e.createdAt.toISOString(),
-        })),
-      };
-    }
+    const individual = earnings
+      .filter((e) => !e.rule || Number(e.rule.amountPerLead) > 0)
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const teamPool = earnings
+      .filter((e) => e.rule && Number(e.rule.bonusAmount) > 0)
+      .reduce((sum, e) => sum + Number(e.amount), 0);
 
-    return { ...emptyEarnings, teamName };
+    return {
+      approvedLeadsCount,
+      submittedLeadsCount,
+      pendingLeadsCount,
+      callbackLeadsCount,
+      rejectedLeadsCount,
+      individualCommissions: individual,
+      teamPoolBonus: teamPool,
+      totalEarnings: individual + teamPool,
+      teamName,
+      history: earnings.map((e) => ({
+        id: e.id,
+        leadCustomerName: e.lead?.customerName || "Approved Lead",
+        campaignName: e.lead?.campaign?.name || "General Campaign",
+        amount: Number(e.amount),
+        ruleType: e.rule ? `RULE_${e.rule.roleTarget}` : "INDIVIDUAL",
+        createdAt: e.createdAt.toISOString(),
+      })),
+    };
   } catch {
-    // Database offline — return empty earnings
-    return emptyEarnings;
+    // Database offline — check dev leads fallback
+    const devLeads = await getDevLeads();
+    const userDevLeads = devLeads.filter(
+      (l) =>
+        l.agentId === session.userId ||
+        l.agentUsername === session.username ||
+        (l.closerName &&
+          (l.closerName.toLowerCase().includes(session.username.toLowerCase()) ||
+            l.closerName.toLowerCase().includes(session.name.toLowerCase())))
+    );
+
+    const submittedLeadsCount = userDevLeads.length;
+    const pendingLeadsCount = userDevLeads.filter(
+      (l) => l.status === "PENDING_VERIFICATION" || l.status === "UPLOADED" || l.status === "CUSTOM"
+    ).length;
+    const callbackLeadsCount = userDevLeads.filter(
+      (l) => l.status === "CALL_BACK" || l.status === "VOICEMAIL"
+    ).length;
+    const rejectedLeadsCount = userDevLeads.filter((l) => l.status === "REJECTED").length;
+    const approvedLeadsCount = userDevLeads.filter((l) => l.status === "APPROVED").length;
+
+    return {
+      ...emptyEarnings,
+      approvedLeadsCount,
+      submittedLeadsCount,
+      pendingLeadsCount,
+      callbackLeadsCount,
+      rejectedLeadsCount,
+    };
   }
 }

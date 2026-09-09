@@ -230,23 +230,38 @@ export async function getLeadsAction(params?: { campaignId?: string; status?: st
   const isAdmin = session.role === "ADMIN";
 
   try {
-    const whereClause: Record<string, unknown> = {};
+    const conditions: Record<string, unknown>[] = [];
+
     if (!isAdmin) {
-      whereClause.agentId = session.userId;
+      conditions.push({
+        OR: [
+          { agentId: session.userId },
+          { closerName: { contains: session.name, mode: "insensitive" } },
+          { closerName: { contains: session.username, mode: "insensitive" } },
+        ],
+      });
     }
+
     if (params?.campaignId) {
-      whereClause.campaignId = params.campaignId;
+      conditions.push({ campaignId: params.campaignId });
     }
+
     if (params?.status) {
-      whereClause.status = params.status as LeadStatus;
+      conditions.push({ status: params.status as LeadStatus });
     }
+
     if (params?.search) {
-      whereClause.OR = [
-        { customerName: { contains: params.search, mode: "insensitive" } },
-        { mobile: { contains: params.search } },
-        { email: { contains: params.search, mode: "insensitive" } },
-      ];
+      conditions.push({
+        OR: [
+          { customerName: { contains: params.search, mode: "insensitive" } },
+          { mobile: { contains: params.search } },
+          { email: { contains: params.search, mode: "insensitive" } },
+          { closerName: { contains: params.search, mode: "insensitive" } },
+        ],
+      });
     }
+
+    const whereClause = conditions.length > 0 ? { AND: conditions } : {};
 
     const leads = await db.lead.findMany({
       where: whereClause,
@@ -327,7 +342,16 @@ export async function getLeadsAction(params?: { campaignId?: string; status?: st
       l.slaLabel = sla.statusLabel;
     }
   }
-  let result = isAdmin ? [...devLeads] : devLeads.filter((l) => l.agentId === session.userId || l.agentUsername === session.username);
+  let result = isAdmin
+    ? [...devLeads]
+    : devLeads.filter(
+        (l) =>
+          l.agentId === session.userId ||
+          l.agentUsername === session.username ||
+          (l.closerName &&
+            (l.closerName.toLowerCase().includes(session.username.toLowerCase()) ||
+              l.closerName.toLowerCase().includes(session.name.toLowerCase())))
+      );
   if (params?.campaignId) {
     result = result.filter((l) => l.campaignId === params.campaignId);
   }
@@ -337,7 +361,11 @@ export async function getLeadsAction(params?: { campaignId?: string; status?: st
   if (params?.search) {
     const q = params.search.toLowerCase();
     result = result.filter(
-      (l) => l.customerName.toLowerCase().includes(q) || l.mobile.includes(q) || l.email.toLowerCase().includes(q)
+      (l) =>
+        l.customerName.toLowerCase().includes(q) ||
+        l.mobile.includes(q) ||
+        l.email.toLowerCase().includes(q) ||
+        l.closerName.toLowerCase().includes(q)
     );
   }
   return result;

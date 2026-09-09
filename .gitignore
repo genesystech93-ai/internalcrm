@@ -41,9 +41,10 @@ yarn-error.log*
 # vercel
 .vercel
 
-# archives
+# archives & spreadsheets
 *.zip
 *.tar.gz
+*.xlsx
 
 # typescript
 *.tsbuildinfo
