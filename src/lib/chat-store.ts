@@ -72,12 +72,12 @@ function initializeSeedData() {
 initializeSeedData();
 
 // Exported Helper Methods for In-Memory Mode
-export function getInMemoryConversations(userId: string) {
+export function getInMemoryConversations(userId: string, isAdmin: boolean = false) {
   initializeSeedData();
   const list: StoredConversation[] = [];
 
   for (const conv of inMemoryConversations.values()) {
-    if (conv.type === "GENERAL" || conv.participantIds.includes(userId)) {
+    if (isAdmin || conv.type === "GENERAL" || conv.participantIds.includes(userId)) {
       list.push(conv);
     }
   }

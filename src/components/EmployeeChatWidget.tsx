@@ -19,6 +19,17 @@ import {
   Volume2,
   VolumeX,
   Loader2,
+  Maximize2,
+  Minimize2,
+  Paperclip,
+  FileText,
+  Settings,
+  Trash2,
+  Copy,
+  Check,
+  RotateCcw,
+  Shield,
+  Eye,
 } from "lucide-react";
 import {
   getConversationsAction,
@@ -26,10 +37,26 @@ import {
   sendMessageAction,
   getUnreadMessageCountAction,
   getStaffDirectoryAction,
+  getRecentLeadsForChatAction,
+  getCurrentUserChatInfoAction,
   ConversationView,
   ChatMessageView,
+  RecentLeadForChat,
 } from "@/app/actions/messages";
 import { StaffMember } from "@/lib/chat-store";
+import { Role } from "@prisma/client";
+
+// Default Canned Operational Quick Replies for Call Center Floor
+const DEFAULT_QUICK_REPLIES = [
+  "📞 Customer live on line - transferring now",
+  "📋 Case intake completed - ready for closer review",
+  "✅ Verified & approved for client submission",
+  "⚠️ Customer requested callback at scheduled time",
+  "🏥 Medical records & police report pending",
+  "❓ Can you take this live transfer immediately?",
+];
+
+const QUICK_REPLIES_STORAGE_KEY = "crm_chat_quick_replies_v1";
 
 // Synthesized gentle chime via Web Audio API (Zero external file dependencies)
 function playGentleChime() {
@@ -55,7 +82,17 @@ function playGentleChime() {
 
 export function EmployeeChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{
+    userId: string;
+    name: string;
+    username: string;
+    role: Role;
+  } | null>(null);
+
   const [activeTab, setActiveTab] = useState<"conversations" | "directory">("conversations");
+  const [adminFilter, setAdminFilter] = useState<"ALL" | "DIRECT" | "TEAM" | "GENERAL">("ALL");
+
   const [conversations, setConversations] = useState<ConversationView[]>([]);
   const [activeConversation, setActiveConversation] = useState<ConversationView | null>(null);
   const [messages, setMessages] = useState<ChatMessageView[]>([]);
@@ -66,8 +103,90 @@ export function EmployeeChatWidget() {
   const [isSending, setIsSending] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [messageReactions, setMessageReactions] = useState<Record<string, string[]>>({});
-  const [isPartnerTyping, setIsPartnerTyping] = useState(false);
 
+  // Lead Attachment State
+  const [showLeadPicker, setShowLeadPicker] = useState(false);
+  const [recentLeads, setRecentLeads] = useState<RecentLeadForChat[]>([]);
+  const [leadSearchQuery, setLeadSearchQuery] = useState("");
+  const [selectedLead, setSelectedLead] = useState<RecentLeadForChat | null>(null);
+  const [isLoadingLeads, setIsLoadingLeads] = useState(false);
+
+  // In-Thread Search State
+  const [showInThreadSearch, setShowInThreadSearch] = useState(false);
+  const [inThreadSearchQuery, setInThreadSearchQuery] = useState("");
+
+  // Transcript Copy State
+  const [transcriptCopied, setTranscriptCopied] = useState(false);
+
+  // Canned Quick Replies State
+  const [quickReplies, setQuickReplies] = useState<string[]>(DEFAULT_QUICK_REPLIES);
+  const [showQuickRepliesManager, setShowQuickRepliesManager] = useState(false);
+  const [newQuickReplyText, setNewQuickReplyText] = useState("");
+  const [editingReplyIndex, setEditingReplyIndex] = useState<number | null>(null);
+  const [editingReplyText, setEditingReplyText] = useState("");
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevTotalUnreadRef = useRef(0);
+
+  // Load user session & quick replies from storage on mount
+  useEffect(() => {
+    getCurrentUserChatInfoAction().then((u) => {
+      if (u) setCurrentUser(u);
+    });
+
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(QUICK_REPLIES_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setQuickReplies(parsed);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  // Save quick replies to localStorage
+  const saveQuickReplies = (updated: string[]) => {
+    setQuickReplies(updated);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(QUICK_REPLIES_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const handleAddQuickReply = () => {
+    if (!newQuickReplyText.trim()) return;
+    const updated = [...quickReplies, newQuickReplyText.trim()];
+    saveQuickReplies(updated);
+    setNewQuickReplyText("");
+  };
+
+  const handleSaveEditQuickReply = (index: number) => {
+    if (!editingReplyText.trim()) return;
+    const updated = [...quickReplies];
+    updated[index] = editingReplyText.trim();
+    saveQuickReplies(updated);
+    setEditingReplyIndex(null);
+    setEditingReplyText("");
+  };
+
+  const handleDeleteQuickReply = (index: number) => {
+    const updated = quickReplies.filter((_, i) => i !== index);
+    saveQuickReplies(updated);
+  };
+
+  const handleResetQuickReplies = () => {
+    saveQuickReplies(DEFAULT_QUICK_REPLIES);
+  };
+
+  // Toggle emoji reactions on messages
   const handleToggleReaction = (messageId: string, emoji: string) => {
     setMessageReactions((prev) => {
       const current = prev[messageId] || [];
@@ -80,9 +199,6 @@ export function EmployeeChatWidget() {
       };
     });
   };
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const prevTotalUnreadRef = useRef(0);
 
   // Auto scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -134,6 +250,18 @@ export function EmployeeChatWidget() {
     }
   }, []);
 
+  const loadRecentLeads = async () => {
+    setIsLoadingLeads(true);
+    try {
+      const leads = await getRecentLeadsForChatAction();
+      setRecentLeads(leads);
+    } catch {
+      // Ignore
+    } finally {
+      setIsLoadingLeads(false);
+    }
+  };
+
   // Polling loop
   useEffect(() => {
     fetchUnreadCount();
@@ -155,10 +283,12 @@ export function EmployeeChatWidget() {
     return () => clearInterval(interval);
   }, [isOpen, activeConversation, fetchUnreadCount, loadConversations, loadMessages]);
 
-  // When opening a conversation
+  // Select conversation
   const handleSelectConversation = (conv: ConversationView) => {
     setActiveConversation(conv);
     loadMessages(conv.id);
+    setShowInThreadSearch(false);
+    setInThreadSearchQuery("");
     // Optimistically decrement unread
     setTotalUnread((prev) => Math.max(0, prev - conv.unreadCount));
     conv.unreadCount = 0;
@@ -166,7 +296,6 @@ export function EmployeeChatWidget() {
 
   // Start new direct chat with a staff member
   const handleStartDirectChat = async (colleague: StaffMember) => {
-    // Check if conversation already exists in conversations list
     const existing = conversations.find(
       (c) => c.type === "DIRECT" && c.recipientId === colleague.id
     );
@@ -176,7 +305,6 @@ export function EmployeeChatWidget() {
       loadMessages(existing.id);
       setActiveTab("conversations");
     } else {
-      // Construct an immediate temporary direct conversation view
       const tempConv: ConversationView = {
         id: `temp-${colleague.id}`,
         type: "DIRECT",
@@ -199,10 +327,14 @@ export function EmployeeChatWidget() {
   // Send message
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!inputContent.trim() || isSending || !activeConversation) return;
+    if ((!inputContent.trim() && !selectedLead) || isSending || !activeConversation) return;
 
     const textToSend = inputContent.trim();
+    const leadToAttach = selectedLead;
+
     setInputContent("");
+    setSelectedLead(null);
+    setShowLeadPicker(false);
     setIsSending(true);
 
     try {
@@ -211,12 +343,20 @@ export function EmployeeChatWidget() {
         conversationId: isTemp ? undefined : activeConversation.id,
         recipientId: isTemp ? activeConversation.recipientId : undefined,
         channelType: activeConversation.type,
-        content: textToSend,
+        content: textToSend || (leadToAttach ? `Shared lead: ${leadToAttach.customerName}` : ""),
+        leadId: leadToAttach ? leadToAttach.id : null,
+        metadata: leadToAttach
+          ? {
+              customerName: leadToAttach.customerName,
+              mobile: leadToAttach.mobile,
+              campaign: leadToAttach.campaignName,
+              status: leadToAttach.status,
+            }
+          : null,
       });
 
       if (res.success && res.message) {
         setMessages((prev) => [...prev, res.message!]);
-        // Update current conversation ID if it was temporary
         if (isTemp && res.message.conversationId) {
           const updatedConv = {
             ...activeConversation,
@@ -230,27 +370,33 @@ export function EmployeeChatWidget() {
     } catch {
       // restore text on error
       setInputContent(textToSend);
+      setSelectedLead(leadToAttach);
     } finally {
       setIsSending(false);
     }
   };
 
-  // Filtered lists
-  const filteredConversations = conversations.filter(
-    (c) =>
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.lastMessageText.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Copy chat transcript
+  const handleCopyTranscript = () => {
+    if (!activeConversation || messages.length === 0) return;
+    const header = `=== CHAT TRANSCRIPT: ${activeConversation.name} ===\nExported: ${new Date().toLocaleString()}\n----------------------------------------\n\n`;
+    const body = messages
+      .map((m) => {
+        const time = new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        let text = `[${time}] ${m.senderName} (${m.senderRole}): ${m.content}`;
+        if (m.metadata) {
+          text += `\n   [ATTACHED LEAD] ${m.metadata.customerName || "Customer"} | Phone: ${m.metadata.mobile || "N/A"} | Campaign: ${m.metadata.campaign || "N/A"} | Status: ${m.metadata.status || "N/A"}`;
+        }
+        return text;
+      })
+      .join("\n\n");
 
-  const filteredStaff = staffDirectory.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.role.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    navigator.clipboard.writeText(header + body);
+    setTranscriptCopied(true);
+    setTimeout(() => setTranscriptCopied(false), 2500);
+  };
 
-  // Helper for role pill styling
+  // Role pill styling
   const getRoleBadge = (role?: string) => {
     switch (role) {
       case "ADMIN":
@@ -264,7 +410,7 @@ export function EmployeeChatWidget() {
     }
   };
 
-  // Helper for presence status dot
+  // Presence status dot
   const getStatusDot = (status?: "ON_SHIFT" | "ON_BREAK" | "OFFLINE") => {
     switch (status) {
       case "ON_SHIFT":
@@ -291,6 +437,48 @@ export function EmployeeChatWidget() {
     }
   };
 
+  // Filtering conversations
+  const filteredConversations = conversations.filter((c) => {
+    const matchesSearch =
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.lastMessageText.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    if (currentUser?.role === "ADMIN") {
+      if (adminFilter === "DIRECT") return c.type === "DIRECT" && !c.isSupervisorView;
+      if (adminFilter === "TEAM") return c.type === "TEAM";
+      if (adminFilter === "GENERAL") return c.type === "GENERAL";
+    }
+
+    return true;
+  });
+
+  const filteredStaff = staffDirectory.filter(
+    (s) =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.role.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredLeads = recentLeads.filter(
+    (l) =>
+      l.customerName.toLowerCase().includes(leadSearchQuery.toLowerCase()) ||
+      l.mobile.includes(leadSearchQuery) ||
+      l.campaignName.toLowerCase().includes(leadSearchQuery.toLowerCase())
+  );
+
+  const displayedMessages = inThreadSearchQuery.trim()
+    ? messages.filter(
+        (m) =>
+          m.content.toLowerCase().includes(inThreadSearchQuery.toLowerCase()) ||
+          m.senderName.toLowerCase().includes(inThreadSearchQuery.toLowerCase()) ||
+          (m.metadata?.customerName &&
+            m.metadata.customerName.toLowerCase().includes(inThreadSearchQuery.toLowerCase()))
+      )
+    : messages;
+
   return (
     <>
       {/* Floating Bottom-Right Launcher Widget */}
@@ -316,26 +504,39 @@ export function EmployeeChatWidget() {
             <div className="text-left hidden sm:block">
               <p className="text-xs font-bold leading-tight flex items-center gap-1.5">
                 <span>Pulse Chat</span>
+                {currentUser?.role === "ADMIN" && (
+                  <span className="px-1.5 py-0.2 text-[9px] rounded-full bg-purple-200/40 text-white font-mono uppercase">
+                    Admin
+                  </span>
+                )}
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-ping"></span>
               </p>
               <p className="text-[10px] text-orange-100/90 font-medium">
-                {totalUnread > 0 ? `${totalUnread} new message${totalUnread > 1 ? "s" : ""}` : "Staff Floor Active"}
+                {totalUnread > 0
+                  ? `${totalUnread} new message${totalUnread > 1 ? "s" : ""}`
+                  : "Staff Floor Active"}
               </p>
             </div>
           </button>
         )}
       </div>
 
-      {/* Expandable Docked Chat Window */}
+      {/* Main Chat Window (Compact Docked or Maximized 2-Column Mode) */}
       {isOpen && (
-        <div className="fixed bottom-5 right-5 z-50 w-[94vw] sm:w-[440px] h-[610px] max-h-[90vh] rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-white/60 dark:border-slate-700/80 shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-300">
-          {/* Top Bar / Header */}
-          <div className="px-4 py-3 bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+        <div
+          className={`fixed z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-white/60 dark:border-slate-700/80 shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
+            isMaximized
+              ? "bottom-3 right-3 sm:bottom-6 sm:right-6 w-[96vw] max-w-[900px] h-[720px] max-h-[94vh] rounded-3xl"
+              : "bottom-5 right-5 w-[94vw] sm:w-[440px] h-[610px] max-h-[90vh] rounded-3xl"
+          }`}
+        >
+          {/* Top Bar / Global Header */}
+          <div className="px-4 py-3 bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5">
-              {activeConversation ? (
+              {!isMaximized && activeConversation ? (
                 <button
                   onClick={() => setActiveConversation(null)}
-                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
                   title="Back to conversations"
                 >
                   <ArrowLeft className="w-4 h-4" />
@@ -347,12 +548,18 @@ export function EmployeeChatWidget() {
               )}
 
               <div>
-                {activeConversation ? (
+                {!isMaximized && activeConversation ? (
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[200px]">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[190px]">
                         {activeConversation.name}
                       </span>
+                      {activeConversation.isSupervisorView && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 flex items-center gap-0.5">
+                          <Eye className="w-2.5 h-2.5" />
+                          <span>Monitor</span>
+                        </span>
+                      )}
                       {activeConversation.recipientRole && (
                         <span
                           className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${getRoleBadge(
@@ -369,22 +576,29 @@ export function EmployeeChatWidget() {
                   <div>
                     <h3 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                       <span>Live Pulse Chat</span>
-                      <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-mono border border-emerald-500/20">
-                        Live Floor
-                      </span>
+                      {currentUser?.role === "ADMIN" && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 text-[9px] font-bold border border-purple-500/20 flex items-center gap-1">
+                          <Shield className="w-2.5 h-2.5" />
+                          <span>Floor Supervisor</span>
+                        </span>
+                      )}
                     </h3>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                      Internal messaging & team channels
+                      {currentUser?.role === "ADMIN"
+                        ? "Full floor oversight & team communication"
+                        : "Internal messaging & team channels"}
                     </p>
                   </div>
                 )}
               </div>
             </div>
 
+            {/* Header Action Buttons */}
             <div className="flex items-center gap-1">
+              {/* Audio Toggle */}
               <button
                 onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`p-1.5 rounded-xl transition-colors ${
+                className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
                   soundEnabled
                     ? "text-orange-600 hover:bg-orange-50 dark:hover:bg-slate-800"
                     : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -394,17 +608,28 @@ export function EmployeeChatWidget() {
                 {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
               </button>
 
+              {/* Maximize / Restore Toggle */}
+              <button
+                onClick={() => setIsMaximized(!isMaximized)}
+                className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+                title={isMaximized ? "Restore compact view" : "Expand to 2-column workspace"}
+              >
+                {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+
+              {/* Minimize to launcher */}
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
+                className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                 title="Minimize chat"
               >
                 <Minus className="w-4 h-4" />
               </button>
 
+              {/* Close button */}
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-xl text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-colors"
+                className="p-1.5 rounded-xl text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-colors cursor-pointer"
                 title="Close chat"
               >
                 <X className="w-4 h-4" />
@@ -412,379 +637,777 @@ export function EmployeeChatWidget() {
             </div>
           </div>
 
-          {/* Main Body: Switch between Conversation List / Staff Directory / Active Chat */}
-          {!activeConversation ? (
-            <div className="flex-1 flex flex-col min-h-0 bg-slate-50/50 dark:bg-slate-900/50">
-              {/* Search & Tabs */}
-              <div className="p-3 border-b border-slate-200/70 dark:border-slate-800 space-y-2.5">
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search chats, colleagues, or roles..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500/30 text-slate-900 dark:text-white placeholder:text-slate-400"
-                  />
-                </div>
+          {/* Chat Body: Split 2-Column in Maximized Mode OR Single Column in Compact Mode */}
+          <div className="flex-1 flex min-h-0 overflow-hidden">
+            {/* COLUMN 1: Conversations List / Staff Directory (Always visible when maximized, or when !activeConversation in compact) */}
+            {(isMaximized || !activeConversation) && (
+              <div
+                className={`flex flex-col min-h-0 bg-slate-50/70 dark:bg-slate-900/70 border-r border-slate-200/70 dark:border-slate-800 ${
+                  isMaximized ? "w-[310px] shrink-0" : "flex-1"
+                }`}
+              >
+                {/* Search & Navigation Tabs */}
+                <div className="p-3 border-b border-slate-200/70 dark:border-slate-800 space-y-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search chats, staff, or roles..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500/30 text-slate-900 dark:text-white placeholder:text-slate-400"
+                    />
+                  </div>
 
-                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-200/50 dark:bg-slate-800/80">
-                  <button
-                    onClick={() => setActiveTab("conversations")}
-                    className={`flex-1 py-1 text-xs font-semibold rounded-lg transition-all ${
-                      activeTab === "conversations"
-                        ? "bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-sm"
-                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-                    }`}
-                  >
-                    Conversations ({conversations.length})
-                  </button>
-                  <button
-                    onClick={() => {
-                      setActiveTab("directory");
-                      loadStaffDirectory();
-                    }}
-                    className={`flex-1 py-1 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all ${
-                      activeTab === "directory"
-                        ? "bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-sm"
-                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-                    }`}
-                  >
-                    <Users className="w-3.5 h-3.5" />
-                    <span>Staff Directory</span>
-                  </button>
-                </div>
-              </div>
+                  <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-200/50 dark:bg-slate-800/80">
+                    <button
+                      onClick={() => setActiveTab("conversations")}
+                      className={`flex-1 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                        activeTab === "conversations"
+                          ? "bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-sm"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                      }`}
+                    >
+                      Chats ({conversations.length})
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab("directory");
+                        loadStaffDirectory();
+                      }}
+                      className={`flex-1 py-1 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                        activeTab === "directory"
+                          ? "bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-sm"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                      }`}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Staff ({staffDirectory.length})</span>
+                    </button>
+                  </div>
 
-              {/* View 1: Active Conversations List */}
-              {activeTab === "conversations" ? (
-                <div className="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar">
-                  {filteredConversations.length === 0 ? (
-                    <div className="p-8 text-center">
-                      <div className="w-12 h-12 rounded-2xl bg-orange-500/10 text-orange-500 mx-auto flex items-center justify-center mb-3">
-                        <MessageSquare className="w-6 h-6" />
-                      </div>
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">No conversations yet</p>
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        Open Staff Directory to message any colleague on the floor.
-                      </p>
-                      <button
-                        onClick={() => {
-                          setActiveTab("directory");
-                          loadStaffDirectory();
-                        }}
-                        className="mt-3 px-3 py-1.5 text-xs rounded-xl bg-orange-500 text-white font-semibold hover:bg-orange-600 transition-colors inline-flex items-center gap-1.5"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Find Colleague</span>
-                      </button>
+                  {/* Admin Supervisor Filter Pills */}
+                  {currentUser?.role === "ADMIN" && activeTab === "conversations" && (
+                    <div className="flex items-center gap-1 overflow-x-auto pb-0.5 no-scrollbar text-[10px]">
+                      {[
+                        { key: "ALL", label: "All Floor Chats" },
+                        { key: "DIRECT", label: "My Direct" },
+                        { key: "TEAM", label: "Teams" },
+                        { key: "GENERAL", label: "Announce" },
+                      ].map((pill) => (
+                        <button
+                          key={pill.key}
+                          onClick={() => setAdminFilter(pill.key as any)}
+                          className={`px-2 py-0.5 rounded-lg whitespace-nowrap font-medium transition-colors cursor-pointer ${
+                            adminFilter === pill.key
+                              ? "bg-purple-600 text-white font-bold"
+                              : "bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border border-purple-200/50 dark:border-purple-800/50 hover:bg-purple-100"
+                          }`}
+                        >
+                          {pill.label}
+                        </button>
+                      ))}
                     </div>
-                  ) : (
-                    filteredConversations.map((conv) => (
-                      <button
-                        key={conv.id}
-                        onClick={() => handleSelectConversation(conv)}
-                        className={`w-full p-2.5 rounded-2xl text-left transition-all flex items-start gap-3 border cursor-pointer ${
-                          conv.unreadCount > 0
-                            ? "bg-orange-50/70 dark:bg-orange-950/20 border-orange-200/80 dark:border-orange-900/40 shadow-sm"
-                            : "bg-white dark:bg-slate-800/70 border-slate-200/60 dark:border-slate-800 hover:border-orange-200 dark:hover:border-slate-700 hover:bg-orange-50/30"
-                        }`}
-                      >
-                        <div className="relative shrink-0">
-                          <div
-                            className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm shadow-sm ${
-                              conv.type === "GENERAL"
-                                ? "bg-gradient-to-tr from-orange-500 to-amber-500 text-white"
-                                : conv.type === "TEAM"
-                                ? "bg-gradient-to-tr from-blue-600 to-cyan-500 text-white"
-                                : "bg-gradient-to-tr from-slate-700 to-slate-900 text-white dark:from-slate-600 dark:to-slate-800"
-                            }`}
-                          >
-                            {conv.avatarLetter}
+                  )}
+                </div>
+
+                {/* Tab Content: Conversations List */}
+                {activeTab === "conversations" ? (
+                  <div className="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar">
+                    {filteredConversations.length === 0 ? (
+                      <div className="p-6 text-center text-slate-400">
+                        <MessageSquare className="w-8 h-8 text-orange-400 mx-auto mb-2 opacity-80" />
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                          No conversations found
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Open Staff Directory to message any colleague on the floor.
+                        </p>
+                      </div>
+                    ) : (
+                      filteredConversations.map((conv) => (
+                        <button
+                          key={conv.id}
+                          onClick={() => handleSelectConversation(conv)}
+                          className={`w-full p-2.5 rounded-2xl text-left transition-all flex items-start gap-2.5 border cursor-pointer ${
+                            activeConversation?.id === conv.id
+                              ? "bg-orange-100/70 dark:bg-orange-950/40 border-orange-300 dark:border-orange-800 shadow-sm"
+                              : conv.unreadCount > 0
+                              ? "bg-orange-50/70 dark:bg-orange-950/20 border-orange-200/80 dark:border-orange-900/40"
+                              : "bg-white dark:bg-slate-800/70 border-slate-200/60 dark:border-slate-800 hover:border-orange-200 dark:hover:border-slate-700 hover:bg-orange-50/30"
+                          }`}
+                        >
+                          <div className="relative shrink-0">
+                            <div
+                              className={`w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-xs shadow-sm ${
+                                conv.type === "GENERAL"
+                                  ? "bg-gradient-to-tr from-orange-500 to-amber-500 text-white"
+                                  : conv.type === "TEAM"
+                                  ? "bg-gradient-to-tr from-blue-600 to-cyan-500 text-white"
+                                  : conv.isSupervisorView
+                                  ? "bg-gradient-to-tr from-purple-600 to-indigo-600 text-white"
+                                  : "bg-gradient-to-tr from-slate-700 to-slate-900 text-white dark:from-slate-600 dark:to-slate-800"
+                              }`}
+                            >
+                              {conv.avatarLetter}
+                            </div>
+                            {conv.type === "DIRECT" && !conv.isSupervisorView && (
+                              <span
+                                className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                                  conv.recipientShiftStatus === "ON_SHIFT"
+                                    ? "bg-emerald-500"
+                                    : conv.recipientShiftStatus === "ON_BREAK"
+                                    ? "bg-amber-500"
+                                    : "bg-slate-400"
+                                }`}
+                              />
+                            )}
                           </div>
-                          {conv.type === "DIRECT" && (
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                {conv.name}
+                              </h4>
+                              <span className="text-[9px] text-slate-400 whitespace-nowrap ml-1 font-mono">
+                                {new Date(conv.lastMessageTime).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mb-1">
+                              {conv.lastMessageText}
+                            </p>
+
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] text-slate-400 truncate max-w-[170px]">
+                                {conv.subtitle}
+                              </span>
+                              {conv.unreadCount > 0 && (
+                                <span className="min-w-[16px] h-[16px] px-1 rounded-full bg-orange-600 text-white text-[9px] font-black flex items-center justify-center shadow-sm">
+                                  {conv.unreadCount}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  /* Tab Content: Staff Directory */
+                  <div className="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar">
+                    <div className="px-2 py-1 flex items-center justify-between">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                        Active Floor Staff ({filteredStaff.length})
+                      </span>
+                      <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-mono">
+                        ● Live
+                      </span>
+                    </div>
+
+                    {filteredStaff.map((person) => (
+                      <button
+                        key={person.id}
+                        onClick={() => handleStartDirectChat(person)}
+                        className="w-full p-2 rounded-2xl bg-white dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-800 hover:border-orange-300 dark:hover:border-slate-700 hover:bg-orange-50/30 transition-all flex items-center justify-between text-left group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="relative">
+                            <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center">
+                              {person.name.charAt(0)}
+                            </div>
                             <span
-                              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 ${
-                                conv.recipientShiftStatus === "ON_SHIFT"
+                              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                                person.shiftStatus === "ON_SHIFT"
                                   ? "bg-emerald-500"
-                                  : conv.recipientShiftStatus === "ON_BREAK"
+                                  : person.shiftStatus === "ON_BREAK"
                                   ? "bg-amber-500"
                                   : "bg-slate-400"
                               }`}
                             />
-                          )}
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-slate-900 dark:text-white">
+                                {person.name}
+                              </span>
+                              <span
+                                className={`text-[8px] font-bold px-1 rounded border ${getRoleBadge(
+                                  person.role
+                                )}`}
+                              >
+                                {person.role}
+                              </span>
+                            </div>
+                            <p className="text-[9px] text-slate-400 font-mono">
+                              @{person.username} · {person.teamName || "Floor"}
+                            </p>
+                          </div>
                         </div>
 
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-0.5">
-                            <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                              {conv.name}
-                            </h4>
-                            <span className="text-[10px] text-slate-400 whitespace-nowrap ml-2">
-                              {new Date(conv.lastMessageTime).toLocaleTimeString([], {
+                        <div className="flex items-center gap-1.5">
+                          {getStatusDot(person.shiftStatus)}
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* COLUMN 2: Active Chat Thread View */}
+            {activeConversation ? (
+              <div className="flex-1 flex flex-col min-h-0 bg-slate-50/60 dark:bg-slate-950/60 relative">
+                {/* Active Thread Toolbar (Search & Export Transcript) */}
+                <div className="px-3 py-2 bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                      {activeConversation.name}
+                    </span>
+                    {activeConversation.isSupervisorView && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                        👑 Supervisor Monitor Mode
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    {/* In-Thread Search Toggle */}
+                    <button
+                      onClick={() => setShowInThreadSearch(!showInThreadSearch)}
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        showInThreadSearch
+                          ? "bg-orange-100 text-orange-600 dark:bg-slate-800"
+                          : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      }`}
+                      title="Search messages in thread"
+                    >
+                      <Search className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Copy Chat Transcript */}
+                    <button
+                      onClick={handleCopyTranscript}
+                      className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-medium"
+                      title="Copy full chat transcript"
+                    >
+                      {transcriptCopied ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-500" />
+                          <span className="text-[10px] text-emerald-600 font-bold hidden sm:inline">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span className="text-[10px] hidden sm:inline">Copy Log</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* In-Thread Search Input Bar */}
+                {showInThreadSearch && (
+                  <div className="px-3 py-1.5 bg-orange-50/80 dark:bg-slate-800/80 border-b border-orange-200/50 dark:border-slate-700 flex items-center gap-2 shrink-0">
+                    <Search className="w-3 h-3 text-orange-600 shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Filter messages in this conversation..."
+                      value={inThreadSearchQuery}
+                      onChange={(e) => setInThreadSearchQuery(e.target.value)}
+                      className="flex-1 bg-transparent text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none"
+                    />
+                    {inThreadSearchQuery && (
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        {displayedMessages.length} match{displayedMessages.length !== 1 ? "es" : ""}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => {
+                        setShowInThreadSearch(false);
+                        setInThreadSearchQuery("");
+                      }}
+                      className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Message Feed */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                  {displayedMessages.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
+                      <Sparkles className="w-8 h-8 text-orange-400 mb-2 opacity-80" />
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        {inThreadSearchQuery
+                          ? "No messages match your search query."
+                          : `Beginning of conversation with ${activeConversation.name}`}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Use the quick replies below or attach a lead for instant review!
+                      </p>
+                    </div>
+                  ) : (
+                    displayedMessages.map((msg) => {
+                      const reactions = messageReactions[msg.id] || [];
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`group relative flex flex-col ${
+                            msg.isOwn ? "items-end" : "items-start"
+                          } space-y-1`}
+                        >
+                          {!msg.isOwn && (
+                            <div className="flex items-center gap-1.5 pl-1">
+                              <div
+                                className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${
+                                  msg.senderRole === "ADMIN"
+                                    ? "bg-purple-600 text-white ring-2 ring-purple-500/40"
+                                    : "bg-sky-500 text-white ring-2 ring-sky-500/40"
+                                }`}
+                              >
+                                {msg.senderName.charAt(0)}
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                                {msg.senderName}
+                              </span>
+                              <span
+                                className={`text-[8px] font-bold px-1 rounded border ${getRoleBadge(
+                                  msg.senderRole
+                                )}`}
+                              >
+                                {msg.senderRole}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="relative group/bubble max-w-[85%]">
+                            <div
+                              className={`rounded-2xl px-3.5 py-2.5 text-xs shadow-sm ${
+                                msg.isOwn
+                                  ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-br-xs"
+                                  : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-bl-xs"
+                              }`}
+                            >
+                              {/* Text Content */}
+                              <p className="whitespace-pre-wrap leading-relaxed break-words">{msg.content}</p>
+
+                              {/* Rich Lead Card if attached */}
+                              {msg.metadata && (
+                                <div
+                                  className={`mt-2 p-2.5 rounded-xl border text-[11px] space-y-1.5 ${
+                                    msg.isOwn
+                                      ? "bg-orange-700/30 border-orange-400/40 text-orange-50"
+                                      : "bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between font-bold">
+                                    <span className="flex items-center gap-1">
+                                      <span>📋 Lead:</span>
+                                      <span>{msg.metadata.customerName || "Customer"}</span>
+                                    </span>
+                                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-orange-500/20 text-orange-600 dark:text-orange-300 border border-orange-500/30">
+                                      {msg.metadata.status || "ACTIVE"}
+                                    </span>
+                                  </div>
+
+                                  <div className="text-[10px] opacity-90 flex items-center justify-between font-mono">
+                                    <span>📱 {msg.metadata.mobile || "10-digit"}</span>
+                                    <span>{msg.metadata.campaign || "Campaign"}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Quick Reaction Bar on hover */}
+                            <div
+                              className={`absolute top-[-14px] ${
+                                msg.isOwn ? "left-0" : "right-0"
+                              } opacity-0 group-hover/bubble:opacity-100 transition-opacity bg-white dark:bg-slate-800 rounded-full px-1.5 py-0.5 shadow-md border border-slate-200 dark:border-slate-700 flex items-center gap-1 text-xs z-10 scale-90 origin-bottom`}
+                            >
+                              {["👍", "🔥", "👀", "❤️", "✅"].map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => handleToggleReaction(msg.id, emoji)}
+                                  className="hover:scale-125 transition-transform p-0.5 cursor-pointer"
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Active Reactions Pills */}
+                          {reactions.length > 0 && (
+                            <div className="flex items-center gap-1 px-1 mt-0.5 flex-wrap">
+                              {Array.from(new Set(reactions)).map((emoji) => {
+                                const count = reactions.filter((r) => r === emoji).length;
+                                return (
+                                  <span
+                                    key={emoji}
+                                    onClick={() => handleToggleReaction(msg.id, emoji)}
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs cursor-pointer hover:scale-105 transition-transform"
+                                  >
+                                    <span>{emoji}</span>
+                                    {count > 1 && (
+                                      <span className="font-bold text-[9px] text-slate-500">
+                                        {count}
+                                      </span>
+                                    )}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-1 text-[9px] text-slate-400 px-1">
+                            <span>
+                              {new Date(msg.createdAt).toLocaleTimeString([], {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })}
                             </span>
-                          </div>
-
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mb-1">
-                            {conv.lastMessageText}
-                          </p>
-
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-slate-400 truncate max-w-[200px]">
-                              {conv.subtitle}
-                            </span>
-                            {conv.unreadCount > 0 && (
-                              <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-orange-600 text-white text-[9px] font-black flex items-center justify-center shadow-sm">
-                                {conv.unreadCount}
-                              </span>
-                            )}
+                            {msg.isOwn && <CheckCheck className="w-3.5 h-3.5 text-sky-400" />}
                           </div>
                         </div>
-                      </button>
-                    ))
+                      );
+                    })
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
-              ) : (
-                /* View 2: Staff Directory & Quick New Chat */
-                <div className="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar">
-                  <div className="px-2 py-1 flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Active Floor Staff ({filteredStaff.length})
-                    </span>
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
-                      ● Ready to connect
-                    </span>
-                  </div>
 
-                  {filteredStaff.map((person) => (
+                {/* Lead Attachment Preview Chip (if selected) */}
+                {selectedLead && (
+                  <div className="px-3 py-1.5 bg-orange-50 dark:bg-orange-950/30 border-t border-orange-200 dark:border-orange-900/50 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2 text-xs text-orange-900 dark:text-orange-200">
+                      <FileText className="w-4 h-4 text-orange-500 shrink-0" />
+                      <span className="font-bold">{selectedLead.customerName}</span>
+                      <span className="text-[10px] text-orange-600 dark:text-orange-400 font-mono">
+                        ({selectedLead.mobile} · {selectedLead.campaignName})
+                      </span>
+                    </div>
                     <button
-                      key={person.id}
-                      onClick={() => handleStartDirectChat(person)}
-                      className="w-full p-2.5 rounded-2xl bg-white dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-800 hover:border-orange-300 dark:hover:border-slate-700 hover:bg-orange-50/30 transition-all flex items-center justify-between text-left group cursor-pointer"
+                      onClick={() => setSelectedLead(null)}
+                      className="p-1 text-orange-600 hover:text-orange-800 cursor-pointer"
+                      title="Remove lead attachment"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center">
-                            {person.name.charAt(0)}
-                          </div>
-                          <span
-                            className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
-                              person.shiftStatus === "ON_SHIFT"
-                                ? "bg-emerald-500"
-                                : person.shiftStatus === "ON_BREAK"
-                                ? "bg-amber-500"
-                                : "bg-slate-400"
-                            }`}
-                          />
-                        </div>
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
 
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-900 dark:text-white">
-                              {person.name}
-                            </span>
-                            <span
-                              className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full border ${getRoleBadge(
-                                person.role
-                              )}`}
-                            >
-                              {person.role}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-400 font-mono">
-                            @{person.username} · {person.teamName || "Floor"}
-                          </p>
-                        </div>
-                      </div>
+                {/* Editable Canned Operational Quick Replies Bar */}
+                <div className="px-3 py-1.5 bg-slate-100/80 dark:bg-slate-900/80 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickRepliesManager(true)}
+                    className="p-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-orange-600 hover:border-orange-300 transition-colors cursor-pointer shrink-0"
+                    title="Manage / Edit Canned Quick Replies"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </button>
 
-                      <div className="flex items-center gap-2">
-                        {getStatusDot(person.shiftStatus)}
-                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all" />
-                      </div>
+                  {quickReplies.map((reply, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setInputContent((prev) => (prev ? `${prev} ${reply}` : reply));
+                      }}
+                      className="px-2.5 py-1 rounded-xl text-[11px] whitespace-nowrap bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-orange-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50/50 transition-all cursor-pointer shadow-2xs font-medium"
+                    >
+                      {reply}
                     </button>
                   ))}
                 </div>
-              )}
-            </div>
-          ) : (
-            /* Active Chat Thread View */
-            <div className="flex-1 flex flex-col min-h-0 bg-slate-50/60 dark:bg-slate-950/60">
-              {/* Message Feed */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                {messages.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
-                    <Sparkles className="w-8 h-8 text-orange-400 mb-2 opacity-80" />
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                      Beginning of conversation with {activeConversation.name}
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Say hello or share a lead for instant review!
-                    </p>
-                  </div>
-                ) : (
-                  messages.map((msg) => {
-                    const reactions = messageReactions[msg.id] || [];
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`group relative flex flex-col ${msg.isOwn ? "items-end" : "items-start"} space-y-1`}
-                      >
-                        {!msg.isOwn && (
-                          <div className="flex items-center gap-1.5 pl-1">
-                            {/* Avatar with role ring */}
-                            <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${
-                              msg.senderRole === "ADMIN"
-                                ? "bg-orange-500 text-white ring-2 ring-orange-500/40"
-                                : "bg-sky-500 text-white ring-2 ring-sky-500/40"
-                            }`}>
-                              {msg.senderName.charAt(0)}
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">
-                              {msg.senderName}
-                            </span>
-                            <span
-                              className={`text-[8px] font-bold px-1 rounded border ${getRoleBadge(
-                                msg.senderRole
-                              )}`}
-                            >
-                              {msg.senderRole}
-                            </span>
-                          </div>
-                        )}
 
-                        <div className="relative group/bubble max-w-[85%]">
-                          <div
-                            className={`rounded-2xl px-3.5 py-2.5 text-xs shadow-sm ${
-                              msg.isOwn
-                                ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-br-xs"
-                                : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-bl-xs"
-                            }`}
+                {/* Message Input Bar & Lead Attachment Button */}
+                <form
+                  onSubmit={handleSendMessage}
+                  className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 flex items-end gap-2 shrink-0"
+                >
+                  {/* Attach Lead Button */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!showLeadPicker) loadRecentLeads();
+                        setShowLeadPicker(!showLeadPicker);
+                      }}
+                      className={`p-2.5 rounded-2xl border transition-colors cursor-pointer flex items-center justify-center ${
+                        showLeadPicker || selectedLead
+                          ? "bg-orange-500 text-white border-orange-600 shadow-sm"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-orange-500"
+                      }`}
+                      title="Attach lead from floor"
+                    >
+                      <Paperclip className="w-4 h-4" />
+                    </button>
+
+                    {/* Popover Lead Picker */}
+                    {showLeadPicker && (
+                      <div className="absolute bottom-12 left-0 w-72 sm:w-80 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-3 z-30 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                            <FileText className="w-3.5 h-3.5 text-orange-500" />
+                            <span>Attach Floor Lead</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowLeadPicker(false)}
+                            className="text-slate-400 hover:text-slate-600 cursor-pointer"
                           >
-                            {/* Text Content */}
-                            <p className="whitespace-pre-wrap leading-relaxed break-words">{msg.content}</p>
-
-                            {/* Rich Lead Card if attached */}
-                            {msg.metadata && (
-                              <div
-                                className={`mt-2 p-2.5 rounded-xl border text-[11px] space-y-1.5 ${
-                                  msg.isOwn
-                                    ? "bg-orange-700/30 border-orange-400/40 text-orange-50"
-                                    : "bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
-                                }`}
-                              >
-                                <div className="flex items-center justify-between font-bold">
-                                  <span className="flex items-center gap-1">
-                                    <span>📋 Lead:</span>
-                                    <span>{msg.metadata.customerName || "Customer"}</span>
-                                  </span>
-                                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-orange-500/20 text-orange-600 dark:text-orange-300 border border-orange-500/30">
-                                    {msg.metadata.status || "ACTIVE"}
-                                  </span>
-                                </div>
-
-                                <div className="text-[10px] opacity-90 flex items-center justify-between font-mono">
-                                  <span>📱 {msg.metadata.mobile || "10-digit"}</span>
-                                  <span>{msg.metadata.campaign || "Campaign"}</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Quick Reaction Bar on hover */}
-                          <div className={`absolute top-[-14px] ${msg.isOwn ? "left-0" : "right-0"} opacity-0 group-hover/bubble:opacity-100 transition-opacity bg-white dark:bg-slate-800 rounded-full px-1.5 py-0.5 shadow-md border border-slate-200 dark:border-slate-700 flex items-center gap-1 text-xs z-10 scale-90 origin-bottom`}>
-                            {["👍", "🔥", "👀", "❤️", "✅"].map((emoji) => (
-                              <button
-                                key={emoji}
-                                type="button"
-                                onClick={() => handleToggleReaction(msg.id, emoji)}
-                                className="hover:scale-125 transition-transform p-0.5 cursor-pointer"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
 
-                        {/* Active Reactions Pills */}
-                        {reactions.length > 0 && (
-                          <div className="flex items-center gap-1 px-1 mt-0.5 flex-wrap">
-                            {Array.from(new Set(reactions)).map((emoji) => {
-                              const count = reactions.filter(r => r === emoji).length;
-                              return (
-                                <span
-                                  key={emoji}
-                                  onClick={() => handleToggleReaction(msg.id, emoji)}
-                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs cursor-pointer hover:scale-105 transition-transform"
-                                >
-                                  <span>{emoji}</span>
-                                  {count > 1 && <span className="font-bold text-[9px] text-slate-500">{count}</span>}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
+                        <div className="relative">
+                          <Search className="w-3 h-3 absolute left-2.5 top-2.5 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="Filter by customer or phone..."
+                            value={leadSearchQuery}
+                            onChange={(e) => setLeadSearchQuery(e.target.value)}
+                            className="w-full pl-7 pr-2 py-1 text-xs rounded-xl bg-slate-100 dark:bg-slate-700 border-none focus:outline-none focus:ring-1 focus:ring-orange-500 text-slate-900 dark:text-white"
+                          />
+                        </div>
 
-                        <div className="flex items-center gap-1 text-[9px] text-slate-400 px-1">
-                          <span>
-                            {new Date(msg.createdAt).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                          {msg.isOwn && <CheckCheck className="w-3.5 h-3.5 text-sky-400" />}
+                        <div className="max-h-48 overflow-y-auto space-y-1 custom-scrollbar">
+                          {isLoadingLeads ? (
+                            <div className="p-4 text-center text-xs text-slate-400">
+                              <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1 text-orange-500" />
+                              <span>Loading leads...</span>
+                            </div>
+                          ) : filteredLeads.length === 0 ? (
+                            <p className="p-3 text-center text-xs text-slate-400">
+                              No recent leads found.
+                            </p>
+                          ) : (
+                            filteredLeads.map((lead) => (
+                              <button
+                                key={lead.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedLead(lead);
+                                  setShowLeadPicker(false);
+                                }}
+                                className="w-full p-2 text-left rounded-xl hover:bg-orange-50 dark:hover:bg-slate-700 transition-colors cursor-pointer flex items-center justify-between group"
+                              >
+                                <div>
+                                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                    {lead.customerName}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 font-mono">
+                                    {lead.mobile} · {lead.campaignName}
+                                  </p>
+                                </div>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 font-mono">
+                                  {lead.status}
+                                </span>
+                              </button>
+                            ))
+                          )}
                         </div>
                       </div>
-                    );
-                  })
-                )}
-                {isPartnerTyping && (
-                  <div className="flex items-center gap-2 text-xs text-slate-400 px-2 py-1 italic animate-pulse">
-                    <div className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </div>
-                    <span>{activeConversation.name} is typing...</span>
+                    )}
                   </div>
-                )}
-                <div ref={messagesEndRef} />
+
+                  {/* Message Input Field */}
+                  <div className="flex-1 relative rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-orange-500/30 focus-within:border-orange-500 transition-all">
+                    <textarea
+                      rows={1}
+                      value={inputContent}
+                      onChange={(e) => setInputContent(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      placeholder={`Message ${activeConversation.name}... (Enter to send)`}
+                      className="w-full max-h-24 p-2.5 text-xs bg-transparent border-none resize-none focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+                    />
+                  </div>
+
+                  {/* Send Button */}
+                  <button
+                    type="submit"
+                    disabled={(!inputContent.trim() && !selectedLead) || isSending}
+                    className="p-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold shadow-md hover:shadow-orange-500/25 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center shrink-0"
+                    title="Send message (Enter)"
+                  >
+                    {isSending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                  </button>
+                </form>
               </div>
-
-              {/* Message Input Form */}
-              <form
-                onSubmit={handleSendMessage}
-                className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 flex items-end gap-2"
-              >
-                <div className="flex-1 relative rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-orange-500/30 focus-within:border-orange-500 transition-all">
-                  <textarea
-                    rows={1}
-                    value={inputContent}
-                    onChange={(e) => setInputContent(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    placeholder={`Message ${activeConversation.name}... (Enter to send)`}
-                    className="w-full max-h-24 p-2.5 text-xs bg-transparent border-none resize-none focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
-                  />
+            ) : (
+              /* Empty State for Maximized Mode when no chat is currently selected */
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/40 dark:bg-slate-950/40">
+                <div className="w-16 h-16 rounded-3xl bg-orange-500/10 text-orange-500 flex items-center justify-center mb-4 shadow-inner">
+                  <MessageSquare className="w-8 h-8" />
                 </div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  Select a conversation to start chatting
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                  {currentUser?.role === "ADMIN"
+                    ? "Monitor all floor chats live, intervene in staff threads, or message colleagues directly."
+                    : "Connect with closers, team leaders, or agents across all active campaigns."}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-                <button
-                  type="submit"
-                  disabled={!inputContent.trim() || isSending}
-                  className="p-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold shadow-md hover:shadow-orange-500/25 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center"
-                  title="Send message (Enter)"
-                >
-                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                </button>
-              </form>
+      {/* Canned Quick Replies Manager Modal / Popover */}
+      {showQuickRepliesManager && (
+        <div className="fixed inset-0 z-60 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl p-5 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400">
+                  <Settings className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Edit Canned Quick Replies
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Customize your one-click call center reply templates
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowQuickRepliesManager(false);
+                  setEditingReplyIndex(null);
+                }}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-          )}
+
+            {/* List of Current Quick Replies */}
+            <div className="max-h-64 overflow-y-auto space-y-2 custom-scrollbar pr-1">
+              {quickReplies.map((reply, index) => (
+                <div
+                  key={index}
+                  className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-2"
+                >
+                  {editingReplyIndex === index ? (
+                    <div className="flex-1 flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editingReplyText}
+                        onChange={(e) => setEditingReplyText(e.target.value)}
+                        className="flex-1 px-2.5 py-1 text-xs rounded-xl bg-white dark:bg-slate-700 border border-orange-500 focus:outline-none text-slate-900 dark:text-white"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleSaveEditQuickReply(index)}
+                        className="px-2 py-1 text-xs rounded-xl bg-orange-500 text-white font-bold cursor-pointer"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingReplyIndex(null)}
+                        className="px-2 py-1 text-xs rounded-xl bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-xs text-slate-800 dark:text-slate-200 font-medium break-all">
+                        {reply}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => {
+                            setEditingReplyIndex(index);
+                            setEditingReplyText(reply);
+                          }}
+                          className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white text-[11px] font-bold cursor-pointer px-1.5"
+                          title="Edit text"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteQuickReply(index)}
+                          className="p-1 rounded-lg hover:bg-red-100 dark:hover:bg-red-950/30 text-slate-400 hover:text-red-500 cursor-pointer"
+                          title="Delete quick reply"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Add New Quick Reply Input */}
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                + Add New Quick Reply
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. 🔄 Customer requested transfer to Supervisor"
+                  value={newQuickReplyText}
+                  onChange={(e) => setNewQuickReplyText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddQuickReply();
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900 dark:text-white"
+                />
+                <button
+                  onClick={handleAddQuickReply}
+                  disabled={!newQuickReplyText.trim()}
+                  className="px-3.5 py-2 rounded-xl bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 disabled:opacity-40 cursor-pointer"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="pt-2 flex items-center justify-between">
+              <button
+                onClick={handleResetQuickReplies}
+                className="text-[11px] text-slate-500 hover:text-orange-600 flex items-center gap-1 cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Reset to Floor Defaults</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowQuickRepliesManager(false);
+                  setEditingReplyIndex(null);
+                }}
+                className="px-4 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold hover:opacity-90 cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

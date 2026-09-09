@@ -21,8 +21,10 @@ import {
   Power,
   ShieldAlert,
   Loader2,
+  ListChecks,
 } from "lucide-react";
 import { ModalPortal } from "@/components/ModalPortal";
+import { CampaignCriteriaModal } from "@/components/CampaignCriteriaModal";
 
 export function CampaignManagement() {
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
@@ -52,6 +54,9 @@ export function CampaignManagement() {
   // Delete Campaign Modal
   const [deletingCampaign, setDeletingCampaign] = useState<CampaignItem | null>(null);
   const [confirmDeleteLeads, setConfirmDeleteLeads] = useState(false);
+
+  // Criteria Questionnaire Modal
+  const [criteriaCampaign, setCriteriaCampaign] = useState<CampaignItem | null>(null);
 
   const loadCampaigns = async () => {
     try {
@@ -273,6 +278,17 @@ export function CampaignManagement() {
 
                   <td className="py-3 px-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
+                      {/* Intake Criteria & Questionnaire Builder Button */}
+                      <button
+                        type="button"
+                        onClick={() => setCriteriaCampaign(c)}
+                        className="liquid-glass-button-secondary py-1.5 px-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer text-orange-600 dark:text-orange-400 border-orange-500/20 hover:border-orange-500/50 hover:bg-orange-50/50"
+                        title="Configure Intake Criteria & Case Questions"
+                      >
+                        <ListChecks className="w-3.5 h-3.5 text-orange-500" />
+                        <span>Criteria</span>
+                      </button>
+
                       {/* Full Edit Button */}
                       <button
                         type="button"
@@ -663,6 +679,14 @@ export function CampaignManagement() {
           </div>
         </ModalPortal>
       )}
+
+      {/* Campaign Intake Questionnaire & Criteria Builder Modal */}
+      <CampaignCriteriaModal
+        isOpen={!!criteriaCampaign}
+        campaign={criteriaCampaign}
+        onClose={() => setCriteriaCampaign(null)}
+        onSaved={loadCampaigns}
+      />
     </div>
   );
 }

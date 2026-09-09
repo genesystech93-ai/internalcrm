@@ -899,3 +899,86 @@ export async function deleteLeadAction(leadId: string): Promise<{ success?: bool
     return { error: err instanceof Error ? err.message : "Failed to delete lead from database." };
   }
 }
+
+// 12. Server Action: Save Closer Case Verification Intake Answers
+export async function updateCloserIntakeAction(params: {
+  leadId: string;
+  intakeAnswers: Record<string, string>;
+  isCompleted?: boolean;
+}): Promise<{ success?: boolean; error?: string; message?: string }> {
+  const session = await getSession();
+  if (!session) return { error: "Authentication required." };
+
+  try {
+    const lead = await prisma.lead.findUnique({
+      where: { id: params.leadId },
+    });
+
+    if (!lead) return { error: "Lead not found." };
+
+    const rawNotes = lead.notes || "";
+    let generalNotes = "";
+    if (rawNotes.includes("=== GENERAL NOTES ===")) {
+      generalNotes = rawNotes.split("=== GENERAL NOTES ===")[1]?.trim() || "";
+    } else if (!rawNotes.includes("=== CLOSER INTAKE CASE FACTS ===")) {
+      generalNotes = rawNotes.trim();
+    }
+
+    const intakeJsonStr = JSON.stringify(params.intakeAnswers, null, 2);
+    const updatedNotes = `=== CLOSER INTAKE CASE FACTS ===\n${intakeJsonStr}\n\n=== GENERAL NOTES ===\n${generalNotes}`;
+
+    const newStatus =
+      params.isCompleted && (lead.status === "UPLOADED" || lead.status === "CALL_BACK")
+        ? "PENDING_VERIFICATION"
+        : lead.status;
+
+    await prisma.lead.update({
+      where: { id: params.leadId },
+      data: {
+        notes: updatedNotes,
+        status: newStatus,
+      },
+    });
+
+    // Record status history if changed
+    if (newStatus !== lead.status) {
+      await prisma.leadStatusHistory.create({
+        data: {
+          leadId: params.leadId,
+          changedById: session.userId,
+          previousStatus: lead.status,
+          newStatus,
+          reason: "Closer completed full case verification questionnaire.",
+        },
+      });
+    }
+
+    revalidatePath("/admin");
+    revalidatePath("/dashboard");
+    return {
+      success: true,
+      message: params.isCompleted
+        ? "Case verification completed and submitted for approval!"
+        : "Intake answers saved successfully.",
+    };
+  } catch (err: any) {
+    // Offline Dev Fallback
+    const target = devLeads.find((l) => l.id === params.leadId);
+    if (target) {
+      target.notes = `=== CLOSER INTAKE CASE FACTS ===\n${JSON.stringify(params.intakeAnswers, null, 2)}`;
+      if (params.isCompleted && (target.status === "UPLOADED" || target.status === "CALL_BACK")) {
+        target.status = "PENDING_VERIFICATION";
+      }
+    }
+    revalidatePath("/admin");
+    revalidatePath("/dashboard");
+    return {
+      success: true,
+      message: params.isCompleted
+        ? "Case verification completed (Dev Mode)!"
+        : "Intake answers saved (Dev Mode).",
+    };
+  }
+}
+
+

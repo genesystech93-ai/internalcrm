@@ -31,6 +31,7 @@ export interface ConversationView {
   recipientId?: string;
   recipientRole?: Role;
   recipientShiftStatus?: "ON_SHIFT" | "ON_BREAK" | "OFFLINE";
+  isSupervisorView?: boolean;
 }
 
 export interface ChatMessageView {
@@ -51,12 +52,13 @@ export interface ChatMessageView {
   isOwn: boolean;
 }
 
-// 1. Get all conversations for current user
+// 1. Get all conversations for current user (or ALL floor conversations if ADMIN)
 export async function getConversationsAction(): Promise<ConversationView[]> {
   const session = await getSession();
   if (!session) return [];
 
   const currentUserId = session.userId;
+  const isAdmin = session.role === "ADMIN";
 
   // Try Prisma first
   try {
@@ -66,15 +68,19 @@ export async function getConversationsAction(): Promise<ConversationView[]> {
     });
 
     if (user) {
-      // Find conversations where user is participant, or general/team conversations
+      // Find conversations: If Admin, see EVERYTHING across the floor. Otherwise user's own.
+      const whereCondition = isAdmin
+        ? {}
+        : {
+            OR: [
+              { participants: { some: { userId: currentUserId } } },
+              { type: "GENERAL" },
+              user.teamId ? { type: "TEAM", teamId: user.teamId } : {},
+            ],
+          };
+
       const conversations = await db.conversation.findMany({
-        where: {
-          OR: [
-            { participants: { some: { userId: currentUserId } } },
-            { type: "GENERAL" },
-            user.teamId ? { type: "TEAM", teamId: user.teamId } : {},
-          ],
-        },
+        where: whereCondition,
         include: {
           participants: {
             include: {
@@ -119,6 +125,7 @@ export async function getConversationsAction(): Promise<ConversationView[]> {
           let recipientId: string | undefined = undefined;
           let recipientRole: Role | undefined = undefined;
           let recipientShiftStatus: "ON_SHIFT" | "ON_BREAK" | "OFFLINE" | undefined = undefined;
+          let isSupervisorView = false;
 
           if (conv.type === "GENERAL") {
             name = "#General Floor";
@@ -127,21 +134,44 @@ export async function getConversationsAction(): Promise<ConversationView[]> {
           } else if (conv.type === "TEAM") {
             name = conv.name || "Team Channel";
             avatarLetter = "👥";
-            subtitle = "Active Team Chat";
+            subtitle = "Active Team Channel";
           } else {
-            // Direct chat: find the other participant
-            const other = conv.participants.find((p: any) => p.userId !== currentUserId);
-            if (other?.user) {
-              name = other.user.name;
-              avatarLetter = other.user.name.charAt(0).toUpperCase();
-              recipientId = other.user.id;
-              recipientRole = other.user.role;
-              subtitle = `${other.user.role} · @${other.user.username}`;
-              recipientShiftStatus = statusMap.get(other.user.id) || "OFFLINE";
-            } else {
-              name = "Direct Chat";
-              avatarLetter = "💬";
-              subtitle = "1:1 Message";
+            // Check if current user is participant
+            const isUserParticipant = conv.participants.some((p: any) => p.userId === currentUserId);
+
+            if (isUserParticipant) {
+              // Direct chat: find the other participant
+              const other = conv.participants.find((p: any) => p.userId !== currentUserId);
+              if (other?.user) {
+                name = other.user.name;
+                avatarLetter = other.user.name.charAt(0).toUpperCase();
+                recipientId = other.user.id;
+                recipientRole = other.user.role;
+                subtitle = `${other.user.role} · @${other.user.username}`;
+                recipientShiftStatus = statusMap.get(other.user.id) || "OFFLINE";
+              } else {
+                name = "Direct Chat";
+                avatarLetter = "💬";
+                subtitle = "1:1 Message";
+              }
+            } else if (isAdmin) {
+              // Admin supervisor view of floor chat between two other staff members
+              isSupervisorView = true;
+              const p1 = conv.participants[0]?.user;
+              const p2 = conv.participants[1]?.user;
+              if (p1 && p2) {
+                name = `👑 ${p1.name} ↔ ${p2.name}`;
+                avatarLetter = "👁️";
+                subtitle = `Floor Monitor · ${p1.role} & ${p2.role}`;
+              } else if (p1) {
+                name = `👑 ${p1.name} (Direct)`;
+                avatarLetter = "👁️";
+                subtitle = `Floor Monitor · ${p1.role}`;
+              } else {
+                name = "Floor Direct Chat";
+                avatarLetter = "👁️";
+                subtitle = "Floor Monitor";
+              }
             }
           }
 
@@ -161,6 +191,7 @@ export async function getConversationsAction(): Promise<ConversationView[]> {
             recipientId,
             recipientRole,
             recipientShiftStatus,
+            isSupervisorView,
           };
         });
       }
@@ -172,7 +203,7 @@ export async function getConversationsAction(): Promise<ConversationView[]> {
   // Fallback: In-Memory dynamic conversations
   const staff = await getStaffDirectoryAction();
   const staffMap = new Map(staff.map((s) => [s.id, s]));
-  const storedList = getInMemoryConversations(currentUserId);
+  const storedList = getInMemoryConversations(currentUserId, isAdmin);
 
   return storedList.map((conv) => {
     let name = conv.name || "Chat";
@@ -181,6 +212,7 @@ export async function getConversationsAction(): Promise<ConversationView[]> {
     let recipientId: string | undefined = undefined;
     let recipientRole: Role | undefined = undefined;
     let recipientShiftStatus: "ON_SHIFT" | "ON_BREAK" | "OFFLINE" | undefined = undefined;
+    let isSupervisorView = false;
 
     if (conv.type === "GENERAL") {
       name = "#General Floor";
@@ -189,21 +221,41 @@ export async function getConversationsAction(): Promise<ConversationView[]> {
     } else if (conv.type === "TEAM") {
       name = conv.name || "Team Channel";
       avatarLetter = "👥";
-      subtitle = "Active Team Chat";
+      subtitle = "Active Team Channel";
     } else {
-      const otherId = conv.participantIds.find((id) => id !== currentUserId);
-      const otherUser = otherId ? staffMap.get(otherId) : null;
-      if (otherUser) {
-        name = otherUser.name;
-        avatarLetter = otherUser.name.charAt(0).toUpperCase();
-        recipientId = otherUser.id;
-        recipientRole = otherUser.role;
-        subtitle = `${otherUser.role} · @${otherUser.username}`;
-        recipientShiftStatus = otherUser.shiftStatus;
-      } else {
-        name = "Direct Chat";
-        avatarLetter = "💬";
-        subtitle = "1:1 Message";
+      const isUserParticipant = conv.participantIds.includes(currentUserId);
+      if (isUserParticipant) {
+        const otherId = conv.participantIds.find((id) => id !== currentUserId);
+        const otherUser = otherId ? staffMap.get(otherId) : null;
+        if (otherUser) {
+          name = otherUser.name;
+          avatarLetter = otherUser.name.charAt(0).toUpperCase();
+          recipientId = otherUser.id;
+          recipientRole = otherUser.role;
+          subtitle = `${otherUser.role} · @${otherUser.username}`;
+          recipientShiftStatus = otherUser.shiftStatus;
+        } else {
+          name = "Direct Chat";
+          avatarLetter = "💬";
+          subtitle = "1:1 Message";
+        }
+      } else if (isAdmin) {
+        isSupervisorView = true;
+        const u1 = staffMap.get(conv.participantIds[0]);
+        const u2 = staffMap.get(conv.participantIds[1]);
+        if (u1 && u2) {
+          name = `👑 ${u1.name} ↔ ${u2.name}`;
+          avatarLetter = "👁️";
+          subtitle = `Floor Monitor · ${u1.role} & ${u2.role}`;
+        } else if (u1) {
+          name = `👑 ${u1.name} (Direct)`;
+          avatarLetter = "👁️";
+          subtitle = `Floor Monitor · ${u1.role}`;
+        } else {
+          name = "Floor Direct Chat";
+          avatarLetter = "👁️";
+          subtitle = "Floor Monitor";
+        }
       }
     }
 
@@ -223,6 +275,7 @@ export async function getConversationsAction(): Promise<ConversationView[]> {
       recipientId,
       recipientRole,
       recipientShiftStatus,
+      isSupervisorView,
     };
   });
 }
@@ -353,6 +406,20 @@ export async function sendMessageAction(payload: {
     }
 
     if (convId) {
+      // Ensure sender is a participant if not already (e.g. Admin intervening or joining floor thread)
+      const existingParticipant = await db.conversationParticipant.findFirst({
+        where: { conversationId: convId, userId: currentUserId },
+      });
+      if (!existingParticipant) {
+        await db.conversationParticipant.create({
+          data: {
+            conversationId: convId,
+            userId: currentUserId,
+            unreadCount: 0,
+          },
+        });
+      }
+
       const created = await db.chatMessage.create({
         data: {
           conversationId: convId,
@@ -572,3 +639,65 @@ export async function shareLeadToChatAction(params: {
 
   return { success: result.success, error: result.error };
 }
+
+export interface RecentLeadForChat {
+  id: string;
+  customerName: string;
+  mobile: string;
+  campaignName: string;
+  status: string;
+}
+
+// 7. Get Recent Leads for Chat Attachment
+export async function getRecentLeadsForChatAction(): Promise<RecentLeadForChat[]> {
+  const session = await getSession();
+  if (!session) return [];
+
+  try {
+    const leads = await prisma.lead.findMany({
+      take: 20,
+      orderBy: { updatedAt: "desc" },
+      include: { campaign: { select: { name: true } } },
+    });
+
+    if (leads.length > 0) {
+      return leads.map((l: any) => ({
+        id: l.id,
+        customerName: l.customerName,
+        mobile: l.mobile,
+        campaignName: l.campaign?.name || "General Campaign",
+        status: l.status,
+      }));
+    }
+  } catch {
+    // Fallback to dev leads
+  }
+
+  const devLeads = await getDevLeads();
+  return devLeads.slice(0, 20).map((l) => ({
+    id: l.id,
+    customerName: l.customerName,
+    mobile: l.mobile,
+    campaignName: l.campaignName || "General Campaign",
+    status: l.status,
+  }));
+}
+
+// 8. Get current user chat identity
+export async function getCurrentUserChatInfoAction(): Promise<{
+  userId: string;
+  name: string;
+  username: string;
+  role: Role;
+} | null> {
+  const session = await getSession();
+  if (!session) return null;
+  return {
+    userId: session.userId,
+    name: session.name,
+    username: session.username,
+    role: session.role,
+  };
+}
+
+
