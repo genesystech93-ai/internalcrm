@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { LeadItem, adminDecisionAction, deleteLeadAction, updateLeadStatusWithCustomAction } from "@/app/actions/leads";
 import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
 import { LeadStatus } from "@prisma/client";
@@ -22,6 +22,16 @@ import {
   GripVertical,
   Filter,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Minimize2,
+  Maximize2,
+  Columns3,
+  Layers,
+  ArrowUpDown,
+  Copy,
+  Sparkles,
+  SlidersHorizontal,
 } from "lucide-react";
 import { shareLeadToChatAction } from "@/app/actions/messages";
 
@@ -31,20 +41,33 @@ interface KanbanBoardProps {
   onRefresh: () => void;
 }
 
-const COLUMNS: { id: LeadStatus; label: string; color: string; badgeBg: string }[] = [
-  { id: "UPLOADED", label: "Uploaded Queue", color: "#3B82F6", badgeBg: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30" },
-  { id: "PENDING_VERIFICATION", label: "Pending Verification", color: "#F59E0B", badgeBg: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30" },
-  { id: "CALL_BACK", label: "Call Backs", color: "#8B5CF6", badgeBg: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30" },
-  { id: "VOICEMAIL", label: "Voicemail", color: "#64748B", badgeBg: "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30" },
-  { id: "APPROVED", label: "Approved (Verified)", color: "#10B981", badgeBg: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30" },
-  { id: "REJECTED", label: "Rejected", color: "#EF4444", badgeBg: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30" },
-  { id: "CUSTOM", label: "Custom / In-Progress", color: "#EC4899", badgeBg: "bg-pink-500/15 text-pink-700 dark:text-pink-400 border-pink-500/30" },
+export type ViewPreset = "ALL" | "ACTIVE" | "DECISIONS" | "COMPLETED";
+export type CardDensity = "comfortable" | "compact";
+export type SortOption = "newest" | "oldest" | "name_asc" | "sla_urgent";
+
+const ALL_COLUMNS: { id: LeadStatus; label: string; shortLabel: string; color: string; badgeBg: string }[] = [
+  { id: "UPLOADED", label: "Uploaded Queue", shortLabel: "Uploaded", color: "#3B82F6", badgeBg: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30" },
+  { id: "PENDING_VERIFICATION", label: "Pending Verification", shortLabel: "Pending", color: "#F59E0B", badgeBg: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30" },
+  { id: "CALL_BACK", label: "Call Backs", shortLabel: "Callbacks", color: "#8B5CF6", badgeBg: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30" },
+  { id: "VOICEMAIL", label: "Voicemail", shortLabel: "Voicemail", color: "#64748B", badgeBg: "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30" },
+  { id: "APPROVED", label: "Approved (Verified)", shortLabel: "Approved", color: "#10B981", badgeBg: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30" },
+  { id: "REJECTED", label: "Rejected", shortLabel: "Rejected", color: "#EF4444", badgeBg: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30" },
+  { id: "CUSTOM", label: "Custom / In-Progress", shortLabel: "Custom", color: "#EC4899", badgeBg: "bg-pink-500/15 text-pink-700 dark:text-pink-400 border-pink-500/30" },
 ];
 
 export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardProps) {
   const [search, setSearch] = useState("");
   const [selectedCampaign, setSelectedCampaign] = useState("ALL");
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
+  const [viewPreset, setViewPreset] = useState<ViewPreset>("ALL");
+  const [cardDensity, setCardDensity] = useState<CardDensity>("comfortable");
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
+  const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null);
+
+  // Column collapse/fold state
+  const [collapsedColumns, setCollapsedColumns] = useState<Record<string, boolean>>({});
+
+  const trackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getCampaignsAction().then((res) => setCampaigns(res));
@@ -70,6 +93,116 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
   const [customStatusLead, setCustomStatusLead] = useState<LeadItem | null>(null);
   const [customStatusInput, setCustomStatusInput] = useState("");
   const [isSavingCustomStatus, setIsSavingCustomStatus] = useState(false);
+
+  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+
+  // Filter columns based on view preset
+  const visibleColumns = useMemo(() => {
+    if (viewPreset === "ACTIVE") {
+      return ALL_COLUMNS.filter((c) =>
+        ["UPLOADED", "PENDING_VERIFICATION", "CALL_BACK", "CUSTOM"].includes(c.id)
+      );
+    }
+    if (viewPreset === "DECISIONS") {
+      return ALL_COLUMNS.filter((c) =>
+        ["PENDING_VERIFICATION", "APPROVED", "REJECTED"].includes(c.id)
+      );
+    }
+    if (viewPreset === "COMPLETED") {
+      return ALL_COLUMNS.filter((c) =>
+        ["APPROVED", "REJECTED"].includes(c.id)
+      );
+    }
+    return ALL_COLUMNS;
+  }, [viewPreset]);
+
+  // Real-time filtering and sorting of leads
+  const filteredLeads = useMemo(() => {
+    const list = leads.filter((l) => {
+      const matchSearch =
+        !search ||
+        l.customerName.toLowerCase().includes(search.toLowerCase()) ||
+        l.mobile.includes(search) ||
+        l.email.toLowerCase().includes(search.toLowerCase()) ||
+        (l.closerName && l.closerName.toLowerCase().includes(search.toLowerCase())) ||
+        (l.agentUsername && l.agentUsername.toLowerCase().includes(search.toLowerCase())) ||
+        (l.notes && l.notes.toLowerCase().includes(search.toLowerCase())) ||
+        (l.customStatusLabel && l.customStatusLabel.toLowerCase().includes(search.toLowerCase()));
+
+      const matchCamp = selectedCampaign === "ALL" || l.campaignId === selectedCampaign;
+
+      return matchSearch && matchCamp;
+    });
+
+    // Sorting
+    return list.sort((a, b) => {
+      if (sortBy === "newest") {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (sortBy === "oldest") {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (sortBy === "name_asc") {
+        return a.customerName.localeCompare(b.customerName);
+      }
+      if (sortBy === "sla_urgent") {
+        // Overdue first, then closest to deadline
+        const aVal = a.isOverdue ? -100 : (a.daysRemaining ?? 99);
+        const bVal = b.isOverdue ? -100 : (b.daysRemaining ?? 99);
+        return aVal - bVal;
+      }
+      return 0;
+    });
+  }, [leads, search, selectedCampaign, sortBy]);
+
+  // Horizontal track scrolling helpers
+  const scrollTrack = (direction: "left" | "right") => {
+    if (trackRef.current) {
+      const amount = direction === "left" ? -340 : 340;
+      trackRef.current.scrollBy({ left: amount, behavior: "smooth" });
+    }
+  };
+
+  const scrollToColumn = (colId: string) => {
+    const el = document.getElementById(`kanban-col-${colId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      // If collapsed, expand it
+      if (collapsedColumns[colId]) {
+        setCollapsedColumns((prev) => ({ ...prev, [colId]: false }));
+      }
+    }
+  };
+
+  const toggleCollapse = (colId: string) => {
+    setCollapsedColumns((prev) => ({
+      ...prev,
+      [colId]: !prev[colId],
+    }));
+  };
+
+  const autoCollapseEmpty = () => {
+    const newCollapsed: Record<string, boolean> = {};
+    visibleColumns.forEach((col) => {
+      const count = filteredLeads.filter((l) => l.status === col.id).length;
+      if (count === 0) {
+        newCollapsed[col.id] = true;
+      }
+    });
+    setCollapsedColumns(newCollapsed);
+  };
+
+  const expandAllColumns = () => {
+    setCollapsedColumns({});
+  };
+
+  const handleCopyPhone = (leadId: string, phone: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(phone);
+    setCopiedPhoneId(leadId);
+    setTimeout(() => setCopiedPhoneId(null), 2000);
+  };
 
   const handleSaveCustomStatus = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,27 +235,9 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
       onRefresh();
     }
   };
-  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
-  // Real-time filtering by search query & campaign
-  const filteredLeads = useMemo(() => {
-    return leads.filter((l) => {
-      const matchSearch =
-        !search ||
-        l.customerName.toLowerCase().includes(search.toLowerCase()) ||
-        l.mobile.includes(search) ||
-        l.email.toLowerCase().includes(search.toLowerCase()) ||
-        (l.closerName && l.closerName.toLowerCase().includes(search.toLowerCase())) ||
-        (l.agentUsername && l.agentUsername.toLowerCase().includes(search.toLowerCase()));
-
-      const matchCamp = selectedCampaign === "ALL" || l.campaignId === selectedCampaign;
-
-      return matchSearch && matchCamp;
-    });
-  }, [leads, search, selectedCampaign]);
-
-  const handleShareLead = async (lead: LeadItem) => {
+  const handleShareLead = async (lead: LeadItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setSharingId(lead.id);
     const res = await shareLeadToChatAction({
       leadId: lead.id,
@@ -135,7 +250,8 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
     setSharingId(null);
   };
 
-  const handleFastApprove = async (leadId: string) => {
+  const handleFastApprove = async (leadId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setApprovingId(leadId);
     const res = await adminDecisionAction(leadId, "APPROVED");
     if (!res.error) {
@@ -144,7 +260,8 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
     setApprovingId(null);
   };
 
-  const handleStartReject = (lead: LeadItem) => {
+  const handleStartReject = (lead: LeadItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setSelectedLeadForDecision({
       leadId: lead.id,
       leadCustomerName: lead.customerName,
@@ -157,14 +274,12 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
   const handleMoveStatus = (lead: LeadItem, targetStatus: LeadStatus) => {
     if (lead.status === targetStatus && targetStatus !== "CUSTOM") return;
 
-    // If target is CUSTOM, open custom status modal to allow entering custom status label
     if (targetStatus === "CUSTOM") {
       setCustomStatusLead(lead);
       setCustomStatusInput(lead.customStatusLabel || "");
       return;
     }
 
-    // If moving an already APPROVED lead, require reclassification modal with justification
     if (lead.status === "APPROVED") {
       setSelectedLeadForDecision({
         leadId: lead.id,
@@ -186,7 +301,6 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
       return;
     }
 
-    // Direct move for other statuses
     setSelectedLeadForDecision({
       leadId: lead.id,
       leadCustomerName: lead.customerName,
@@ -196,8 +310,10 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
     });
   };
 
+  const hasAnyCollapsed = Object.values(collapsedColumns).some(Boolean);
+
   return (
-    <div className="w-full">
+    <div className="w-full space-y-3">
       {/* Toast Notification when Lead is Shared to Chat */}
       {shareSuccess && (
         <div className="fixed top-20 right-8 z-50 px-4 py-2.5 rounded-2xl bg-emerald-600 text-white text-xs font-bold shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-300">
@@ -206,26 +322,27 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
         </div>
       )}
 
-      {/* Kanban Board Toolbar: Real-time Search, Campaign Filter & Quick Count Pills */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-3" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by customer, phone, closer..."
-              className="liquid-glass-input w-full pl-10 pr-4 py-2 rounded-2xl text-xs focus:outline-none"
-            />
-          </div>
+      {/* 1. Kanban Controls Toolbar */}
+      <div className="liquid-glass-card rounded-2xl p-3 border border-white/80 dark:border-slate-800 shadow-sm flex flex-col gap-3">
+        {/* Top Control Line: Search, Campaign, View Presets & Quick Actions */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5">
+          {/* Search Input & Campaign Selector */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search customer, phone, closer, notes..."
+                className="w-full pl-9 pr-4 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 transition-all font-medium"
+              />
+            </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Filter className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
             <select
               value={selectedCampaign}
               onChange={(e) => setSelectedCampaign(e.target.value)}
-              className="liquid-glass-input px-3 py-2 rounded-xl text-xs focus:outline-none font-semibold"
+              className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer max-w-[170px] truncate"
             >
               <option value="ALL">All Campaigns</option>
               {campaigns.map((c) => (
@@ -234,28 +351,211 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
                 </option>
               ))}
             </select>
+
+            <div className="hidden sm:flex items-center gap-1.5 pl-1">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="px-2.5 py-2 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+                title="Sort order"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="name_asc">Customer A-Z</option>
+                <option value="sla_urgent">SLA Urgency</option>
+              </select>
+            </div>
+          </div>
+
+          {/* View Preset Segmented Buttons & Density Switcher */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between lg:justify-end">
+            {/* View Presets */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800/90 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setViewPreset("ALL")}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewPreset === "ALL"
+                    ? "bg-white dark:bg-slate-700 text-[#0F172A] dark:text-white shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                }`}
+                title="Show all 7 columns"
+              >
+                All (7)
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewPreset("ACTIVE")}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewPreset === "ACTIVE"
+                    ? "bg-orange-500 text-white shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                }`}
+                title="Active Funnel (Uploaded, Pending, Callbacks, Custom)"
+              >
+                Active Funnel (4)
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewPreset("DECISIONS")}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewPreset === "DECISIONS"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                }`}
+                title="Review & Decisions (Pending, Approved, Rejected)"
+              >
+                Decisions (3)
+              </button>
+            </div>
+
+            {/* Density Toggle */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800/90 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setCardDensity("comfortable")}
+                className={`px-2 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  cardDensity === "comfortable"
+                    ? "bg-white dark:bg-slate-700 text-[#0F172A] dark:text-white shadow-xs"
+                    : "text-slate-500 dark:text-slate-400"
+                }`}
+                title="Comfortable card spacing"
+              >
+                Standard
+              </button>
+              <button
+                type="button"
+                onClick={() => setCardDensity("compact")}
+                className={`px-2 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  cardDensity === "compact"
+                    ? "bg-white dark:bg-slate-700 text-[#0F172A] dark:text-white shadow-xs"
+                    : "text-slate-500 dark:text-slate-400"
+                }`}
+                title="Compact density (more cards visible)"
+              >
+                Compact
+              </button>
+            </div>
+
+            {/* Quick Folding & Horizontal Scroll Buttons */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={hasAnyCollapsed ? expandAllColumns : autoCollapseEmpty}
+                className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer flex items-center gap-1 transition-colors"
+                title={hasAnyCollapsed ? "Expand all folded columns" : "Collapse empty columns to save space"}
+              >
+                {hasAnyCollapsed ? <Maximize2 className="w-3 h-3" /> : <Minimize2 className="w-3 h-3" />}
+                <span className="hidden sm:inline">{hasAnyCollapsed ? "Expand All" : "Collapse Empty"}</span>
+              </button>
+
+              <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => scrollTrack("left")}
+                  className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
+                  title="Scroll Left"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollTrack("right")}
+                  className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
+                  title="Scroll Right"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Total Leads Count Pill + Scroll Hint */}
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 self-end sm:self-auto">
-          <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 font-mono text-[11px] font-bold">
-            Showing {filteredLeads.length} of {leads.length} Leads
+        {/* Bottom Quick-Jump Stage Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pt-1 border-t border-slate-100 dark:border-slate-800">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mr-1 shrink-0">
+            Stages:
           </span>
-          <span className="text-[11px] text-slate-400 hidden md:inline">
-            (Swipe / Scroll horizontally ⇄)
-          </span>
+          {ALL_COLUMNS.map((col) => {
+            const count = filteredLeads.filter((l) => l.status === col.id).length;
+            const isVisible = visibleColumns.some((vc) => vc.id === col.id);
+            const isCollapsed = !!collapsedColumns[col.id];
+
+            return (
+              <button
+                key={col.id}
+                type="button"
+                onClick={() => scrollToColumn(col.id)}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer shrink-0 border ${
+                  !isVisible
+                    ? "opacity-40 bg-slate-100 dark:bg-slate-800/40 text-slate-400 border-slate-200 dark:border-slate-800"
+                    : isCollapsed
+                    ? "bg-slate-100 dark:bg-slate-800 text-slate-500 border-dashed border-slate-300 dark:border-slate-700"
+                    : "bg-white/80 dark:bg-slate-800/80 hover:bg-white text-slate-700 dark:text-slate-200 border-slate-200/80 dark:border-slate-700"
+                }`}
+                title={`Jump to ${col.label} (${count} leads)`}
+              >
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
+                <span>{col.shortLabel}</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-extrabold ${
+                    count > 0 ? "bg-orange-500/15 text-orange-600 dark:text-orange-400" : "text-slate-400"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Kanban Horizontal Scrollable Track */}
-      <div className="flex gap-4 overflow-x-auto pb-6 pt-1 items-start min-h-[660px] custom-scrollbar">
-        {COLUMNS.map((col) => {
+      {/* 2. Responsive Kanban Horizontal Scrollable Track */}
+      <div
+        ref={trackRef}
+        className="flex gap-3.5 overflow-x-auto pb-6 pt-1 items-start min-h-[580px] custom-scrollbar scroll-smooth"
+      >
+        {visibleColumns.map((col) => {
           const colLeads = filteredLeads.filter((l) => l.status === col.id);
+          const isCollapsed = !!collapsedColumns[col.id];
+
+          // Collapsed Slim Vertical Ribbon
+          if (isCollapsed) {
+            return (
+              <div
+                key={col.id}
+                id={`kanban-col-${col.id}`}
+                onClick={() => toggleCollapse(col.id)}
+                className="w-[48px] min-w-[48px] shrink-0 liquid-glass rounded-2xl p-2 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500/50 transition-all flex flex-col items-center py-4 cursor-pointer min-h-[540px] group bg-slate-50/50 dark:bg-slate-900/50 select-none"
+                title={`Click to expand ${col.label} (${colLeads.length} leads)`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full mb-3 shrink-0" style={{ backgroundColor: col.color }} />
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold mb-4 ${col.badgeBg}`}>
+                  {colLeads.length}
+                </span>
+                <div
+                  className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300 group-hover:text-orange-500 transition-colors whitespace-nowrap"
+                  style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+                >
+                  {col.label}
+                </div>
+                <div className="mt-auto text-slate-400 group-hover:text-orange-500">
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </div>
+              </div>
+            );
+          }
+
+          // Full Adjusted Column View
+          const colWidthClass =
+            cardDensity === "compact"
+              ? "w-[260px] min-w-[250px]"
+              : "w-[290px] min-w-[280px] sm:w-[305px]";
 
           return (
             <div
               key={col.id}
+              id={`kanban-col-${col.id}`}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
@@ -275,91 +575,111 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
                   handleMoveStatus(targetLead, col.id);
                 }
               }}
-              className={`w-[320px] min-w-[320px] shrink-0 liquid-glass rounded-3xl p-4 border transition-all duration-200 flex flex-col min-h-[580px] ${
+              className={`${colWidthClass} shrink-0 liquid-glass rounded-2xl p-3 border transition-all duration-200 flex flex-col min-h-[540px] ${
                 dragOverColumn === col.id
-                  ? "border-orange-500/60 bg-orange-500/10 shadow-lg ring-2 ring-orange-500/30 scale-[1.01]"
-                  : "border-white/70 dark:border-slate-800"
+                  ? "border-orange-500/80 bg-orange-500/10 shadow-lg ring-2 ring-orange-500/30 scale-[1.01]"
+                  : "border-white/80 dark:border-slate-800/90 shadow-sm"
               }`}
             >
               {/* Column Header */}
-              <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200/60 dark:border-slate-700/60">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: col.color }} />
-                  <h3 className="text-xs font-extrabold text-[#0F172A] dark:text-white uppercase tracking-wider">
+              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-200/70 dark:border-slate-800">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
+                  <h3 className="text-xs font-extrabold text-[#0F172A] dark:text-white uppercase tracking-wider truncate">
                     {col.label}
                   </h3>
                 </div>
-                <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold border ${col.badgeBg}`}>
-                  {colLeads.length}
-                </span>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-extrabold border ${col.badgeBg}`}>
+                    {colLeads.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleCollapse(col.id)}
+                    className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                    title="Collapse column"
+                  >
+                    <Minimize2 className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
 
-              {/* Cards Container */}
-              <div className="space-y-3 flex-1 overflow-y-auto max-h-[640px] pr-1 custom-scrollbar">
+              {/* Cards Track */}
+              <div className="space-y-2.5 flex-1 overflow-y-auto max-h-[660px] pr-1 custom-scrollbar">
                 {colLeads.length === 0 ? (
-                  <div className="h-32 flex items-center justify-center text-center p-3 text-[11px] text-[#94A3B8] border border-dashed border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                    No leads in this column (Drop card here)
+                  <div className="h-32 flex flex-col items-center justify-center text-center p-3 text-[11px] text-[#94A3B8] border border-dashed border-slate-200/80 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-900/30">
+                    <p className="font-medium">No leads in this stage</p>
+                    <p className="text-[10px] opacity-70 mt-0.5">Drag cards here</p>
                   </div>
                 ) : (
                   colLeads.map((lead) => (
                     <div
                       key={lead.id}
+                      draggable={true}
+                      onDragStart={(e) => {
+                        setDraggedLeadId(lead.id);
+                        e.dataTransfer.setData("text/plain", lead.id);
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragEnd={() => {
+                        setDraggedLeadId(null);
+                        setDragOverColumn(null);
+                      }}
                       onClick={() => setInspectLead(lead)}
-                      className={`liquid-glass-card p-3.5 rounded-2xl border border-white/90 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-orange-400/50 dark:hover:border-orange-500/50 transition-all group relative cursor-pointer ${
-                        draggedLeadId === lead.id ? "opacity-35 border-dashed border-orange-400 scale-[0.98]" : ""
-                      }`}
+                      className={`liquid-glass-card rounded-xl border border-white/90 dark:border-slate-700/80 shadow-xs hover:shadow-md hover:border-orange-400/60 dark:hover:border-orange-500/60 transition-all group relative cursor-pointer ${
+                        cardDensity === "compact" ? "p-2.5" : "p-3"
+                      } ${draggedLeadId === lead.id ? "opacity-35 border-dashed border-orange-400 scale-[0.98]" : ""}`}
                     >
-                      {/* Top: Customer Name & Drag Handle & Campaign Badge */}
-                      <div className="flex items-start justify-between gap-2 mb-2">
+                      {/* Top Header: Customer Name, Campaign Badge & Drag Grip */}
+                      <div className="flex items-start justify-between gap-1.5 mb-1.5">
                         <div className="flex-1 min-w-0">
                           <h4
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setInspectLead(lead);
-                            }}
-                            className="font-extrabold text-sm text-[#0F172A] dark:text-white hover:text-[#F97316] dark:hover:text-[#FB923C] truncate cursor-pointer"
-                            title={`Inspect: ${lead.customerName}`}
+                            className="font-extrabold text-xs sm:text-sm text-[#0F172A] dark:text-white hover:text-[#F97316] dark:hover:text-[#FB923C] truncate cursor-pointer leading-snug"
+                            title={lead.customerName}
                           >
                             {lead.customerName}
                           </h4>
-                          <span className="inline-block mt-0.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20 truncate max-w-[170px]">
-                            {lead.campaignName || "General Campaign"}
+                          <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20 truncate max-w-full">
+                            {lead.campaignName || "General Floor"}
                           </span>
                         </div>
 
-                        {/* Drag Handle Grip (Keeps drag isolated so clicking card opens details reliably) */}
                         <div
-                          draggable={true}
-                          onDragStart={(e) => {
-                            e.stopPropagation();
-                            setDraggedLeadId(lead.id);
-                            e.dataTransfer.setData("text/plain", lead.id);
-                            e.dataTransfer.effectAllowed = "move";
-                          }}
-                          onDragEnd={(e) => {
-                            e.stopPropagation();
-                            setDraggedLeadId(null);
-                            setDragOverColumn(null);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          title="Drag card to move column"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-grab active:cursor-grabbing shrink-0"
+                          className="p-1 rounded text-slate-300 group-hover:text-slate-500 dark:text-slate-600 dark:group-hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0"
+                          title="Drag to reposition lead"
                         >
                           <GripVertical className="w-3.5 h-3.5" />
                         </div>
                       </div>
 
-                      {/* Phone & Closer Details */}
-                      <div className="space-y-1.5 mb-3 text-xs">
-                        <div className="flex items-center gap-1.5 text-[#475569] dark:text-[#94A3B8]">
-                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="font-mono font-bold text-[#0F172A] dark:text-white">
-                            {lead.mobile}
-                          </span>
+                      {/* Lead Details: Mobile, Closer & SLA */}
+                      <div className="space-y-1 text-xs mb-2">
+                        {/* Phone Number with 1-Click Copy */}
+                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                          <div className="flex items-center gap-1.5">
+                            <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="font-mono font-bold text-[11px] text-[#0F172A] dark:text-white">
+                              {lead.mobile}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopyPhone(lead.id, lead.mobile, e)}
+                            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors"
+                            title="Copy Phone Number"
+                          >
+                            {copiedPhoneId === lead.id ? (
+                              <Check className="w-3 h-3 text-emerald-500" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                          </button>
                         </div>
 
-                        <div className="flex items-center gap-1.5 text-[#64748B] dark:text-[#94A3B8]">
-                          <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        {/* Closer / Self-Closed */}
+                        <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[11px]">
+                          <User className="w-3 h-3 text-slate-400 shrink-0" />
                           <span className="truncate">
                             Closer:{" "}
                             {lead.closerName && lead.closerName.toLowerCase().includes("self") ? (
@@ -376,15 +696,14 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
 
                         {/* Client SLA */}
                         {lead.clientName && (
-                          <div className="flex items-center justify-between gap-1 text-[11px] pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                            <div className="flex items-center gap-1 truncate text-slate-700 dark:text-slate-300 font-medium">
-                              <Building2 className="w-3 h-3 text-orange-500 shrink-0" />
-                              <span className="truncate max-w-[130px]">{lead.clientName}</span>
-                            </div>
+                          <div className="flex items-center justify-between gap-1 text-[10px] pt-1 border-t border-slate-100 dark:border-slate-800">
+                            <span className="truncate font-semibold text-slate-700 dark:text-slate-300">
+                              {lead.clientName}
+                            </span>
                             <span
                               className={`font-mono text-[9px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${
                                 lead.isOverdue
-                                  ? "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30 font-black animate-pulse"
+                                  ? "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30 animate-pulse"
                                   : (lead.daysRemaining ?? 10) <= 2
                                   ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-bold"
                                   : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
@@ -395,9 +714,9 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
                           </div>
                         )}
 
-                        {/* Callback Banner */}
+                        {/* Status Highlights */}
                         {lead.status === "CALL_BACK" && lead.callBackTime && (
-                          <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-400 font-semibold text-[10px] bg-purple-500/10 px-2 py-1 rounded-lg">
+                          <div className="flex items-center gap-1 text-purple-700 dark:text-purple-300 font-semibold text-[10px] bg-purple-500/10 px-2 py-0.5 rounded">
                             <Clock className="w-3 h-3 shrink-0" />
                             <span>
                               {new Date(lead.callBackTime).toLocaleString([], {
@@ -410,7 +729,6 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
                           </div>
                         )}
 
-                        {/* Custom Status Chip */}
                         {lead.status === "CUSTOM" && (
                           <div
                             onClick={(e) => {
@@ -418,118 +736,116 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
                               setCustomStatusLead(lead);
                               setCustomStatusInput(lead.customStatusLabel || "");
                             }}
-                            className="flex items-center justify-between text-pink-700 dark:text-pink-300 font-bold text-[10px] bg-pink-500/15 border border-pink-500/30 px-2 py-1 rounded-lg hover:bg-pink-500/25 transition-colors cursor-pointer"
+                            className="flex items-center justify-between text-pink-700 dark:text-pink-300 font-bold text-[10px] bg-pink-500/15 border border-pink-500/30 px-2 py-0.5 rounded hover:bg-pink-500/25 transition-colors cursor-pointer"
                             title="Click to edit custom status"
                           >
-                            <span className="flex items-center gap-1 truncate">
-                              <span>✨</span>
-                              <span className="truncate">{lead.customStatusLabel || "Custom Status"}</span>
-                            </span>
-                            <span className="text-[9px] opacity-70 underline shrink-0">edit</span>
+                            <span className="truncate">✨ {lead.customStatusLabel || "Custom Status"}</span>
+                            <span className="text-[9px] opacity-70 underline ml-1">edit</span>
                           </div>
                         )}
 
-                        {/* Rejection Banner */}
                         {lead.status === "REJECTED" && lead.rejectionReason && (
-                          <div className="text-red-600 dark:text-red-400 text-[10px] bg-red-500/10 px-2 py-1 rounded-lg font-medium">
+                          <div className="text-red-600 dark:text-red-400 text-[10px] bg-red-500/10 px-2 py-0.5 rounded font-medium truncate" title={lead.rejectionReason}>
                             ⚠️ {lead.rejectionReason}
                           </div>
                         )}
                       </div>
 
-                      {/* Card Footer: Primary "View Info" Button & Quick Controls */}
+                      {/* Card Footer: Tier 1 (Attribution) & Tier 2 (Actions) */}
                       <div
                         onClick={(e) => e.stopPropagation()}
-                        className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1"
+                        className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5"
                       >
-                        {/* Agent handle & Info button */}
-                        <div className="flex items-center gap-1.5">
+                        {/* Attribution line */}
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                          <span className="truncate max-w-[130px]">@{lead.agentUsername}</span>
+                          <span>{new Date(lead.createdAt).toLocaleDateString([], { month: "numeric", day: "numeric" })}</span>
+                        </div>
+
+                        {/* Action controls toolbar */}
+                        <div className="flex items-center justify-between gap-1">
                           <button
                             type="button"
                             onClick={() => setInspectLead(lead)}
-                            className="px-2 py-1 rounded-lg text-[10px] font-bold bg-orange-500/10 hover:bg-orange-500/20 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20 flex items-center gap-1 cursor-pointer transition-all shadow-xs"
-                            title="Open full Lead Info modal"
+                            className="px-2 py-1 rounded-lg text-[10px] font-bold bg-orange-500/10 hover:bg-orange-500/20 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20 flex items-center gap-1 cursor-pointer transition-all shrink-0"
+                            title="Open full Lead Info"
                           >
                             <Eye className="w-3 h-3" />
                             <span>Info</span>
                           </button>
 
-                          <span className="text-[10px] text-[#94A3B8] font-mono truncate max-w-[70px]">
-                            @{lead.agentUsername}
-                          </span>
-                        </div>
+                          <div className="flex items-center gap-1">
+                            {/* Share to Chat */}
+                            <button
+                              type="button"
+                              onClick={(e) => handleShareLead(lead, e)}
+                              disabled={sharingId === lead.id}
+                              title="Share Lead to Floor Pulse Chat"
+                              className="p-1 rounded hover:bg-orange-500/15 text-[#EA580C] dark:text-orange-400 cursor-pointer transition-colors disabled:opacity-60"
+                            >
+                              {sharingId === lead.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin text-[#EA580C]" />
+                              ) : (
+                                <MessageSquare className="w-3.5 h-3.5" />
+                              )}
+                            </button>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleShareLead(lead)}
-                            disabled={sharingId === lead.id}
-                            title="Share Lead to Floor Pulse Chat"
-                            className="p-1.5 rounded-lg hover:bg-orange-500/15 text-[#EA580C] dark:text-orange-400 cursor-pointer transition-colors disabled:opacity-60"
-                          >
-                            {sharingId === lead.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin text-[#EA580C]" />
-                            ) : (
-                              <MessageSquare className="w-3 h-3" />
+                            {/* Admin Decision Quick Actions */}
+                            {isAdmin && (
+                              <>
+                                {lead.status !== "APPROVED" && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleFastApprove(lead.id, e)}
+                                    disabled={approvingId === lead.id}
+                                    title="1-Click Approve Lead"
+                                    className="p-1 rounded hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 cursor-pointer disabled:opacity-60"
+                                  >
+                                    {approvingId === lead.id ? (
+                                      <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
+                                    ) : (
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                )}
+
+                                {lead.status !== "REJECTED" && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleStartReject(lead, e)}
+                                    title="Reject Lead"
+                                    className="p-1 rounded hover:bg-red-500/15 text-red-500 cursor-pointer"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+
+                                <select
+                                  value={lead.status}
+                                  onChange={(e) => handleMoveStatus(lead, e.target.value as LeadStatus)}
+                                  className="text-[10px] py-0.5 px-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer max-w-[72px]"
+                                  title="Change Stage"
+                                >
+                                  <option value="UPLOADED">Upload</option>
+                                  <option value="PENDING_VERIFICATION">Verify</option>
+                                  <option value="CALL_BACK">Callback</option>
+                                  <option value="VOICEMAIL">Voicemail</option>
+                                  <option value="APPROVED">Approve</option>
+                                  <option value="REJECTED">Reject</option>
+                                  <option value="CUSTOM">Custom</option>
+                                </select>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setDeletingLead(lead)}
+                                  title="Delete Lead"
+                                  className="p-1 rounded hover:bg-rose-500/15 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </>
                             )}
-                          </button>
-
-                          {isAdmin && (
-                            <>
-                              {lead.status !== "APPROVED" && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleFastApprove(lead.id)}
-                                  disabled={approvingId === lead.id}
-                                  title="Approve Lead & Credit Commission"
-                                  className="p-1 rounded-lg hover:bg-emerald-500/15 text-[#059669] cursor-pointer disabled:opacity-60"
-                                >
-                                  {approvingId === lead.id ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#059669]" />
-                                  ) : (
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
-                              )}
-
-                              {lead.status !== "REJECTED" && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleStartReject(lead)}
-                                  title="Reject Lead"
-                                  className="p-1 rounded-lg hover:bg-red-500/15 text-[#EF4444] cursor-pointer"
-                                >
-                                  <XCircle className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-
-                              {/* Status Dropdown */}
-                              <select
-                                value={lead.status}
-                                onChange={(e) => handleMoveStatus(lead, e.target.value as LeadStatus)}
-                                className="text-[10px] py-0.5 px-1 rounded bg-slate-100 dark:bg-slate-800 text-[#475569] dark:text-[#94A3B8] border border-slate-200 dark:border-slate-700 cursor-pointer"
-                                title="Change status"
-                              >
-                                <option value="UPLOADED">Upload</option>
-                                <option value="PENDING_VERIFICATION">Verify</option>
-                                <option value="CALL_BACK">Callback</option>
-                                <option value="VOICEMAIL">Voicemail</option>
-                                <option value="APPROVED">Approve</option>
-                                <option value="REJECTED">Reject</option>
-                                <option value="CUSTOM">Custom</option>
-                              </select>
-
-                              <button
-                                type="button"
-                                onClick={() => setDeletingLead(lead)}
-                                title="Permanently Delete Lead"
-                                className="p-1 rounded-lg hover:bg-rose-500/15 text-rose-600 dark:text-rose-400 cursor-pointer transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -541,7 +857,7 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
         })}
       </div>
 
-      {/* Rejection / Reclassification Justification Modal */}
+      {/* 3. Rejection / Reclassification Justification Modal */}
       {selectedLeadForDecision && (
         <AdminDecisionModal
           isOpen={true}
@@ -558,7 +874,7 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
         />
       )}
 
-      {/* Unified High-Contrast Lead Details Modal */}
+      {/* 4. Unified High-Contrast Lead Details Modal */}
       <LeadDetailsModal
         isOpen={!!inspectLead}
         lead={inspectLead}
@@ -576,7 +892,7 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
         }}
       />
 
-      {/* Delete Confirmation Modal */}
+      {/* 5. Delete Confirmation Modal */}
       {deletingLead && (
         <ModalPortal>
           <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
@@ -624,7 +940,7 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
         </ModalPortal>
       )}
 
-      {/* Custom Status Prompt Modal */}
+      {/* 6. Custom Status Prompt Modal */}
       {customStatusLead && (
         <ModalPortal>
           <div
