@@ -126,42 +126,24 @@ export function getEffectiveDatabaseUrl(): string {
   return sanitizeDatabaseUrl(directEnv);
 }
 
-function createPrismaClient(url: string): PrismaClient {
-  return new PrismaClient({
-    datasources: {
-      db: {
-        url: url || undefined,
-      },
-    },
+// Initialize DATABASE_URL into process.env before PrismaClient loads
+const effectiveDbUrl = getEffectiveDatabaseUrl();
+if (effectiveDbUrl) {
+  process.env.DATABASE_URL = effectiveDbUrl;
+}
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    datasources: effectiveDbUrl
+      ? {
+          db: {
+            url: effectiveDbUrl,
+          },
+        }
+      : undefined,
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
-}
 
-function getOrInitPrisma(): PrismaClient {
-  const effectiveUrl = getEffectiveDatabaseUrl();
-  if (effectiveUrl) {
-    process.env.DATABASE_URL = effectiveUrl;
-  }
-
-  if (globalForPrisma.prisma && globalForPrisma.currentDbUrl === effectiveUrl) {
-    return globalForPrisma.prisma;
-  }
-
-  const client = createPrismaClient(effectiveUrl);
-  globalForPrisma.prisma = client;
-  globalForPrisma.currentDbUrl = effectiveUrl;
-  return client;
-}
-
-// Transparent Proxy ensures PrismaClient is always using the active sanitized URL
-export const prisma = new Proxy({} as PrismaClient, {
-  get(_target, prop) {
-    const client = getOrInitPrisma();
-    const val = (client as any)[prop];
-    if (typeof val === "function") {
-      return val.bind(client);
-    }
-    return val;
-  },
-});
+globalForPrisma.prisma = prisma;
 
