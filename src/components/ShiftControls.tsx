@@ -77,8 +77,19 @@ export function ShiftControls() {
   useEffect(() => {
     fetchStatus();
     const interval = setInterval(fetchStatus, 30000);
-    return () => clearInterval(interval);
+    const handleUpdated = () => fetchStatus();
+    window.addEventListener("shift-status-updated", handleUpdated);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("shift-status-updated", handleUpdated);
+    };
   }, []);
+
+  const notifyUpdate = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("shift-status-updated"));
+    }
+  };
 
   // Tick timers every second
   useEffect(() => {
@@ -134,6 +145,7 @@ export function ShiftControls() {
     } else {
       setMessage({ text: res.message || "Shift session active.", type: "success" });
       await fetchStatus();
+      notifyUpdate();
     }
     setLoading(false);
   };
@@ -148,6 +160,7 @@ export function ShiftControls() {
     } else {
       setMessage({ text: res.message || "Logged out. 15m undo window active.", type: "success" });
       await fetchStatus();
+      notifyUpdate();
     }
     setLoading(false);
   };
@@ -161,6 +174,7 @@ export function ShiftControls() {
     } else {
       setMessage({ text: res.message || "Shift resumed without lost time!", type: "success" });
       await fetchStatus();
+      notifyUpdate();
     }
     setLoading(false);
   };
@@ -175,6 +189,7 @@ export function ShiftControls() {
     } else {
       setMessage({ text: res.message || "Break started.", type: "success" });
       await fetchStatus();
+      notifyUpdate();
     }
     setLoading(false);
   };
@@ -188,6 +203,7 @@ export function ShiftControls() {
     } else {
       setMessage({ text: res.message || "Break ended. Shift resumed.", type: "success" });
       await fetchStatus();
+      notifyUpdate();
     }
     setLoading(false);
   };

@@ -6,6 +6,7 @@ import { EmployeeChatWidget } from "@/components/EmployeeChatWidget";
 import { AgentDashboardHeader } from "@/components/AgentDashboardHeader";
 import { AgentWorkspaceContainer } from "@/components/AgentWorkspaceContainer";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { ShiftHeaderWidget } from "@/components/ShiftHeaderWidget";
 import { LogOut } from "lucide-react";
 
 export default async function AgentDashboardPage() {
@@ -15,17 +16,15 @@ export default async function AgentDashboardPage() {
     <div className="min-h-screen flex flex-col relative">
       {/* Top Agent Navigation - Liquid Glass Header */}
       <header className="liquid-glass-header px-6 py-3.5 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 sm:gap-6">
           <Logo size="md" />
           <div className="h-6 w-px bg-slate-200/80 dark:bg-slate-700 hidden sm:block"></div>
-          <div className="hidden sm:flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-orange-500/10 text-[#EA580C] font-bold text-xs border border-orange-500/20 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full bg-orange-500/10 text-[#EA580C] font-bold text-xs border border-orange-500/20 backdrop-blur-md hidden md:inline-block">
               👤 Agent Floor Workspace
             </span>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/70 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700 text-xs font-mono text-[#475569] dark:text-[#94A3B8] backdrop-blur-md">
-              <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
-              <span>Floor Shift Active</span>
-            </div>
+            {/* Live Interactive Shift Attendance Status & Punch Controls */}
+            <ShiftHeaderWidget />
           </div>
         </div>
 

@@ -192,6 +192,16 @@ export async function loginShiftAction(campaignId?: string): Promise<AttendanceR
         shiftStartTimeStr = camp.shiftStartTime;
         lateGraceMinutes = camp.lateGraceMinutes;
       }
+    } else {
+      const user = await prisma.user.findUnique({
+        where: { id: session.userId },
+        include: { team: { include: { campaigns: true } } },
+      });
+      if (user?.team?.campaigns?.length) {
+        campaignId = user.team.campaigns[0].id;
+        shiftStartTimeStr = user.team.campaigns[0].shiftStartTime || shiftStartTimeStr;
+        lateGraceMinutes = user.team.campaigns[0].lateGraceMinutes ?? lateGraceMinutes;
+      }
     }
   } catch {
     // Database offline fallback
@@ -284,19 +294,42 @@ export async function loginShiftAction(campaignId?: string): Promise<AttendanceR
 }
 
 // 2. Shift Log Out Action (With 15-Minute Undo Grace Window)
-export async function logoutShiftAction(attendanceId: string): Promise<AttendanceResult> {
+export async function logoutShiftAction(attendanceId?: string): Promise<AttendanceResult> {
   const session = await getSession();
   if (!session) return { error: "Unauthorized" };
 
   const now = new Date();
 
   try {
-    const attendance = await prisma.attendance.findUnique({
-      where: { id: attendanceId },
-      include: { breaks: true },
-    });
+    let attendance = attendanceId
+      ? await prisma.attendance.findUnique({
+          where: { id: attendanceId },
+          include: { breaks: true },
+        })
+      : null;
 
-    if (!attendance) return { error: "Attendance record not found." };
+    if (!attendance) {
+      attendance = await prisma.attendance.findFirst({
+        where: { userId: session.userId, logoutAt: null },
+        orderBy: { loginAt: "desc" },
+        include: { breaks: true },
+      });
+    }
+
+    if (!attendance) return { error: "No active attendance record found to log out." };
+
+    // Close any open breaks before finalizing shift logout
+    for (const b of attendance.breaks) {
+      if (b.endTime === null) {
+        const bDuration = Math.max(1, Math.round((now.getTime() - new Date(b.startTime).getTime()) / 60000));
+        await prisma.breakLog.update({
+          where: { id: b.id },
+          data: { endTime: now, durationMinutes: bDuration },
+        });
+        b.endTime = now;
+        b.durationMinutes = bDuration;
+      }
+    }
 
     // Calculate total break minutes
     const totalBreakMinutes = attendance.breaks.reduce((acc, b) => acc + (b.durationMinutes || 0), 0);
@@ -304,7 +337,7 @@ export async function logoutShiftAction(attendanceId: string): Promise<Attendanc
     const netMinutes = Math.max(0, grossMinutes - totalBreakMinutes);
 
     await prisma.attendance.update({
-      where: { id: attendanceId },
+      where: { id: attendance.id },
       data: {
         logoutAt: now,
         totalMinutes: netMinutes,
@@ -315,13 +348,13 @@ export async function logoutShiftAction(attendanceId: string): Promise<Attendanc
     revalidatePath("/admin");
     return {
       success: true,
-      attendanceId,
+      attendanceId: attendance.id,
       isUndoWindowActive: true,
       message: "You have Logged Out. 15-minute Resume Shift grace window is active.",
     };
   } catch {
     // Offline Dev Fallback
-    const devAtt = devAttendances.find((a) => a.id === attendanceId || a.userId === session.userId);
+    const devAtt = devAttendances.find((a) => (attendanceId && a.id === attendanceId) || (a.userId === session.userId && a.logoutAt === null));
     if (devAtt) {
       devAtt.logoutAt = now;
       const totalBreakMinutes = devAtt.breaks.reduce((acc, b) => acc + (b.durationMinutes || 0), 0);
@@ -333,7 +366,7 @@ export async function logoutShiftAction(attendanceId: string): Promise<Attendanc
     revalidatePath("/admin");
     return {
       success: true,
-      attendanceId,
+      attendanceId: devAtt ? devAtt.id : attendanceId,
       isUndoWindowActive: true,
       message: "Logged Out. 15-minute Resume Shift grace window is active (Dev Mode).",
     };
@@ -341,14 +374,24 @@ export async function logoutShiftAction(attendanceId: string): Promise<Attendanc
 }
 
 // 3. 15-Minute Accidental Log-Out Grace Window / Undo Action
-export async function undoLogoutAction(attendanceId: string): Promise<AttendanceResult> {
+export async function undoLogoutAction(attendanceId?: string): Promise<AttendanceResult> {
   const session = await getSession();
   if (!session) return { error: "Unauthorized" };
 
   const now = new Date();
 
   try {
-    const record = await prisma.attendance.findUnique({ where: { id: attendanceId } });
+    let record = attendanceId
+      ? await prisma.attendance.findUnique({ where: { id: attendanceId } })
+      : null;
+
+    if (!record) {
+      record = await prisma.attendance.findFirst({
+        where: { userId: session.userId, logoutAt: { not: null } },
+        orderBy: { logoutAt: "desc" },
+      });
+    }
+
     if (!record || !record.logoutAt) return { error: "No recent logout found to undo." };
 
     const elapsedMinutes = (now.getTime() - new Date(record.logoutAt).getTime()) / 60000;
@@ -357,16 +400,16 @@ export async function undoLogoutAction(attendanceId: string): Promise<Attendance
     }
 
     await prisma.attendance.update({
-      where: { id: attendanceId },
+      where: { id: record.id },
       data: { logoutAt: null },
     });
 
     revalidatePath("/dashboard");
     revalidatePath("/admin");
-    return { success: true, attendanceId, message: "Log-out undone. Active shift seamlessly restored with zero lost time." };
+    return { success: true, attendanceId: record.id, message: "Log-out undone. Active shift seamlessly restored with zero lost time." };
   } catch {
     // Offline Dev Fallback
-    const devAtt = devAttendances.find((a) => a.id === attendanceId || a.userId === session.userId);
+    const devAtt = devAttendances.find((a) => (attendanceId && a.id === attendanceId) || (a.userId === session.userId && a.logoutAt !== null));
     if (devAtt && devAtt.logoutAt) {
       const elapsedMinutes = (now.getTime() - new Date(devAtt.logoutAt).getTime()) / 60000;
       if (elapsedMinutes > 15) {
@@ -376,7 +419,7 @@ export async function undoLogoutAction(attendanceId: string): Promise<Attendance
     }
     revalidatePath("/dashboard");
     revalidatePath("/admin");
-    return { success: true, attendanceId, message: "Log-out undone. Shift resumed seamlessly (Dev Mode)." };
+    return { success: true, attendanceId: devAtt ? devAtt.id : attendanceId, message: "Log-out undone. Shift resumed seamlessly (Dev Mode)." };
   }
 }
 
@@ -480,7 +523,7 @@ export async function getActiveShiftStatusAction() {
   const now = new Date();
 
   try {
-    // Find today's attendance
+    // Find latest attendance for current user
     const attendance = await prisma.attendance.findFirst({
       where: { userId: session.userId },
       orderBy: { loginAt: "desc" },
@@ -491,6 +534,16 @@ export async function getActiveShiftStatusAction() {
     });
 
     if (!attendance) return null;
+
+    const shiftStartTimeStr = attendance.campaign?.shiftStartTime || "19:00";
+    const [startH] = shiftStartTimeStr.split(":").map(Number);
+    const todayShiftDate = calculateShiftDate(now, startH);
+
+    // If the attendance record is from a prior calendar shift day and has already concluded,
+    // then the user has NOT clocked in for today's shift yet -> return null
+    if (attendance.logoutAt !== null && new Date(attendance.shiftDate).getTime() < todayShiftDate.getTime()) {
+      return null;
+    }
 
     // Check if logout was within 15 mins (undo window)
     let isUndoEligible = false;
@@ -534,8 +587,13 @@ export async function getActiveShiftStatusAction() {
     };
   } catch {
     // Offline Dev Fallback
+    const todayShiftDate = calculateShiftDate(now, 19);
     const devAtt = devAttendances.find(
-      (a) => a.userId === session.userId && (a.logoutAt === null || (now.getTime() - new Date(a.logoutAt).getTime()) / 60000 <= 15)
+      (a) =>
+        a.userId === session.userId &&
+        (a.logoutAt === null ||
+          (new Date(a.shiftDate).getTime() >= todayShiftDate.getTime() &&
+            (now.getTime() - new Date(a.logoutAt).getTime()) / 60000 <= 15))
     );
     if (!devAtt) return null;
 

@@ -12,6 +12,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { ShiftControls } from "@/components/ShiftControls";
+import { ShiftAttendanceBar } from "@/components/ShiftAttendanceBar";
 import { AgentPerformanceDashboard } from "@/components/AgentPerformanceDashboard";
 import { AgentIncentiveTracker } from "@/components/AgentIncentiveTracker";
 import { LeadWorkspace } from "@/components/LeadWorkspace";
@@ -39,15 +40,16 @@ export function AgentWorkspaceContainer({ sessionName }: { sessionName: string }
     },
     {
       id: "shift",
-      label: "Floor Shift Controls",
+      label: "Attendance & Shift Punch",
       icon: Clock,
-      description: "Shift clock in/out, active break manager & grace countdown",
+      description: "Punch in/out, view shift breaks, misclick grace & auto-logout rules",
+      badge: "Punch In",
     },
     {
       id: "attendance_salary",
-      label: "My Attendance & Salary",
+      label: "Attendance History & Salary",
       icon: CalendarCheck,
-      description: "Monthly shift history, present days, and official payslip",
+      description: "Monthly shift logs, attendance compliance, and official payslip",
       badge: "Self-Service",
     },
     {
@@ -66,6 +68,11 @@ export function AgentWorkspaceContainer({ sessionName }: { sessionName: string }
 
   return (
     <div className="space-y-6">
+      {/* Persistent Shift Attendance Punch & Status Hero Bar (Visible across all tabs) */}
+      <div data-section="shift-controls">
+        <ShiftAttendanceBar onNavigateToShiftTab={() => setActiveTab("shift")} />
+      </div>
+
       {/* Sleek Workspace Tab Bar */}
       <div className="liquid-glass p-2 rounded-2xl border border-white/60 dark:border-slate-800 shadow-sm backdrop-blur-md">
         <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar p-1">
