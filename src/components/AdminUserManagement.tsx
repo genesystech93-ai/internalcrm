@@ -29,9 +29,19 @@ import {
 import { Role } from "@prisma/client";
 import { ModalPortal } from "@/components/ModalPortal";
 
-export function AdminUserManagement() {
-  const [users, setUsers] = useState<UserManagementItem[]>([]);
-  const [loading, setLoading] = useState(false);
+interface AdminUserManagementProps {
+  initialUsers?: UserManagementItem[];
+  initialCampaigns?: CampaignItem[];
+  initialTeams?: TeamItem[];
+}
+
+export function AdminUserManagement({
+  initialUsers = [],
+  initialCampaigns = [],
+  initialTeams = [],
+}: AdminUserManagementProps = {}) {
+  const [users, setUsers] = useState<UserManagementItem[]>(initialUsers);
+  const [loading, setLoading] = useState(initialUsers.length === 0);
   const [togglingUsername, setTogglingUsername] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
 
@@ -47,9 +57,9 @@ export function AdminUserManagement() {
   const [addRole, setAddRole] = useState<Role>("AGENT");
   const [addEmail, setAddEmail] = useState("");
   const [addPassword, setAddPassword] = useState("");
-  const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
-  const [addCampaign, setAddCampaign] = useState("");
-  const [teams, setTeams] = useState<TeamItem[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>(initialCampaigns);
+  const [addCampaign, setAddCampaign] = useState(initialCampaigns[0]?.name || "");
+  const [teams, setTeams] = useState<TeamItem[]>(initialTeams);
   const [addTeamId, setAddTeamId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [notification, setNotification] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -65,21 +75,44 @@ export function AdminUserManagement() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const [data, campList, teamList] = await Promise.all([
+      const results = await Promise.allSettled([
         getAdminUsersAction(),
         getCampaignsAction(),
         getTeamsAction(),
       ]);
-      setUsers(data);
-      setCampaigns(campList);
-      setTeams(teamList);
-      if (campList.length > 0 && !addCampaign) {
-        setAddCampaign(campList[0].name);
+
+      if (results[0].status === "fulfilled" && results[0].value.length > 0) {
+        setUsers(results[0].value);
+      } else {
+        // Fallback to direct REST endpoint if action returned empty
+        try {
+          const res = await fetch("/api/employees");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.employees && data.employees.length > 0) {
+              setUsers(data.employees);
+            }
+          }
+        } catch {
+          // ignore
+        }
       }
-    } catch {
-      // Fallback
+
+      if (results[1].status === "fulfilled") {
+        setCampaigns(results[1].value);
+        if (results[1].value.length > 0 && !addCampaign) {
+          setAddCampaign(results[1].value[0].name);
+        }
+      }
+
+      if (results[2].status === "fulfilled") {
+        setTeams(results[2].value);
+      }
+    } catch (err) {
+      console.error("Failed to load staff roster:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -323,10 +356,34 @@ export function AdminUserManagement() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {filteredUsers.length === 0 ? (
+            {loading && users.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-6 text-center text-[#94A3B8]">
-                  No employees match the selected filter.
+                <td colSpan={5} className="py-12 text-center text-slate-500">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-[#F97316]" />
+                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                      Loading employee workforce roster...
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-8 text-center text-[#94A3B8]">
+                  <div className="flex flex-col items-center justify-center gap-1.5">
+                    <p className="font-semibold text-xs text-slate-600 dark:text-slate-400">
+                      No employees match the selected filter.
+                    </p>
+                    {users.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setRoleFilter("ALL")}
+                        className="text-[11px] font-bold text-[#F97316] hover:underline cursor-pointer"
+                      >
+                        Reset Filter to View All Staff ({users.length})
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ) : (

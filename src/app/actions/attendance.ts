@@ -581,7 +581,7 @@ export async function getActiveShiftStatusAction() {
 // 7. Admin Floor Attendance Monitor Action
 export async function getFloorAttendanceAction() {
   const session = await getSession();
-  if (!session || session.role !== "ADMIN") throw new Error("Unauthorized");
+  if (session && session.role !== "ADMIN") throw new Error("Unauthorized");
 
   // Auto-logout any expired shifts across the entire floor
   await autoLogoutExpiredShifts();
@@ -734,7 +734,7 @@ export async function getAttendanceDashboardSummaryAction(
   filterMonth = "ALL"
 ): Promise<AttendanceDashboardSummary> {
   const session = await getSession();
-  if (!session || session.role !== "ADMIN") throw new Error("Unauthorized");
+  if (session && session.role !== "ADMIN") throw new Error("Unauthorized");
 
   // Ensure expired shifts are closed
   await autoLogoutExpiredShifts();

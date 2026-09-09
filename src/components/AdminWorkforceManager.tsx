@@ -104,23 +104,26 @@ export function AdminWorkforceManager() {
   const loadData = async () => {
     setIsRefreshing(true);
     try {
-      const [salList, incentiveList, teamList, campList, augList] = await Promise.all([
+      const results = await Promise.allSettled([
         getSalaryProfilesAction(),
         getCampaignIncentivesAction(),
         getTeamsAction(),
         getCampaignsAction(),
         getAugustPayrollLedgerAction(),
       ]);
-      setSalaries(salList);
-      setCampaignIncentives(incentiveList);
-      setTeams(teamList);
-      setCampaigns(campList);
-      setAugustLedger(augList);
-      if (campList.length > 0 && !ruleCampaignId) {
-        setRuleCampaignId(campList[0].id);
+
+      if (results[0].status === "fulfilled") setSalaries(results[0].value);
+      if (results[1].status === "fulfilled") setCampaignIncentives(results[1].value);
+      if (results[2].status === "fulfilled") setTeams(results[2].value);
+      if (results[3].status === "fulfilled") {
+        setCampaigns(results[3].value);
+        if (results[3].value.length > 0 && !ruleCampaignId) {
+          setRuleCampaignId(results[3].value[0].id);
+        }
       }
-    } catch {
-      // Fallback
+      if (results[4].status === "fulfilled") setAugustLedger(results[4].value);
+    } catch (err) {
+      console.error("Error loading workforce operations data:", err);
     } finally {
       setIsRefreshing(false);
     }

@@ -2,10 +2,20 @@ import { getSession } from "@/lib/auth";
 import { AdminNav } from "@/components/AdminNav";
 import { AdminUserManagement } from "@/components/AdminUserManagement";
 import { AdminWorkforceManager } from "@/components/AdminWorkforceManager";
+import { getAdminUsersAction } from "@/app/actions/admin-users";
+import { getCampaignsAction } from "@/app/actions/campaigns";
+import { getTeamsAction } from "@/app/actions/teams";
 import { Users } from "lucide-react";
 
 export default async function AdminEmployeesPage() {
   const session = await getSession();
+
+  // Pre-load data on the server so the 13 employees render instantaneously without waiting on client roundtrips
+  const [initialUsers, initialCampaigns, initialTeams] = await Promise.all([
+    getAdminUsersAction(),
+    getCampaignsAction(),
+    getTeamsAction(),
+  ]);
 
   return (
     <div className="min-h-screen flex flex-col relative">
@@ -28,7 +38,11 @@ export default async function AdminEmployeesPage() {
         </div>
 
         {/* 1. Employee Accounts & Credentials (Add / Remove / Deactivate / Reset Passwords) */}
-        <AdminUserManagement />
+        <AdminUserManagement
+          initialUsers={initialUsers}
+          initialCampaigns={initialCampaigns}
+          initialTeams={initialTeams}
+        />
 
         {/* 2. Workforce Operations (Live Floor Attendance, Planned Leaves, Salary Profiles & Incentive Rules) */}
         <AdminWorkforceManager />

@@ -18,17 +18,19 @@ import {
 } from "lucide-react";
 import {
   CampaignItem,
-  CampaignCriteria,
-  CampaignQuestion,
-  QuestionInputType,
   getCampaignCriteriaAction,
   saveCampaignCriteriaAction,
   getStandardTemplatesAction,
+} from "@/app/actions/campaigns";
+import {
+  CampaignCriteria,
+  CampaignQuestion,
+  QuestionInputType,
   MVA_STANDARD_TEMPLATE,
   SLIP_AND_FALL_TEMPLATE,
   WORKERS_COMP_TEMPLATE,
   PERSONAL_INJURY_TEMPLATE,
-} from "@/app/actions/campaigns";
+} from "@/lib/campaign-templates";
 import { ModalPortal } from "@/components/ModalPortal";
 
 interface CampaignCriteriaModalProps {

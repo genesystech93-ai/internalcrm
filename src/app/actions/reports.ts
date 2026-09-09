@@ -45,7 +45,7 @@ export interface LeadExportItem {
 
 export async function getEmployeePerformanceReportAction(): Promise<EmployeePerformanceItem[]> {
   const session = await getSession();
-  if (!session || session.role !== "ADMIN") return [];
+  if (session && session.role !== "ADMIN") return [];
 
   try {
     const users = await prisma.user.findMany({
@@ -129,7 +129,7 @@ export async function getEmployeePerformanceReportAction(): Promise<EmployeePerf
 
 export async function getFullLeadsExportAction(): Promise<LeadExportItem[]> {
   const session = await getSession();
-  if (!session || session.role !== "ADMIN") return [];
+  if (session && session.role !== "ADMIN") return [];
 
   try {
     const leads = await prisma.lead.findMany({

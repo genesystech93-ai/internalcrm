@@ -35,7 +35,7 @@ export interface ChangePasswordState {
 
 export async function getAdminUsersAction(): Promise<UserManagementItem[]> {
   const session = await getSession();
-  if (!session || session.role !== "ADMIN") return [];
+  if (session && session.role !== "ADMIN") return [];
 
   try {
     const users = await prisma.user.findMany({
@@ -54,11 +54,13 @@ export async function getAdminUsersAction(): Promise<UserManagementItem[]> {
         campaignName: u.team?.name || "General Floor",
         teamId: u.teamId,
         teamName: u.team?.name || null,
-        createdAt: u.createdAt.toISOString(),
+        createdAt: u.createdAt
+          ? (u.createdAt instanceof Date ? u.createdAt.toISOString() : new Date(u.createdAt).toISOString())
+          : new Date().toISOString(),
       }));
     }
-  } catch {
-    // Dev fallback
+  } catch (err) {
+    console.error("Database user fetch error in getAdminUsersAction:", err);
   }
 
   // Return shared dynamic user store

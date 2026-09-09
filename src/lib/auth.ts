@@ -47,24 +47,37 @@ export async function verifySessionToken(token: string): Promise<SessionUser | n
 }
 
 export async function getSession(): Promise<SessionUser | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (!token) return null;
-  return verifySessionToken(token);
+  try {
+    const cookieStore = await cookies();
+    const token =
+      cookieStore.get(SESSION_COOKIE_NAME)?.value ||
+      cookieStore.get("genesoft_session")?.value ||
+      cookieStore.get("session")?.value ||
+      cookieStore.get("token")?.value;
+    if (!token) return null;
+    return verifySessionToken(token);
+  } catch {
+    return null;
+  }
 }
 
 export async function setSessionCookie(token: string) {
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, token, {
+  const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "lax" as const,
     path: "/",
     maxAge: 60 * 60 * 24, // 24 hours
-  });
+  };
+  cookieStore.set(SESSION_COOKIE_NAME, token, cookieOptions);
+  cookieStore.set("genesoft_session", token, cookieOptions);
 }
 
 export async function clearSessionCookie() {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE_NAME);
+  cookieStore.delete("genesoft_session");
+  cookieStore.delete("session");
+  cookieStore.delete("token");
 }

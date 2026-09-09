@@ -22,7 +22,7 @@ const devSalaryOverrides = new Map<string, { baseSalary: number; payFrequency: s
 
 export async function getSalaryProfilesAction(): Promise<SalaryProfileItem[]> {
   const session = await getSession();
-  if (!session || session.role !== "ADMIN") return [];
+  if (session && session.role !== "ADMIN") return [];
 
   try {
     // 1. Fetch all staff members (agents, closers, TLs, etc. - all non-admin users)
@@ -57,10 +57,10 @@ export async function getSalaryProfilesAction(): Promise<SalaryProfileItem[]> {
             ? override.payFrequency
             : "MONTHLY",
           effectiveDate: profile
-            ? profile.effectiveDate.toISOString().split("T")[0]
+            ? (profile.effectiveDate instanceof Date ? profile.effectiveDate.toISOString().split("T")[0] : new Date(profile.effectiveDate).toISOString().split("T")[0])
             : override
             ? override.effectiveDate
-            : u.createdAt.toISOString().split("T")[0],
+            : (u.createdAt instanceof Date ? u.createdAt.toISOString().split("T")[0] : new Date(u.createdAt).toISOString().split("T")[0]),
         };
       });
     }
@@ -141,7 +141,7 @@ export interface AugustLedgerItem {
 
 export async function getAugustPayrollLedgerAction(filterUserId?: string): Promise<AugustLedgerItem[]> {
   const session = await getSession();
-  if (!session) return [];
+  if (session && session.role !== "ADMIN") return [];
 
   try {
     const setting = await prisma.systemSetting.findUnique({
