@@ -11,7 +11,7 @@ import {
   SalaryProfileItem,
   AugustLedgerItem,
 } from "@/app/actions/salary";
-import { getCurrentMonthKey, formatMonthLabel, getDefaultAvailableMonths } from "@/lib/date-utils";
+import { getCurrentMonthKey, formatMonthLabel, getDefaultAvailableMonths, parseMonthDateRange } from "@/lib/date-utils";
 import {
   getCampaignIncentivesAction,
   saveCampaignIncentiveAction,
@@ -53,8 +53,12 @@ import {
 } from "lucide-react";
 import { ModalPortal } from "./ModalPortal";
 
-export function AdminWorkforceManager() {
-  const [activeTab, setActiveTab] = useState<"attendance" | "leaves" | "salaries" | "incentives">("attendance");
+interface AdminWorkforceManagerProps {
+  initialTab?: "attendance" | "leaves" | "salaries" | "incentives";
+}
+
+export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforceManagerProps = {}) {
+  const [activeTab, setActiveTab] = useState<"attendance" | "leaves" | "salaries" | "incentives">(initialTab);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Salary Profiles state
@@ -152,7 +156,7 @@ export function AdminWorkforceManager() {
       "Present Days",
       "Absent Days",
       "Basic Salary (Rs.)",
-      "August Net Salary (Rs.)",
+      `${formatMonthLabel(payrollMonthFilter)} Net Salary (Rs.)`,
     ];
 
     const rows = augustLedger.map((item) => [
@@ -675,7 +679,7 @@ export function AdminWorkforceManager() {
                 <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
                   <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Shift Logs Recorded</p>
                   <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
-                    {augustLedger.filter((i) => payrollEmployeeFilter === "ALL" || i.userId === payrollEmployeeFilter || i.username.toLowerCase() === payrollEmployeeFilter.toLowerCase()).length * 31}
+                    {augustLedger.filter((i) => payrollEmployeeFilter === "ALL" || i.userId === payrollEmployeeFilter || i.username.toLowerCase() === payrollEmployeeFilter.toLowerCase()).length * (parseMonthDateRange(payrollMonthFilter)?.daysInMonth || 30)}
                   </p>
                 </div>
                 <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
@@ -688,7 +692,7 @@ export function AdminWorkforceManager() {
                   </p>
                 </div>
                 <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
-                  <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">August Net Payout</p>
+                  <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">{formatMonthLabel(payrollMonthFilter)} Net Payout</p>
                   <p className="text-lg font-extrabold text-[#EA580C] dark:text-[#FB923C] font-mono">
                     ₹{augustLedger
                       .filter((i) => payrollEmployeeFilter === "ALL" || i.userId === payrollEmployeeFilter || i.username.toLowerCase() === payrollEmployeeFilter.toLowerCase())
@@ -708,7 +712,7 @@ export function AdminWorkforceManager() {
                       <th className="py-2.5 px-3">Banking Routing (IFSC & A/C)</th>
                       <th className="py-2.5 px-3 text-center">Present / Absent</th>
                       <th className="py-2.5 px-3 text-right">Base Salary</th>
-                      <th className="py-2.5 px-3 text-right">Aug Earned Net</th>
+                      <th className="py-2.5 px-3 text-right">{payrollMonthFilter === "2026-08" ? "Aug Earned Net" : `${formatMonthLabel(payrollMonthFilter)} Earned Net`}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">

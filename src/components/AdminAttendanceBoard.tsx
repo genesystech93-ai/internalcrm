@@ -255,7 +255,11 @@ export function AdminAttendanceBoard() {
                   Workforce Attendance & Shift Operations
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-                  Live & August Ingested
+                  {selectedMonth === "ALL"
+                    ? "All Months & Live"
+                    : selectedMonth === "2026-08"
+                    ? "August Ingested Ledger"
+                    : `${formatMonthLabel(selectedMonth)} Active`}
                 </span>
               </div>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">

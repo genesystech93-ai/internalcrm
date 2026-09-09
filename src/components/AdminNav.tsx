@@ -17,6 +17,7 @@ import {
 import { EmployeeChatWidget } from "@/components/EmployeeChatWidget";
 import { DatabaseStatusBadge } from "@/components/DatabaseStatusBadge";
 import { NotificationBell } from "@/components/NotificationBell";
+import { ShiftHeaderWidget } from "@/components/ShiftHeaderWidget";
 
 interface AdminNavProps {
   sessionUser?: {
@@ -62,14 +63,12 @@ export function AdminNav({ sessionUser }: AdminNavProps) {
         <div className="flex items-center gap-6">
           <Logo size="md" />
           <div className="h-6 w-px bg-slate-200/80 dark:bg-slate-700 hidden sm:block"></div>
-          <div className="hidden sm:flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] font-bold text-xs border border-orange-500/20 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] font-bold text-xs border border-orange-500/20 backdrop-blur-md hidden md:inline-block">
               👑 Admin Command Center
             </span>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/70 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700 text-xs font-mono text-[#475569] dark:text-[#94A3B8] backdrop-blur-md">
-              <Clock className="w-3.5 h-3.5 text-[#F97316]" />
-              <span>Floor Shift Active</span>
-            </div>
+            {/* Live Interactive Shift Attendance Status & Punch Controls for Admin */}
+            <ShiftHeaderWidget />
           </div>
         </div>
 

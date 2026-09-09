@@ -141,7 +141,7 @@ export function AdminWorkspaceContainer({ initialTab = "leads" }: AdminWorkspace
 
         {activeTab === "payroll" && (
           <div id="payroll-workspace" className="space-y-6 animate-in fade-in duration-200">
-            <AdminWorkforceManager />
+            <AdminWorkforceManager initialTab="salaries" />
           </div>
         )}
 
