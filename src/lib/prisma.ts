@@ -2,15 +2,27 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  currentDbUrl: string | undefined;
 };
 
 // Robust sanitizer for DATABASE_URL across Vercel & serverless environments
-function sanitizeDatabaseUrl(raw?: string): string {
-  if (!raw || !raw.trim()) {
-    return process.env.DATABASE_URL?.trim() || "";
+export function sanitizeDatabaseUrl(raw?: string): string {
+  let url = (raw || "").trim();
+
+  // If empty, check other environment variables common in Vercel / hosting
+  if (!url) {
+    url = (
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_PRISMA_URL ||
+      process.env.POSTGRES_URL ||
+      process.env.SUPABASE_DATABASE_URL ||
+      ""
+    ).trim();
   }
 
-  let url = raw.trim();
+  if (!url) {
+    return "";
+  }
 
   // Strip accidental "DATABASE_URL=" prefix if user pasted the full line into environment settings
   if (url.startsWith("DATABASE_URL=")) {
@@ -34,7 +46,7 @@ function sanitizeDatabaseUrl(raw?: string): string {
     }
   }
 
-  // VERCEL / AWS LAMBDA FIX:
+  // VERCEL / AWS LAMBDA FIX 1:
   // Direct Supabase hostnames (db.<ref>.supabase.co:5432) resolve ONLY to IPv6, which AWS Lambda / Vercel
   // cannot reach over IPv4 outbound. Auto-rewrite direct Supabase hosts to the IPv4 Transaction Pooler.
   if (url.includes(".supabase.co") && !url.includes(".pooler.supabase.com")) {
@@ -46,14 +58,26 @@ function sanitizeDatabaseUrl(raw?: string): string {
       const dbName = parsed.pathname.replace(/^\//, "") || "postgres";
 
       // Reconstruct using Supabase IPv4 Pooler
-      return `postgresql://postgres.${projectRef}:${pass}@aws-0-ap-south-1.pooler.supabase.com:6543/${dbName}?pgbouncer=true&connection_limit=1&sslmode=require`;
+      url = `postgresql://postgres.${projectRef}:${pass}@aws-0-ap-south-1.pooler.supabase.com:6543/${dbName}?pgbouncer=true&connection_limit=1&sslmode=require`;
     } catch {
-      return url;
+      // Keep url as is if parsing fails
     }
   }
 
-  // Ensure SSL and connection_limit parameters are present for Supabase pooler
+  // VERCEL / SUPABASE FIX 2:
+  // When using the Supabase Pooler, the username MUST include the project tenant (e.g. postgres.tcdyyznmarfplpaovcdl).
+  // If the user provided plain "postgres", the pooler throws ENOIDENTIFIER (no tenant identifier provided).
   if (url.includes(".pooler.supabase.com")) {
+    try {
+      const parsed = new URL(url.replace(/^postgresql:\/\//, "http://").replace(/^postgres:\/\//, "http://"));
+      if (parsed.username === "postgres") {
+        parsed.username = "postgres.tcdyyznmarfplpaovcdl";
+        url = parsed.toString().replace(/^http:\/\//, "postgresql://");
+      }
+    } catch {
+      // Keep url as is if parsing fails
+    }
+
     if (!url.includes("sslmode=")) {
       url += (url.includes("?") ? "&" : "?") + "sslmode=require";
     }
@@ -69,11 +93,17 @@ function sanitizeDatabaseUrl(raw?: string): string {
 }
 
 // Assembles DATABASE_URL from individual DB_* environment variables or returns sanitized DATABASE_URL
-function getEffectiveDatabaseUrl(): string {
+export function getEffectiveDatabaseUrl(): string {
+  const directEnv =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.SUPABASE_DATABASE_URL;
+
   if (
     process.env.DB_HOST &&
     process.env.DB_USER &&
-    (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("<from-hosting>"))
+    (!directEnv || directEnv.includes("<from-hosting>"))
   ) {
     const host = String(process.env.DB_HOST).replace(/['"]/g, "").trim();
     const port = String(process.env.DB_PORT || (host.includes("pooler.supabase.com") ? "6543" : "5432")).replace(/['"]/g, "").trim();
@@ -93,24 +123,45 @@ function getEffectiveDatabaseUrl(): string {
     return sanitizeDatabaseUrl(`postgresql://${user}:${pass}@${host}:${port}/${dbName}${params}`);
   }
 
-  return sanitizeDatabaseUrl(process.env.DATABASE_URL);
+  return sanitizeDatabaseUrl(directEnv);
 }
 
-const dbUrl = getEffectiveDatabaseUrl();
-
-// Sync sanitized URL back to process.env so schema.prisma env("DATABASE_URL") receives it
-process.env.DATABASE_URL = dbUrl;
-
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+function createPrismaClient(url: string): PrismaClient {
+  return new PrismaClient({
     datasources: {
       db: {
-        url: dbUrl,
+        url: url || undefined,
       },
     },
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
+}
 
-// Cache prisma on globalThis to reuse database connections across warm serverless function invocations on Vercel
-globalForPrisma.prisma = prisma;
+function getOrInitPrisma(): PrismaClient {
+  const effectiveUrl = getEffectiveDatabaseUrl();
+  if (effectiveUrl) {
+    process.env.DATABASE_URL = effectiveUrl;
+  }
+
+  if (globalForPrisma.prisma && globalForPrisma.currentDbUrl === effectiveUrl) {
+    return globalForPrisma.prisma;
+  }
+
+  const client = createPrismaClient(effectiveUrl);
+  globalForPrisma.prisma = client;
+  globalForPrisma.currentDbUrl = effectiveUrl;
+  return client;
+}
+
+// Transparent Proxy ensures PrismaClient is always using the active sanitized URL
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const client = getOrInitPrisma();
+    const val = (client as any)[prop];
+    if (typeof val === "function") {
+      return val.bind(client);
+    }
+    return val;
+  },
+});
+

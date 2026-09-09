@@ -38,7 +38,13 @@ export function DatabaseHealthCard() {
     try {
       const res = await checkDatabaseHealthAction();
       setData(res);
-    } catch {
+    } catch (err: unknown) {
+      const errMsg =
+        err instanceof Error
+          ? err.message
+          : typeof err === "object" && err !== null && "message" in err
+          ? String((err as any).message)
+          : "Server action failed to connect to database.";
       setData({
         status: "DISCONNECTED",
         latencyMs: 0,
@@ -49,9 +55,9 @@ export function DatabaseHealthCard() {
         isPooler: true,
         tableCounts: { users: 0, leads: 0, campaigns: 0, systemSettings: 0 },
         lastChecked: new Date().toLocaleTimeString(),
-        error: "Database server unreachable or connection timeout on Vercel.",
+        error: errMsg,
         recommendation:
-          "In Vercel Project Settings > Environment Variables, verify DATABASE_URL is set to the Supabase IPv4 Pooler (port 6543) rather than the IPv6 direct host.",
+          "In Vercel Project Settings > Environment Variables, verify DATABASE_URL is set for Production and trigger a Redeploy on the Deployments tab.",
       });
     } finally {
       setIsLoading(false);

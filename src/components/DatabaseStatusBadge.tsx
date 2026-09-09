@@ -27,19 +27,25 @@ export function DatabaseStatusBadge() {
     try {
       const result = await checkDatabaseHealthAction();
       setData(result);
-    } catch {
+    } catch (err: unknown) {
+      const errMsg =
+        err instanceof Error
+          ? err.message
+          : typeof err === "object" && err !== null && "message" in err
+          ? String((err as any).message)
+          : "Server action failed to connect to database.";
       setData({
         status: "DISCONNECTED",
         latencyMs: 0,
-        host: "Supabase DB",
-        port: "5432",
+        host: "aws-0-ap-south-1.pooler.supabase.com",
+        port: "6543",
         database: "postgres",
-        userMasked: "postgres",
+        userMasked: "postgres.tcdyyznmarfplpaovcdl",
         isPooler: true,
         tableCounts: { users: 0, leads: 0, campaigns: 0, systemSettings: 0 },
         lastChecked: new Date().toLocaleTimeString(),
-        error: "Network unreachable or action failed.",
-        recommendation: "Check database credentials.",
+        error: errMsg,
+        recommendation: "In Vercel Project Settings > Environment Variables, check DATABASE_URL and redeploy.",
       });
     } finally {
       setIsLoading(false);
