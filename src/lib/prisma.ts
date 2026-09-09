@@ -4,13 +4,11 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// Fallback production Supabase Transaction Pooler URL (IPv4-enabled for Vercel serverless)
-const DEFAULT_SUPABASE_POOLER_URL =
-  "postgresql://postgres.tcdyyznmarfplpaovcdl:SURAJmagar9890@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require";
-
 // Robust sanitizer for DATABASE_URL across Vercel & serverless environments
 function sanitizeDatabaseUrl(raw?: string): string {
-  if (!raw || !raw.trim()) return DEFAULT_SUPABASE_POOLER_URL;
+  if (!raw || !raw.trim()) {
+    return process.env.DATABASE_URL?.trim() || "";
+  }
 
   let url = raw.trim();
 
@@ -32,7 +30,7 @@ function sanitizeDatabaseUrl(raw?: string): string {
     if (url.includes("@")) {
       url = `postgresql://${url.replace(/^([a-zA-Z0-9_-]+:\/\/)/, "")}`;
     } else {
-      return DEFAULT_SUPABASE_POOLER_URL;
+      return url;
     }
   }
 
@@ -43,14 +41,14 @@ function sanitizeDatabaseUrl(raw?: string): string {
     try {
       const parsed = new URL(url.replace(/^postgresql:\/\//, "http://").replace(/^postgres:\/\//, "http://"));
       const hostMatch = parsed.hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/);
-      const projectRef = hostMatch ? hostMatch[1] : "tcdyyznmarfplpaovcdl";
-      const pass = parsed.password || "SURAJmagar9890";
+      const projectRef = hostMatch ? hostMatch[1] : (parsed.username.includes(".") ? parsed.username.split(".")[1] : "tcdyyznmarfplpaovcdl");
+      const pass = parsed.password || process.env.DB_PASSWORD || "";
       const dbName = parsed.pathname.replace(/^\//, "") || "postgres";
 
       // Reconstruct using Supabase IPv4 Pooler
       return `postgresql://postgres.${projectRef}:${pass}@aws-0-ap-south-1.pooler.supabase.com:6543/${dbName}?pgbouncer=true&connection_limit=1&sslmode=require`;
     } catch {
-      return DEFAULT_SUPABASE_POOLER_URL;
+      return url;
     }
   }
 

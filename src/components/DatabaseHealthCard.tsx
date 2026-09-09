@@ -19,8 +19,8 @@ import {
   Check,
 } from "lucide-react";
 
-const VERCEL_RECOMMENDED_DB_URL =
-  "postgresql://postgres.tcdyyznmarfplpaovcdl:SURAJmagar9890@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require";
+const VERCEL_RECOMMENDED_DB_URL_TEMPLATE =
+  "postgresql://postgres.tcdyyznmarfplpaovcdl:[YOUR-PASSWORD]@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require";
 
 export function DatabaseHealthCard() {
   const [data, setData] = useState<DatabaseDiagnosticResult | null>(null);
@@ -28,7 +28,7 @@ export function DatabaseHealthCard() {
   const [copiedUrl, setCopiedUrl] = useState(false);
 
   const handleCopyVercelUrl = () => {
-    navigator.clipboard.writeText(VERCEL_RECOMMENDED_DB_URL);
+    navigator.clipboard.writeText(VERCEL_RECOMMENDED_DB_URL_TEMPLATE);
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2500);
   };
@@ -280,7 +280,7 @@ export function DatabaseHealthCard() {
               </div>
               <div className="pt-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-red-100 dark:border-red-900/30">
                 <span className="font-mono text-[10px] text-slate-500 truncate max-w-sm">
-                  {VERCEL_RECOMMENDED_DB_URL.replace(/:[^:@]+@/, ":••••••@")}
+                  {VERCEL_RECOMMENDED_DB_URL_TEMPLATE}
                 </span>
                 <button
                   type="button"
