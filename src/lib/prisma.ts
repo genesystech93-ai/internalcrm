@@ -4,16 +4,17 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// Robust sanitizer for DATABASE_URL in cloud environments (cPanel/GoDaddy)
-function sanitizeDatabaseUrl(raw?: string): string {
-  const fallback =
-    "postgresql://postgres.tcdyyznmarfplpaovcdl:SURAJmagar9890@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require";
+// Fallback production Supabase Transaction Pooler URL (IPv4-enabled for Vercel serverless)
+const DEFAULT_SUPABASE_POOLER_URL =
+  "postgresql://postgres.tcdyyznmarfplpaovcdl:SURAJmagar9890@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require";
 
-  if (!raw) return fallback;
+// Robust sanitizer for DATABASE_URL across Vercel & serverless environments
+function sanitizeDatabaseUrl(raw?: string): string {
+  if (!raw || !raw.trim()) return DEFAULT_SUPABASE_POOLER_URL;
 
   let url = raw.trim();
 
-  // Strip accidental "DATABASE_URL=" prefix if user pasted the full line into cPanel's Value field
+  // Strip accidental "DATABASE_URL=" prefix if user pasted the full line into environment settings
   if (url.startsWith("DATABASE_URL=")) {
     url = url.slice("DATABASE_URL=".length).trim();
   }
@@ -28,11 +29,41 @@ function sanitizeDatabaseUrl(raw?: string): string {
 
   // Validate protocol
   if (!url.startsWith("postgresql://") && !url.startsWith("postgres://")) {
-    // If it has username:password@host, prepend postgresql://
     if (url.includes("@")) {
       url = `postgresql://${url.replace(/^([a-zA-Z0-9_-]+:\/\/)/, "")}`;
     } else {
-      return fallback;
+      return DEFAULT_SUPABASE_POOLER_URL;
+    }
+  }
+
+  // VERCEL / AWS LAMBDA FIX:
+  // Direct Supabase hostnames (db.<ref>.supabase.co:5432) resolve ONLY to IPv6, which AWS Lambda / Vercel
+  // cannot reach over IPv4 outbound. Auto-rewrite direct Supabase hosts to the IPv4 Transaction Pooler.
+  if (url.includes(".supabase.co") && !url.includes(".pooler.supabase.com")) {
+    try {
+      const parsed = new URL(url.replace(/^postgresql:\/\//, "http://").replace(/^postgres:\/\//, "http://"));
+      const hostMatch = parsed.hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/);
+      const projectRef = hostMatch ? hostMatch[1] : "tcdyyznmarfplpaovcdl";
+      const pass = parsed.password || "SURAJmagar9890";
+      const dbName = parsed.pathname.replace(/^\//, "") || "postgres";
+
+      // Reconstruct using Supabase IPv4 Pooler
+      return `postgresql://postgres.${projectRef}:${pass}@aws-0-ap-south-1.pooler.supabase.com:6543/${dbName}?pgbouncer=true&connection_limit=1&sslmode=require`;
+    } catch {
+      return DEFAULT_SUPABASE_POOLER_URL;
+    }
+  }
+
+  // Ensure SSL and connection_limit parameters are present for Supabase pooler
+  if (url.includes(".pooler.supabase.com")) {
+    if (!url.includes("sslmode=")) {
+      url += (url.includes("?") ? "&" : "?") + "sslmode=require";
+    }
+    if (!url.includes("pgbouncer=")) {
+      url += (url.includes("?") ? "&" : "?") + "pgbouncer=true";
+    }
+    if (!url.includes("connection_limit=")) {
+      url += (url.includes("?") ? "&" : "?") + "connection_limit=1";
     }
   }
 
@@ -61,7 +92,7 @@ function getEffectiveDatabaseUrl(): string {
       params = "?sslmode=prefer";
     }
 
-    return `postgresql://${user}:${pass}@${host}:${port}/${dbName}${params}`;
+    return sanitizeDatabaseUrl(`postgresql://${user}:${pass}@${host}:${port}/${dbName}${params}`);
   }
 
   return sanitizeDatabaseUrl(process.env.DATABASE_URL);

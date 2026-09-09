@@ -22,37 +22,6 @@ export interface DatabaseDiagnosticResult {
   recommendation?: string;
 }
 
-import net from "net";
-
-function probeTcpPort(host: string, port: number, timeoutMs = 1200): Promise<boolean> {
-  return new Promise((resolve) => {
-    const socket = new net.Socket();
-    let resolved = false;
-
-    socket.setTimeout(timeoutMs);
-    socket.once("connect", () => {
-      resolved = true;
-      socket.destroy();
-      resolve(true);
-    });
-    socket.once("timeout", () => {
-      if (!resolved) {
-        resolved = true;
-        socket.destroy();
-        resolve(false);
-      }
-    });
-    socket.once("error", () => {
-      if (!resolved) {
-        resolved = true;
-        socket.destroy();
-        resolve(false);
-      }
-    });
-    socket.connect(port, host);
-  });
-}
-
 export async function checkDatabaseHealthAction(): Promise<DatabaseDiagnosticResult> {
   let isAdmin = false;
   try {
@@ -67,7 +36,7 @@ export async function checkDatabaseHealthAction(): Promise<DatabaseDiagnosticRes
   let host = "aws-0-ap-south-1.pooler.supabase.com";
   let port = "6543";
   let database = "postgres";
-  let userMasked = "postgres";
+  let userMasked = "postgres.tcdyyznmarfplpaovcdl";
   let isPooler = true;
 
   try {
@@ -104,7 +73,7 @@ export async function checkDatabaseHealthAction(): Promise<DatabaseDiagnosticRes
     } catch (err1) {
       lastProbeError = err1;
       // Brief pause to allow pooler socket to re-establish
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 300));
       try {
         await prisma.$connect();
         await prisma.$queryRawUnsafe("SELECT 1 as probe");
@@ -154,31 +123,18 @@ export async function checkDatabaseHealthAction(): Promise<DatabaseDiagnosticRes
     const latencyMs = Date.now() - startTime;
     const rawError = err instanceof Error ? err.message : String(err);
 
-    // Fast TCP probe on both ports to give user pinpoint guidance
-    let p6543Ok = false;
-    let p5432Ok = false;
-    try {
-      [p6543Ok, p5432Ok] = await Promise.all([
-        probeTcpPort("aws-0-ap-south-1.pooler.supabase.com", 6543, 1000),
-        probeTcpPort("aws-0-ap-south-1.pooler.supabase.com", 5432, 1000),
-      ]);
-    } catch {
-      // Ignore probe errors
-    }
-
-    let recommendation = "Verify your DATABASE_URL in environment settings.";
-    if (!p6543Ok && p5432Ok) {
-      recommendation = "GoDaddy firewall blocked port 6543, but Port 5432 is OPEN! Update DATABASE_URL in .env to use port 5432 and click Restart in cPanel.";
-    } else if (p6543Ok && !p5432Ok) {
-      recommendation = "GoDaddy firewall blocked port 5432, but Port 6543 is OPEN! Update DATABASE_URL in .env to use port 6543 and click Restart in cPanel.";
-    } else if (!p6543Ok && !p5432Ok) {
-      recommendation = "Hosting firewall is blocking all outbound database connections (ports 5432 & 6543 closed). Contact GoDaddy Support to allow outbound TCP ports 5432/6543, or disable Supabase Network Restrictions.";
-    } else if (p6543Ok && p5432Ok) {
-      if (rawError.includes("P1000") || rawError.includes("Authentication failed")) {
-        recommendation = "Network port is OPEN, but authentication failed. Check your Supabase database password in .env and restart the app.";
+    // Provide pinpoint guidance for Vercel & Supabase deployments
+    let recommendation = "In Vercel Project Settings > Environment Variables, check your DATABASE_URL.";
+    if (rawError.includes("P1000") || rawError.includes("Authentication failed")) {
+      recommendation = "Authentication failed. In Vercel Project Settings > Environment Variables, verify your database password in DATABASE_URL.";
+    } else if (rawError.includes("P1001") || rawError.includes("Can't reach database server")) {
+      if (host.includes(".supabase.co") && !host.includes(".pooler.supabase.com")) {
+        recommendation = "Vercel cannot reach Supabase Direct host (IPv6-only). In Vercel Project Settings > Environment Variables, change DATABASE_URL to use the Supabase IPv4 Pooler host (aws-0-ap-south-1.pooler.supabase.com:6543) with username postgres.tcdyyznmarfplpaovcdl.";
       } else {
-        recommendation = "Network ports are OPEN. Prisma client is re-establishing pooler session. Click 'Test Ping Now' in 5 seconds.";
+        recommendation = "Database server unreachable. Verify that DATABASE_URL is set in Vercel Project Settings > Environment Variables and that the Supabase project is active.";
       }
+    } else if (rawError.includes("timeout") || rawError.includes("timed out")) {
+      recommendation = "Connection timed out. In Vercel Environment Variables, append '?pgbouncer=true&connection_limit=1&sslmode=require' to DATABASE_URL and trigger a redeploy.";
     }
 
     return {

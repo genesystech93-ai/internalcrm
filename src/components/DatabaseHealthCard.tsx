@@ -15,11 +15,23 @@ import {
   Table,
   ShieldCheck,
   Zap,
+  Copy,
+  Check,
 } from "lucide-react";
+
+const VERCEL_RECOMMENDED_DB_URL =
+  "postgresql://postgres.tcdyyznmarfplpaovcdl:SURAJmagar9890@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require";
 
 export function DatabaseHealthCard() {
   const [data, setData] = useState<DatabaseDiagnosticResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+
+  const handleCopyVercelUrl = () => {
+    navigator.clipboard.writeText(VERCEL_RECOMMENDED_DB_URL);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2500);
+  };
 
   const runDiagnostic = async () => {
     setIsLoading(true);
@@ -31,14 +43,15 @@ export function DatabaseHealthCard() {
         status: "DISCONNECTED",
         latencyMs: 0,
         host: "aws-0-ap-south-1.pooler.supabase.com",
-        port: "5432",
+        port: "6543",
         database: "postgres",
-        userMasked: "postgres...",
+        userMasked: "postgres.tcdyyznmarfplpaovcdl",
         isPooler: true,
         tableCounts: { users: 0, leads: 0, campaigns: 0, systemSettings: 0 },
         lastChecked: new Date().toLocaleTimeString(),
-        error: "Database server unreachable or connection timeout.",
-        recommendation: "Ensure port 5432 outbound is enabled on GoDaddy.",
+        error: "Database server unreachable or connection timeout on Vercel.",
+        recommendation:
+          "In Vercel Project Settings > Environment Variables, verify DATABASE_URL is set to the Supabase IPv4 Pooler (port 6543) rather than the IPv6 direct host.",
       });
     } finally {
       setIsLoading(false);
@@ -260,9 +273,24 @@ export function DatabaseHealthCard() {
             {data.error}
           </p>
           {data.recommendation && (
-            <div className="p-2.5 rounded-xl bg-white/70 dark:bg-slate-800/80 border border-red-200 dark:border-red-900/40 text-[11px] text-slate-700 dark:text-slate-300">
-              <strong className="text-orange-600 dark:text-orange-400">Troubleshooting Advice: </strong>
-              {data.recommendation}
+            <div className="p-2.5 rounded-xl bg-white/70 dark:bg-slate-800/80 border border-red-200 dark:border-red-900/40 text-[11px] text-slate-700 dark:text-slate-300 space-y-2">
+              <div>
+                <strong className="text-orange-600 dark:text-orange-400">Troubleshooting Advice: </strong>
+                {data.recommendation}
+              </div>
+              <div className="pt-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-red-100 dark:border-red-900/30">
+                <span className="font-mono text-[10px] text-slate-500 truncate max-w-sm">
+                  {VERCEL_RECOMMENDED_DB_URL.replace(/:[^:@]+@/, ":••••••@")}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyVercelUrl}
+                  className="px-2.5 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+                >
+                  {copiedUrl ? <Check className="w-3 h-3 text-white" /> : <Copy className="w-3 h-3 text-white" />}
+                  <span>{copiedUrl ? "Copied to Clipboard!" : "Copy Vercel DATABASE_URL"}</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
