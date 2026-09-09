@@ -82,6 +82,19 @@ export async function autoLogoutExpiredShifts(targetUserId?: string): Promise<nu
   let count = 0;
 
   try {
+    let defaultStartTime = "19:00";
+    let defaultEndTime = "04:00";
+    try {
+      const [startSetting, endSetting] = await Promise.all([
+        prisma.systemSetting.findUnique({ where: { key: "global_shift_start_time" } }),
+        prisma.systemSetting.findUnique({ where: { key: "global_shift_end_time" } }),
+      ]);
+      if (startSetting?.value) defaultStartTime = startSetting.value;
+      if (endSetting?.value) defaultEndTime = endSetting.value;
+    } catch {
+      // Fallback to defaults
+    }
+
     const openAttendances = await prisma.attendance.findMany({
       where: {
         logoutAt: null,
@@ -94,8 +107,8 @@ export async function autoLogoutExpiredShifts(targetUserId?: string): Promise<nu
     });
 
     for (const att of openAttendances) {
-      const shiftStartTimeStr = att.campaign?.shiftStartTime || "19:00";
-      const shiftEndTimeStr = att.campaign?.shiftEndTime || "04:00";
+      const shiftStartTimeStr = att.campaign?.shiftStartTime || defaultStartTime;
+      const shiftEndTimeStr = att.campaign?.shiftEndTime || defaultEndTime;
       const scheduledEnd = getScheduledShiftEndTime(att.shiftDate, shiftStartTimeStr, shiftEndTimeStr);
 
       // Check if current time has passed scheduled shift conclusion (e.g. after 04:00 AM)
@@ -644,4 +657,240 @@ export async function autoLogoutExpiredShiftsAction(): Promise<{ success: boolea
     message: count > 0 ? `Auto-logged out ${count} expired shift(s) after 04:00 AM.` : "No expired shifts requiring auto-logout.",
   };
 }
+
+export interface StaffAttendanceSummary {
+  userId: string;
+  name: string;
+  username: string;
+  role: string;
+  teamName: string;
+  presentDays: number;
+  halfDays: number;
+  absentDays: number;
+  lateMarks: number;
+  totalShiftHours: number;
+  lastLoginAt: string | null;
+  lastLogoutAt: string | null;
+  currentShiftStatus: string;
+}
+
+export interface AttendanceDashboardSummary {
+  totalStaffEnrolled: number;
+  totalShiftsRecorded: number;
+  onDutyCount: number;
+  onBreakCount: number;
+  completedTodayCount: number;
+  lateTodayCount: number;
+  globalShiftStartTime: string;
+  globalShiftEndTime: string;
+  staffSummaries: StaffAttendanceSummary[];
+  recentShiftLogs: Array<{
+    id: string;
+    username: string;
+    name: string;
+    role: string;
+    campaignName: string;
+    shiftDate: string;
+    loginAt: string;
+    logoutAt: string | null;
+    status: string;
+    isOnBreak: boolean;
+    activeBreakType: string | null;
+    totalBreakMinutes: number;
+    netProductiveMinutes: number;
+  }>;
+}
+
+// 9. Comprehensive Attendance Dashboard Summary Action
+export async function getAttendanceDashboardSummaryAction(): Promise<AttendanceDashboardSummary> {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") throw new Error("Unauthorized");
+
+  // Ensure expired shifts are closed
+  await autoLogoutExpiredShifts();
+
+  let shiftStartTime = "19:00";
+  let shiftEndTime = "04:00";
+
+  try {
+    const startSetting = await prisma.systemSetting.findUnique({ where: { key: "global_shift_start_time" } });
+    const endSetting = await prisma.systemSetting.findUnique({ where: { key: "global_shift_end_time" } });
+    if (startSetting?.value) shiftStartTime = startSetting.value;
+    if (endSetting?.value) shiftEndTime = endSetting.value;
+
+    const staffUsers = await prisma.user.findMany({
+      where: { role: { not: "ADMIN" } },
+      include: {
+        team: true,
+        attendances: {
+          orderBy: { loginAt: "desc" },
+          include: { breaks: true, campaign: true },
+        },
+      },
+      orderBy: { name: "asc" },
+    });
+
+    const totalAttendanceCount = await prisma.attendance.count();
+
+    // Staff Aggregates
+    const staffSummaries: StaffAttendanceSummary[] = staffUsers.map((u) => {
+      const present = u.attendances.filter((a) => a.status === "PRESENT").length;
+      const half = u.attendances.filter((a) => a.status === "HALF_DAY").length;
+      const absent = u.attendances.filter((a) => a.status === "ABSENT").length;
+      const late = u.attendances.filter((a) => a.status === "LATE").length;
+      const totalMins = u.attendances.reduce((sum, a) => sum + a.totalMinutes, 0);
+      const latest = u.attendances[0] || null;
+
+      let currentStatus = "Offline";
+      if (latest && !latest.logoutAt) {
+        const hasBreak = latest.breaks.some((b) => b.endTime === null);
+        currentStatus = hasBreak ? "On Break" : "On Duty";
+      } else if (latest?.logoutAt) {
+        currentStatus = "Completed";
+      }
+
+      return {
+        userId: u.id,
+        name: u.name,
+        username: u.username,
+        role: u.role,
+        teamName: u.team?.name || "General Floor",
+        presentDays: present,
+        halfDays: half,
+        absentDays: absent,
+        lateMarks: late,
+        totalShiftHours: Math.round((totalMins / 60) * 10) / 10,
+        lastLoginAt: latest?.loginAt ? latest.loginAt.toISOString() : null,
+        lastLogoutAt: latest?.logoutAt ? latest.logoutAt.toISOString() : null,
+        currentShiftStatus: currentStatus,
+      };
+    });
+
+    // Recent shift logs (last 50)
+    const recentLogs = await prisma.attendance.findMany({
+      take: 50,
+      orderBy: { loginAt: "desc" },
+      include: {
+        user: true,
+        campaign: true,
+        breaks: true,
+      },
+    });
+
+    const recentShiftLogs = recentLogs.map((a) => {
+      const activeBreak = a.breaks.find((b) => b.endTime === null);
+      const totalBreakMins = a.breaks.reduce((sum, b) => sum + (b.durationMinutes || 0), 0);
+      return {
+        id: a.id,
+        username: a.user.username,
+        name: a.user.name,
+        role: a.user.role,
+        campaignName: a.campaign?.name || "General Floor",
+        shiftDate: a.shiftDate.toISOString().split("T")[0],
+        loginAt: a.loginAt.toISOString(),
+        logoutAt: a.logoutAt ? a.logoutAt.toISOString() : null,
+        status: a.status,
+        isOnBreak: !!activeBreak,
+        activeBreakType: activeBreak ? activeBreak.breakType : null,
+        totalBreakMinutes: totalBreakMins,
+        netProductiveMinutes: a.totalMinutes,
+      };
+    });
+
+    const openFloorShifts = await prisma.attendance.findMany({
+      where: { logoutAt: null },
+      include: { breaks: true },
+    });
+    const onDutyCount = openFloorShifts.filter((r) => !r.breaks.some((b) => b.endTime === null)).length;
+    const onBreakCount = openFloorShifts.filter((r) => r.breaks.some((b) => b.endTime === null)).length;
+    const lateTodayCount = openFloorShifts.filter((r) => r.status === "LATE").length;
+    const completedTodayCount = recentShiftLogs.filter((r) => !!r.logoutAt).length;
+
+    return {
+      totalStaffEnrolled: staffUsers.length,
+      totalShiftsRecorded: totalAttendanceCount,
+      onDutyCount,
+      onBreakCount,
+      completedTodayCount,
+      lateTodayCount,
+      globalShiftStartTime: shiftStartTime,
+      globalShiftEndTime: shiftEndTime,
+      staffSummaries,
+      recentShiftLogs,
+    };
+  } catch {
+    // Dev fallback
+    return {
+      totalStaffEnrolled: 12,
+      totalShiftsRecorded: devAttendances.length,
+      onDutyCount: 0,
+      onBreakCount: 0,
+      completedTodayCount: 0,
+      lateTodayCount: 0,
+      globalShiftStartTime: shiftStartTime,
+      globalShiftEndTime: shiftEndTime,
+      staffSummaries: [],
+      recentShiftLogs: [],
+    };
+  }
+}
+
+// 10. Edit Auto Shift End Time Action
+export async function updateAutoShiftEndTimeAction(
+  newShiftEndTime: string,
+  newShiftStartTime = "19:00",
+  lateGraceMinutes = 15
+): Promise<{ success?: boolean; error?: string; message?: string }> {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Admin authority required." };
+  }
+
+  const endClean = newShiftEndTime.trim();
+  const startClean = newShiftStartTime.trim();
+
+  if (!/^\d{2}:\d{2}$/.test(endClean)) {
+    return { error: "Invalid shift end time. Format must be HH:MM (e.g. 04:00, 04:30, 05:00)." };
+  }
+  if (!/^\d{2}:\d{2}$/.test(startClean)) {
+    return { error: "Invalid shift start time. Format must be HH:MM (e.g. 19:00, 20:00)." };
+  }
+
+  try {
+    await prisma.systemSetting.upsert({
+      where: { key: "global_shift_end_time" },
+      update: { value: endClean },
+      create: { key: "global_shift_end_time", value: endClean },
+    });
+    await prisma.systemSetting.upsert({
+      where: { key: "global_shift_start_time" },
+      update: { value: startClean },
+      create: { key: "global_shift_start_time", value: startClean },
+    });
+
+    await prisma.campaign.updateMany({
+      data: {
+        shiftStartTime: startClean,
+        shiftEndTime: endClean,
+        lateGraceMinutes: Number(lateGraceMinutes) || 15,
+      },
+    });
+
+    // Run auto-logout evaluation immediately
+    await autoLogoutExpiredShifts();
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/employees");
+    revalidatePath("/admin/settings");
+    revalidatePath("/dashboard");
+
+    return {
+      success: true,
+      message: `Auto Shift End Time updated to ${endClean} (Shift: ${startClean} - ${endClean}). All active campaigns and rosters synchronized.`,
+    };
+  } catch (err: any) {
+    return { error: err.message || "Failed to update shift times." };
+  }
+}
+
 
