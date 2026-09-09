@@ -10,7 +10,7 @@ const SECRET_KEY = getJwtSecret();
 
 const SESSION_COOKIE_NAME = "crm_session";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token =
     request.cookies.get(SESSION_COOKIE_NAME)?.value ||
