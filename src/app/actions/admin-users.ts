@@ -255,6 +255,96 @@ export async function createEmployeeAction(formData: FormData) {
   }
 }
 
+export async function updateEmployeeAction(formData: FormData) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Administrator authority required." };
+  }
+
+  const rawUsername = formData.get("username")?.toString().trim();
+  const rawName = formData.get("name");
+  const rawRole = (formData.get("role")?.toString() || "AGENT") as Role;
+  const rawEmail = formData.get("email")?.toString().trim();
+  const rawTeamId = formData.get("teamId")?.toString().trim();
+  const teamId = rawTeamId && rawTeamId !== "NONE" ? rawTeamId : null;
+
+  if (!rawUsername) return { error: "Username is required." };
+
+  const name = sanitizeText(rawName, 100);
+  if (!name || name.length < 2) {
+    return { error: "Employee full name must be at least 2 characters." };
+  }
+
+  let email: string | null = null;
+  if (rawEmail) {
+    const emailVal = validateEmail(rawEmail);
+    if (!emailVal.valid) {
+      return { error: "Invalid employee email address format." };
+    }
+    email = emailVal.value;
+  }
+
+  // Prevent admin demotion if it's the master admin
+  if (rawUsername === "admin" && rawRole !== "ADMIN") {
+    return { error: "Security restriction: The Master Administrator role cannot be changed." };
+  }
+
+  try {
+    const existing = await prisma.user.findUnique({ where: { username: rawUsername } });
+    if (!existing) return { error: `Employee @${rawUsername} not found.` };
+
+    const updated = await prisma.user.update({
+      where: { username: rawUsername },
+      data: {
+        name,
+        email,
+        role: rawRole,
+        teamId,
+      },
+    });
+
+    // If non-admin, ensure salary profile exists
+    if (rawRole !== "ADMIN") {
+      const existingSalary = await prisma.salaryProfile.findUnique({ where: { userId: existing.id } });
+      if (!existingSalary) {
+        await prisma.salaryProfile.create({
+          data: {
+            userId: existing.id,
+            baseSalary: 25000.0,
+            payFrequency: "MONTHLY",
+            effectiveDate: new Date(),
+          },
+        });
+      }
+    }
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/employees");
+    return {
+      success: true,
+      message: `Employee profile for @${updated.username} (${updated.name}) was successfully updated.`,
+    };
+  } catch (err: unknown) {
+    console.warn("Database user update error, falling back to store:", err);
+    const devUser = getStoredUser(rawUsername);
+    if (!devUser) return { error: "User not found." };
+
+    saveStoredUser({
+      ...devUser,
+      name,
+      email,
+      role: rawRole,
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/employees");
+    return {
+      success: true,
+      message: `Employee profile for @${rawUsername} was successfully updated (Dev Mode).`,
+    };
+  }
+}
+
 export async function toggleEmployeeStatusAction(username: string) {
   const session = await getSession();
   if (!session || session.role !== "ADMIN") {

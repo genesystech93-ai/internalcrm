@@ -4,6 +4,7 @@ import React, { useState, useEffect, useActionState } from "react";
 import {
   getAdminUsersAction,
   createEmployeeAction,
+  updateEmployeeAction,
   toggleEmployeeStatusAction,
   deleteEmployeeAction,
   adminChangePasswordAction,
@@ -23,6 +24,7 @@ import {
   Trash2,
   Filter,
   Loader2,
+  Edit2,
 } from "lucide-react";
 import { Role } from "@prisma/client";
 import { ModalPortal } from "@/components/ModalPortal";
@@ -51,6 +53,14 @@ export function AdminUserManagement() {
   const [addTeamId, setAddTeamId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [notification, setNotification] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Edit Employee state
+  const [editingUser, setEditingUser] = useState<UserManagementItem | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editRole, setEditRole] = useState<Role>("AGENT");
+  const [editTeamId, setEditTeamId] = useState("");
+  const [isUpdatingUser, setIsUpdatingUser] = useState(false);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -133,6 +143,41 @@ export function AdminUserManagement() {
       }
     }
     setIsCreating(false);
+  };
+
+  const openEditUser = (u: UserManagementItem) => {
+    setEditingUser(u);
+    setEditName(u.name);
+    setEditEmail(u.email || "");
+    setEditRole(u.role);
+    setEditTeamId(u.teamId || "NONE");
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setIsUpdatingUser(true);
+    setNotification(null);
+
+    const formData = new FormData();
+    formData.append("username", editingUser.username);
+    formData.append("name", editName);
+    formData.append("email", editEmail);
+    formData.append("role", editRole);
+    formData.append("teamId", editTeamId);
+
+    const res = await updateEmployeeAction(formData);
+    if (res.error) {
+      setNotification({ type: "error", text: res.error });
+    } else {
+      setNotification({ type: "success", text: res.message || "Employee updated." });
+      setEditingUser(null);
+      await loadUsers();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("crm:employee-updated"));
+      }
+    }
+    setIsUpdatingUser(false);
   };
 
   const handleToggleStatus = async (username: string) => {
@@ -346,7 +391,17 @@ export function AdminUserManagement() {
                   </td>
 
                   <td className="py-3 px-3 text-right">
-                    <div className="inline-flex items-center gap-2">
+                    <div className="inline-flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openEditUser(u)}
+                        className="liquid-glass-button-secondary py-1.5 px-2.5 rounded-xl font-bold text-xs inline-flex items-center gap-1 hover:border-orange-500/40 hover:text-[#EA580C] cursor-pointer"
+                        title="Edit Employee Name, Email, Role & Team"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 text-[#EA580C]" />
+                        <span>Edit</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => {
@@ -551,6 +606,132 @@ export function AdminUserManagement() {
                 >
                   {isCreating && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>{isCreating ? "Creating..." : "Save Employee"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+        </ModalPortal>
+      )}
+
+      {/* Modal 3: Edit Employee Profile */}
+      {editingUser && (
+        <ModalPortal>
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setEditingUser(null);
+            }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
+          >
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
+            <button
+              onClick={() => setEditingUser(null)}
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100/70 dark:hover:bg-slate-800 text-[#64748B] dark:text-[#94A3B8] transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-2xl bg-orange-500/15 flex items-center justify-center text-[#EA580C]">
+                <Edit2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white">Edit Employee Profile</h3>
+                <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                  Update credentials, system role, and assigned team.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleUpdateUser} className="space-y-3.5">
+              {/* Username display (read-only) */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                  Username (Fixed Login Handle)
+                </label>
+                <div className="w-full px-3.5 py-2 rounded-xl text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+                  @{editingUser.username}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                  Employee Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="employee@company.com"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                    Role *
+                  </label>
+                  <select
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value as Role)}
+                    disabled={editingUser.username === "admin"}
+                    className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all disabled:opacity-60"
+                  >
+                    <option value="AGENT">Agent</option>
+                    <option value="CLOSER">Closer</option>
+                    <option value="TL">Team Lead (TL)</option>
+                    <option value="ADMIN">Administrator</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                    Assigned Floor Team
+                  </label>
+                  <select
+                    value={editTeamId}
+                    onChange={(e) => setEditTeamId(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all"
+                  >
+                    <option value="NONE">-- No Team (General) --</option>
+                    {teams.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="liquid-glass-button-secondary flex-1 py-2.5 rounded-xl font-bold text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingUser}
+                  className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                >
+                  {isUpdatingUser && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>{isUpdatingUser ? "Saving..." : "Save Changes"}</span>
                 </button>
               </div>
             </form>

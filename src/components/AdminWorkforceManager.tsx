@@ -14,6 +14,7 @@ import {
 import {
   getTeamsAction,
   createTeamAction,
+  updateTeamAction,
   assignTeamMembersAction,
   deleteTeamAction,
   getAssignableStaffAction,
@@ -69,6 +70,13 @@ export function AdminWorkforceManager() {
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamTarget, setNewTeamTarget] = useState("200");
   const [newTeamPool, setNewTeamPool] = useState("10000");
+
+  // Edit Team state
+  const [editingTeam, setEditingTeam] = useState<TeamItem | null>(null);
+  const [editTeamName, setEditTeamName] = useState("");
+  const [editTeamTarget, setEditTeamTarget] = useState("200");
+  const [editTeamPool, setEditTeamPool] = useState("10000");
+  const [isUpdatingTeam, setIsUpdatingTeam] = useState(false);
 
   // Manage Team Members state
   const [managingTeam, setManagingTeam] = useState<TeamItem | null>(null);
@@ -147,6 +155,33 @@ export function AdminWorkforceManager() {
       setNewTeamName("");
       await loadData();
     }
+  };
+
+  const openEditTeam = (team: TeamItem) => {
+    setEditingTeam(team);
+    setEditTeamName(team.name);
+    setEditTeamTarget(team.targetVolume.toString());
+    setEditTeamPool(team.poolAmount.toString());
+  };
+
+  const handleUpdateTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTeam) return;
+    setIsUpdatingTeam(true);
+    const fd = new FormData();
+    fd.append("name", editTeamName);
+    fd.append("targetVolume", editTeamTarget);
+    fd.append("poolAmount", editTeamPool);
+
+    const res = await updateTeamAction(editingTeam.id, fd);
+    if (res.error) {
+      setMessage({ text: res.error, type: "error" });
+    } else {
+      setMessage({ text: res.message || "Team updated.", type: "success" });
+      setEditingTeam(null);
+      await loadData();
+    }
+    setIsUpdatingTeam(false);
   };
 
   const openManageMembers = async (team: TeamItem) => {
@@ -690,19 +725,31 @@ export function AdminWorkforceManager() {
 
                     {/* Team Action Buttons */}
                     <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openManageMembers(t)}
-                        className="liquid-glass-button-primary py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <UserCheck className="w-3.5 h-3.5" />
-                        <span>Assign Members & Leader</span>
-                      </button>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => openManageMembers(t)}
+                          className="liquid-glass-button-primary py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          <span>Assign Members & Leader</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openEditTeam(t)}
+                          className="liquid-glass-button-secondary py-1.5 px-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer hover:border-orange-500/40 hover:text-[#EA580C]"
+                          title="Edit Team Name, Target & Bonus Pool"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 text-[#EA580C]" />
+                          <span>Edit</span>
+                        </button>
+                      </div>
 
                       <button
                         type="button"
                         onClick={() => handleDeleteTeam(t.id, t.name)}
-                        className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                        className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer shrink-0"
                         title="Delete Team"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -779,6 +826,103 @@ export function AdminWorkforceManager() {
                         className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs"
                       >
                         Save Team
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </ModalPortal>
+          )}
+
+          {/* Edit Team Modal */}
+          {editingTeam && (
+            <ModalPortal>
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+                <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white flex items-center gap-2">
+                        <Edit2 className="w-4 h-4 text-[#EA580C]" />
+                        <span>Edit Team Information</span>
+                      </h3>
+                      <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
+                        Update team name, target volume, and bonus pool amount.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingTeam(null)}
+                      className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleUpdateTeam} className="space-y-3.5">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                        Team Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editTeamName}
+                        onChange={(e) => setEditTeamName(e.target.value)}
+                        className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                          Monthly Target Volume *
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          value={editTeamTarget}
+                          onChange={(e) => setEditTeamTarget(e.target.value)}
+                          className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1">
+                          Bonus Pool (₹) *
+                        </label>
+                        <input
+                          type="number"
+                          step="50"
+                          required
+                          min="0"
+                          value={editTeamPool}
+                          onChange={(e) => setEditTeamPool(e.target.value)}
+                          className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setEditingTeam(null)}
+                        className="liquid-glass-button-secondary flex-1 py-2.5 rounded-xl font-bold text-xs cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isUpdatingTeam}
+                        className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+                      >
+                        {isUpdatingTeam ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Updating...</span>
+                          </>
+                        ) : (
+                          <span>Update Team</span>
+                        )}
                       </button>
                     </div>
                   </form>

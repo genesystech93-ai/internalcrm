@@ -99,6 +99,48 @@ export async function createTeamAction(formData: FormData) {
   }
 }
 
+export async function updateTeamAction(teamId: string, formData: FormData) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Admin authority required." };
+  }
+
+  const name = formData.get("name")?.toString().trim();
+  const targetVolume = parseInt(formData.get("targetVolume")?.toString() || "200", 10);
+  const poolAmount = parseFloat(formData.get("poolAmount")?.toString() || "500.0");
+
+  if (!name) return { error: "Team name is required." };
+  if (isNaN(targetVolume) || targetVolume < 1) return { error: "Please enter a valid monthly target volume." };
+  if (isNaN(poolAmount) || poolAmount < 0) return { error: "Please enter a valid bonus pool amount." };
+
+  try {
+    const existing = await prisma.team.findFirst({
+      where: {
+        name,
+        id: { not: teamId },
+      },
+    });
+    if (existing) {
+      return { error: `Another team named "${name}" already exists.` };
+    }
+
+    await prisma.team.update({
+      where: { id: teamId },
+      data: {
+        name,
+        targetVolume,
+        poolAmount,
+      },
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/employees");
+    return { success: true, message: `Team "${name}" updated successfully.` };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : "Failed to update team." };
+  }
+}
+
 export async function assignTeamMembersAction(
   teamId: string,
   memberUserIds: string[],

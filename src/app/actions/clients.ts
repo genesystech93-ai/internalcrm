@@ -11,6 +11,8 @@ import {
   getInMemoryClients,
   getInMemoryClientById,
   saveInMemoryClient,
+  updateInMemoryClient,
+  deleteInMemoryClient,
   calculateApprovalDeadline,
 } from "@/lib/client-store";
 import { adminDecisionAction } from "@/app/actions/leads";
@@ -165,6 +167,107 @@ export async function createClientAction(formData: FormData): Promise<{ success?
       createdAt: saved.createdAt,
     },
   };
+}
+
+// Update an existing Client
+export async function updateClientAction(
+  clientId: string,
+  formData: FormData
+): Promise<{ success?: boolean; error?: string; message?: string }> {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Permission Denied: Only Admins can modify corporate clients." };
+  }
+
+  const name = sanitizeText(formData.get("name"), 120);
+  const contactPerson = sanitizeText(formData.get("contactPerson"), 120);
+  const rawEmail = formData.get("email");
+  const defaultNetTerms = (formData.get("defaultNetTerms")?.toString() || "NET_14") as NetTermsType;
+
+  if (!name || name.length < 2) {
+    return { error: "Client / Buyer company name must be at least 2 characters long." };
+  }
+
+  let email: string | null = null;
+  if (rawEmail) {
+    const val = validateEmail(rawEmail);
+    if (!val.valid) {
+      return { error: val.error || "Please enter a valid email address." };
+    }
+    email = val.value;
+  }
+
+  try {
+    const existing = await db.client.findFirst({
+      where: {
+        name,
+        id: { not: clientId },
+      },
+    });
+    if (existing) {
+      return { error: `Another client named "${name}" already exists.` };
+    }
+
+    await db.client.update({
+      where: { id: clientId },
+      data: {
+        name,
+        contactPerson: contactPerson || null,
+        email,
+        defaultNetTerms,
+      },
+    });
+
+    revalidatePath("/admin/settings");
+    revalidatePath("/admin");
+    return { success: true, message: `Client "${name}" updated successfully.` };
+  } catch {
+    // In-memory fallback
+    updateInMemoryClient(clientId, {
+      name,
+      contactPerson: contactPerson || null,
+      email,
+      defaultNetTerms,
+    });
+
+    revalidatePath("/admin/settings");
+    revalidatePath("/admin");
+    return { success: true, message: `Client "${name}" updated successfully (Dev Mode).` };
+  }
+}
+
+// Delete a Client
+export async function deleteClientAction(
+  clientId: string
+): Promise<{ success?: boolean; error?: string; message?: string }> {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Permission Denied: Only Admins can delete corporate clients." };
+  }
+
+  try {
+    await db.lead.updateMany({
+      where: { clientId },
+      data: {
+        clientId: null,
+        clientNetTerms: null,
+        clientSubmittedAt: null,
+        expectedApprovalDate: null,
+        clientApprovalStatus: null,
+      },
+    });
+
+    await db.client.delete({ where: { id: clientId } });
+
+    revalidatePath("/admin/settings");
+    revalidatePath("/admin");
+    return { success: true, message: "Client organization deleted successfully." };
+  } catch {
+    deleteInMemoryClient(clientId);
+    revalidatePath("/admin/settings");
+    revalidatePath("/admin");
+    return { success: true, message: "Client organization deleted successfully (Dev Mode)." };
+  }
 }
 
 // 3. Submit Lead to Client with Net 7, 14, 21, 30 approval SLA

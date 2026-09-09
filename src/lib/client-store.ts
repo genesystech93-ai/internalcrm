@@ -107,3 +107,19 @@ export function saveInMemoryClient(client: Omit<StoredClient, "id" | "createdAt"
   inMemoryClients.set(id, newClient);
   return newClient;
 }
+
+export function updateInMemoryClient(id: string, updates: Partial<StoredClient>): StoredClient | null {
+  const existing = inMemoryClients.get(id);
+  if (!existing) return null;
+  const updated: StoredClient = {
+    ...existing,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  inMemoryClients.set(id, updated);
+  return updated;
+}
+
+export function deleteInMemoryClient(id: string): boolean {
+  return inMemoryClients.delete(id);
+}
