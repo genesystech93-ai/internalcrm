@@ -68,6 +68,19 @@ export async function getConversationsAction(): Promise<ConversationView[]> {
     });
 
     if (user) {
+      // Ensure #General Floor channel exists
+      let generalConv = await db.conversation.findFirst({
+        where: { type: "GENERAL" },
+      });
+      if (!generalConv) {
+        generalConv = await db.conversation.create({
+          data: {
+            type: "GENERAL",
+            name: "General Floor",
+          },
+        });
+      }
+
       // Find conversations: If Admin, see EVERYTHING across the floor. Otherwise user's own.
       const whereCondition = isAdmin
         ? {}
@@ -403,6 +416,20 @@ export async function sendMessageAction(payload: {
         });
         convId = newConv.id;
       }
+    } else if (!convId && !payload.recipientId) {
+      // Default to General Floor channel
+      let general = await db.conversation.findFirst({
+        where: { type: "GENERAL" },
+      });
+      if (!general) {
+        general = await db.conversation.create({
+          data: {
+            type: "GENERAL",
+            name: "General Floor",
+          },
+        });
+      }
+      convId = general.id;
     }
 
     if (convId) {
@@ -587,7 +614,7 @@ export async function shareLeadToChatAction(params: {
   recipientId?: string;
   conversationId?: string;
   note?: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; conversationId?: string; messageId?: string; error?: string }> {
   const session = await getSession();
   if (!session) return { success: false, error: "Unauthorized." };
 
@@ -606,22 +633,30 @@ export async function shareLeadToChatAction(params: {
 
     if (lead) {
       leadDetails = {
-        customerName: lead.customerName,
-        mobile: lead.mobile,
-        campaign: lead.campaign.name,
-        status: lead.status,
+        customerName: lead.customerName || "Lead",
+        mobile: lead.mobile || "",
+        campaign: lead.campaign?.name || "General Campaign",
+        status: lead.status || "PENDING",
       };
     }
-  } catch {
-    const devLeads = await getDevLeads();
-    const devL = devLeads.find((l) => l.id === params.leadId);
-    if (devL) {
-      leadDetails = {
-        customerName: devL.customerName,
-        mobile: devL.mobile,
-        campaign: devL.campaignName,
-        status: devL.status,
-      };
+  } catch (err) {
+    console.error("Failed to query lead for sharing:", err);
+  }
+
+  if (!leadDetails) {
+    try {
+      const devLeads = await getDevLeads();
+      const devL = devLeads.find((l) => l.id === params.leadId);
+      if (devL) {
+        leadDetails = {
+          customerName: devL.customerName || "Lead",
+          mobile: devL.mobile || "",
+          campaign: devL.campaignName || "General Campaign",
+          status: devL.status || "PENDING",
+        };
+      }
+    } catch {
+      // Dev mode fallback
     }
   }
 
@@ -629,15 +664,24 @@ export async function shareLeadToChatAction(params: {
     return { success: false, error: "Lead record could not be found to share." };
   }
 
+  const formattedContent =
+    params.note ||
+    `📋 [Floor Lead Share]\nCustomer: ${leadDetails.customerName}\nPhone: ${leadDetails.mobile}\nCampaign: ${leadDetails.campaign}\nStatus: ${leadDetails.status}`;
+
   const result = await sendMessageAction({
     conversationId: params.conversationId,
     recipientId: params.recipientId,
-    content: params.note || `Reviewing lead for ${leadDetails.customerName}`,
+    content: formattedContent,
     leadId: params.leadId,
     metadata: leadDetails,
   });
 
-  return { success: result.success, error: result.error };
+  return {
+    success: result.success,
+    conversationId: result.message?.conversationId,
+    messageId: result.message?.id,
+    error: result.error,
+  };
 }
 
 export interface RecentLeadForChat {

@@ -119,10 +119,20 @@ export function LeadDetailsModal({
     setIsSharing(true);
     const res = await shareLeadToChatAction({
       leadId: lead.id,
-      note: `Lead Details: ${lead.customerName} (${lead.campaignName || "Campaign"}) - Status: ${lead.status}`,
+      note: `📋 [Floor Lead Share]\nCustomer: ${lead.customerName}\nPhone: ${lead.mobile || "N/A"}\nCampaign: ${lead.campaignName || "General"}\nStatus: ${lead.status}`,
     });
     if (res.success) {
       setShareFeedback("Shared to Pulse Chat!");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("crm:open-chat", {
+            detail: {
+              conversationId: res.conversationId,
+              leadId: lead.id,
+            },
+          })
+        );
+      }
       setTimeout(() => setShareFeedback(null), 3000);
     }
     setIsSharing(false);

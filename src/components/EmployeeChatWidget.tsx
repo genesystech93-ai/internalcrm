@@ -283,6 +283,34 @@ export function EmployeeChatWidget() {
     return () => clearInterval(interval);
   }, [isOpen, activeConversation, fetchUnreadCount, loadConversations, loadMessages]);
 
+  // Listen for programmatic chat open (e.g. Share to Chat from Leads Kanban or Table)
+  useEffect(() => {
+    const handleOpenChat = async (e: Event) => {
+      const customEvent = e as CustomEvent<{ conversationId?: string; leadId?: string }>;
+      setIsOpen(true);
+      const convList = await getConversationsAction();
+      setConversations(convList);
+
+      const targetId = customEvent.detail?.conversationId;
+      if (targetId) {
+        const targetConv = convList.find((c) => c.id === targetId);
+        if (targetConv) {
+          setActiveConversation(targetConv);
+        } else if (convList.length > 0) {
+          setActiveConversation(convList[0]);
+        }
+        await loadMessages(targetId);
+      } else if (convList.length > 0 && !activeConversation) {
+        setActiveConversation(convList[0]);
+        await loadMessages(convList[0].id);
+      }
+      playGentleChime();
+    };
+
+    window.addEventListener("crm:open-chat", handleOpenChat);
+    return () => window.removeEventListener("crm:open-chat", handleOpenChat);
+  }, [loadMessages, activeConversation]);
+
   // Select conversation
   const handleSelectConversation = (conv: ConversationView) => {
     setActiveConversation(conv);
@@ -482,7 +510,7 @@ export function EmployeeChatWidget() {
   return (
     <>
       {/* Floating Bottom-Right Launcher Widget */}
-      <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2">
+      <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 flex items-center gap-2">
         {!isOpen && (
           <button
             onClick={() => {
@@ -524,10 +552,10 @@ export function EmployeeChatWidget() {
       {/* Main Chat Window (Compact Docked or Maximized 2-Column Mode) */}
       {isOpen && (
         <div
-          className={`fixed z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-white/60 dark:border-slate-700/80 shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
+          className={`fixed z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
             isMaximized
-              ? "bottom-3 right-3 sm:bottom-6 sm:right-6 w-[96vw] max-w-[900px] h-[720px] max-h-[94vh] rounded-3xl"
-              : "bottom-5 right-5 w-[94vw] sm:w-[440px] h-[610px] max-h-[90vh] rounded-3xl"
+              ? "bottom-2 sm:bottom-6 right-2 sm:right-6 left-2 sm:left-auto sm:w-[94vw] sm:max-w-[920px] h-[92vh] sm:h-[720px] max-h-[96dvh] rounded-2xl sm:rounded-3xl"
+              : "bottom-20 sm:bottom-6 right-3 sm:right-6 left-3 sm:left-auto w-auto sm:w-[430px] h-[78vh] sm:h-[620px] max-h-[calc(100dvh-6rem)] sm:max-h-[85vh] rounded-2xl sm:rounded-3xl"
           }`}
         >
           {/* Top Bar / Global Header */}
@@ -1153,7 +1181,7 @@ export function EmployeeChatWidget() {
 
                     {/* Popover Lead Picker */}
                     {showLeadPicker && (
-                      <div className="absolute bottom-12 left-0 w-72 sm:w-80 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-3 z-30 space-y-2">
+                      <div className="absolute bottom-12 left-0 w-72 sm:w-80 max-w-[calc(100vw-3.5rem)] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-3 z-30 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                             <FileText className="w-3.5 h-3.5 text-orange-500" />
