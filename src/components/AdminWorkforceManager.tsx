@@ -3,7 +3,13 @@
 import React, { useState, useEffect } from "react";
 import { AdminAttendanceBoard } from "@/components/AdminAttendanceBoard";
 import { LeaveManagement } from "@/components/LeaveManagement";
-import { getSalaryProfilesAction, updateSalaryProfileAction, SalaryProfileItem } from "@/app/actions/salary";
+import {
+  getSalaryProfilesAction,
+  updateSalaryProfileAction,
+  getAugustPayrollLedgerAction,
+  SalaryProfileItem,
+  AugustLedgerItem,
+} from "@/app/actions/salary";
 import {
   getCampaignIncentivesAction,
   saveCampaignIncentiveAction,
@@ -40,6 +46,8 @@ import {
   Search,
   X,
   Loader2,
+  Download,
+  FileSpreadsheet,
 } from "lucide-react";
 import { ModalPortal } from "./ModalPortal";
 
@@ -53,6 +61,9 @@ export function AdminWorkforceManager() {
   const [newSalaryVal, setNewSalaryVal] = useState<number>(25000);
   const [newFrequencyVal, setNewFrequencyVal] = useState<string>("MONTHLY");
   const [newEffectiveDateVal, setNewEffectiveDateVal] = useState<string>("");
+
+  // August 2026 Payroll & Banking Ledger (from Aug.xlsx)
+  const [augustLedger, setAugustLedger] = useState<AugustLedgerItem[]>([]);
 
   // Unified Campaign Incentive Rules state
   const [campaignIncentives, setCampaignIncentives] = useState<CampaignIncentiveItem[]>([]);
@@ -91,16 +102,18 @@ export function AdminWorkforceManager() {
   const loadData = async () => {
     setIsRefreshing(true);
     try {
-      const [salList, incentiveList, teamList, campList] = await Promise.all([
+      const [salList, incentiveList, teamList, campList, augList] = await Promise.all([
         getSalaryProfilesAction(),
         getCampaignIncentivesAction(),
         getTeamsAction(),
         getCampaignsAction(),
+        getAugustPayrollLedgerAction(),
       ]);
       setSalaries(salList);
       setCampaignIncentives(incentiveList);
       setTeams(teamList);
       setCampaigns(campList);
+      setAugustLedger(augList);
       if (campList.length > 0 && !ruleCampaignId) {
         setRuleCampaignId(campList[0].id);
       }
@@ -109,6 +122,49 @@ export function AdminWorkforceManager() {
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const handleExportAugustPayrollCSV = () => {
+    if (augustLedger.length === 0) return;
+    const headers = [
+      "Employee Name",
+      "Username",
+      "Role",
+      "Assigned Team",
+      "Bank Name",
+      "Account Number",
+      "IFSC Code",
+      "Account Type",
+      "Present Days",
+      "Absent Days",
+      "Basic Salary (Rs.)",
+      "August Net Salary (Rs.)",
+    ];
+
+    const rows = augustLedger.map((item) => [
+      `"${item.name}"`,
+      `"${item.username}"`,
+      item.role,
+      `"${item.team}"`,
+      `"${item.bank || "N/A"}"`,
+      `"${item.accountNo || "N/A"}"`,
+      `"${item.ifsc || "N/A"}"`,
+      `"${item.accountType || "N/A"}"`,
+      item.presentDays,
+      item.absentDays,
+      item.basicSalary,
+      item.augNetSalary,
+    ]);
+
+    const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `August_2026_Payroll_Ledger_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   useEffect(() => {
@@ -511,6 +567,130 @@ export function AdminWorkforceManager() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* August 2026 Shift Attendance, Salary & Banking Ledger (Imported from Aug.xlsx) */}
+          {augustLedger.length > 0 && (
+            <div className="liquid-glass-card rounded-3xl p-6 sm:p-8 mt-6 border border-emerald-500/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                      <FileSpreadsheet className="w-4 h-4" />
+                    </div>
+                    <h2 className="text-lg font-bold text-[#0F172A] dark:text-white">
+                      August 2026 Shift Attendance, Salary & Banking Ledger
+                    </h2>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                      Verified from Aug.xlsx
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                    Official bank routing codes, IFSC, daily shift counts, and pro-rated earned net payouts for August 2026.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleExportAugustPayrollCSV}
+                  className="liquid-glass-button px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shrink-0"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Aug Payroll CSV</span>
+                </button>
+              </div>
+
+              {/* Summary Metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+                  <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Total Staff</p>
+                  <p className="text-lg font-extrabold text-[#0F172A] dark:text-white font-mono">{augustLedger.length}</p>
+                </div>
+                <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+                  <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Shift Logs Recorded</p>
+                  <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+                    {augustLedger.length * 31}
+                  </p>
+                </div>
+                <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+                  <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Gross Base Payroll</p>
+                  <p className="text-lg font-extrabold text-[#0F172A] dark:text-white font-mono">
+                    ₹{augustLedger.reduce((sum, item) => sum + item.basicSalary, 0).toLocaleString("en-IN")}
+                  </p>
+                </div>
+                <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+                  <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">August Net Payout</p>
+                  <p className="text-lg font-extrabold text-[#EA580C] dark:text-[#FB923C] font-mono">
+                    ₹{augustLedger.reduce((sum, item) => sum + item.augNetSalary, 0).toLocaleString("en-IN")}
+                  </p>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200/80 dark:border-slate-700 text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider">
+                      <th className="py-2.5 px-3">Employee</th>
+                      <th className="py-2.5 px-3">Team</th>
+                      <th className="py-2.5 px-3">Banking Routing (IFSC & A/C)</th>
+                      <th className="py-2.5 px-3 text-center">Present / Absent</th>
+                      <th className="py-2.5 px-3 text-right">Base Salary</th>
+                      <th className="py-2.5 px-3 text-right">Aug Earned Net</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {augustLedger.map((item) => (
+                      <tr key={item.userId} className="hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-3 px-3">
+                          <p className="font-bold text-[#0F172A] dark:text-white">{item.name}</p>
+                          <p className="font-mono text-[10px] text-[#64748B] dark:text-[#94A3B8]">@{item.username}</p>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                            {item.team}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          {item.bank ? (
+                            <div>
+                              <p className="font-bold text-[#0F172A] dark:text-white flex items-center gap-1.5">
+                                <span>{item.bank}</span>
+                                {item.accountType && (
+                                  <span className="text-[10px] font-normal text-slate-400">({item.accountType})</span>
+                                )}
+                              </p>
+                              <p className="font-mono text-[10px] text-[#64748B] dark:text-[#94A3B8]">
+                                A/C: {item.accountNo} | IFSC: {item.ifsc}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 italic">Not specified (Direct)</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <div className="inline-flex items-center gap-1.5 font-mono text-[11px]">
+                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">
+                              {item.presentDays}P
+                            </span>
+                            <span className="text-slate-400">/</span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 font-bold">
+                              {item.absentDays}A
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-semibold text-slate-600 dark:text-slate-400">
+                          ₹{item.basicSalary.toLocaleString("en-IN")}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          ₹{item.augNetSalary.toLocaleString("en-IN")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

@@ -122,3 +122,37 @@ export async function updateSalaryProfileAction(
     return { success: true, message: "Salary profile updated successfully (Dev Mode)." };
   }
 }
+
+export interface AugustLedgerItem {
+  userId: string;
+  name: string;
+  username: string;
+  role: string;
+  team: string;
+  bank: string | null;
+  ifsc: string | null;
+  accountNo: string | null;
+  accountType: string | null;
+  presentDays: number;
+  absentDays: number;
+  basicSalary: number;
+  augNetSalary: number;
+}
+
+export async function getAugustPayrollLedgerAction(): Promise<AugustLedgerItem[]> {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") return [];
+
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: "august_2026_payroll_ledger" },
+    });
+    if (setting) {
+      return JSON.parse(setting.value);
+    }
+  } catch {
+    // Offline Dev Fallback
+  }
+  return [];
+}
+
