@@ -32,6 +32,8 @@ import {
   Eye,
   PanelLeft,
   PanelLeftClose,
+  Eraser,
+  AlertTriangle,
 } from "lucide-react";
 import {
   getConversationsAction,
@@ -41,6 +43,9 @@ import {
   getStaffDirectoryAction,
   getRecentLeadsForChatAction,
   getCurrentUserChatInfoAction,
+  deleteMessageAction,
+  clearConversationMessagesAction,
+  deleteConversationAction,
   ConversationView,
   ChatMessageView,
   RecentLeadForChat,
@@ -129,6 +134,14 @@ export function EmployeeChatWidget() {
   // Transcript Copy State
   const [transcriptCopied, setTranscriptCopied] = useState(false);
 
+  // Deletion and Clear Conversation State
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<ConversationView | null>(null);
+  const [isDeletingConv, setIsDeletingConv] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState<{ type: "error" | "success"; text: string } | null>(null);
+
   // Canned Quick Replies State
   const [quickReplies, setQuickReplies] = useState<string[]>(DEFAULT_QUICK_REPLIES);
   const [showQuickRepliesManager, setShowQuickRepliesManager] = useState(false);
@@ -159,6 +172,14 @@ export function EmployeeChatWidget() {
       }
     }
   }, []);
+
+  // Auto-dismiss action feedback notifications after 4.5 seconds
+  useEffect(() => {
+    if (actionFeedback) {
+      const timer = setTimeout(() => setActionFeedback(null), 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [actionFeedback]);
 
   // Save quick replies to localStorage
   const saveQuickReplies = (updated: string[]) => {
@@ -433,6 +454,85 @@ export function EmployeeChatWidget() {
     navigator.clipboard.writeText(header + body);
     setTranscriptCopied(true);
     setTimeout(() => setTranscriptCopied(false), 2500);
+  };
+
+  // Delete individual chat message
+  const handleDeleteMessage = async (messageId: string) => {
+    if (deletingMessageId) return;
+    setDeletingMessageId(messageId);
+    setActionFeedback(null);
+    const prev = messages;
+    setMessages((m) => m.filter((item) => item.id !== messageId));
+
+    try {
+      const res = await deleteMessageAction(messageId);
+      if (!res.success) {
+        setMessages(prev);
+        setActionFeedback({ type: "error", text: res.error || "Failed to delete message." });
+      } else {
+        loadConversations();
+      }
+    } catch {
+      setMessages(prev);
+      setActionFeedback({ type: "error", text: "Network error deleting message." });
+    } finally {
+      setDeletingMessageId(null);
+    }
+  };
+
+  // Clear all messages inside the active conversation
+  const handleClearConversation = async () => {
+    if (!activeConversation || isClearing) return;
+    setIsClearing(true);
+    setActionFeedback(null);
+
+    try {
+      const res = await clearConversationMessagesAction(activeConversation.id);
+      if (res.success) {
+        setMessages([]);
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === activeConversation.id
+              ? { ...c, lastMessageText: "No messages yet", unreadCount: 0 }
+              : c
+          )
+        );
+        setShowClearConfirm(false);
+        setActionFeedback({ type: "success", text: "Conversation messages cleared." });
+      } else {
+        setActionFeedback({ type: "error", text: res.error || "Failed to clear conversation." });
+      }
+    } catch {
+      setActionFeedback({ type: "error", text: "Failed to clear conversation messages." });
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
+  // Delete entire conversation thread
+  const handleDeleteConversation = async (conv: ConversationView) => {
+    if (isDeletingConv) return;
+    setIsDeletingConv(true);
+    setActionFeedback(null);
+
+    try {
+      const res = await deleteConversationAction(conv.id);
+      if (res.success) {
+        setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+        if (activeConversation?.id === conv.id) {
+          setActiveConversation(null);
+          setMessages([]);
+        }
+        setConversationToDelete(null);
+        setActionFeedback({ type: "success", text: `Conversation "${conv.name}" deleted.` });
+      } else {
+        setActionFeedback({ type: "error", text: res.error || "Failed to delete conversation." });
+      }
+    } catch {
+      setActionFeedback({ type: "error", text: "Failed to delete conversation." });
+    } finally {
+      setIsDeletingConv(false);
+    }
   };
 
   // Inspect shared lead in full Lead Details Modal
@@ -812,10 +912,12 @@ export function EmployeeChatWidget() {
                       </div>
                     ) : (
                       filteredConversations.map((conv) => (
-                        <button
+                        <div
                           key={conv.id}
                           onClick={() => handleSelectConversation(conv)}
-                          className={`w-full p-2.5 rounded-2xl text-left transition-all flex items-start gap-2.5 border cursor-pointer ${
+                          role="button"
+                          tabIndex={0}
+                          className={`group/convitem w-full p-2.5 rounded-2xl text-left transition-all flex items-start gap-2.5 border cursor-pointer relative ${
                             activeConversation?.id === conv.id
                               ? "bg-orange-100/70 dark:bg-orange-950/40 border-orange-300 dark:border-orange-800 shadow-sm"
                               : conv.unreadCount > 0
@@ -855,12 +957,27 @@ export function EmployeeChatWidget() {
                               <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
                                 {conv.name}
                               </h4>
-                              <span className="text-[9px] text-slate-400 whitespace-nowrap ml-1 font-mono">
-                                {new Date(conv.lastMessageTime).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
+                              <div className="flex items-center gap-1 shrink-0 ml-1">
+                                <span className="text-[9px] text-slate-400 whitespace-nowrap font-mono">
+                                  {new Date(conv.lastMessageTime).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                                {conv.type !== "GENERAL" && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConversationToDelete(conv);
+                                    }}
+                                    className="opacity-0 group-hover/convitem:opacity-100 p-0.5 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all cursor-pointer"
+                                    title="Delete conversation"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mb-1">
@@ -878,7 +995,7 @@ export function EmployeeChatWidget() {
                               )}
                             </div>
                           </div>
-                        </button>
+                        </div>
                       ))
                     )}
                   </div>
@@ -1004,8 +1121,58 @@ export function EmployeeChatWidget() {
                         </>
                       )}
                     </button>
+
+                    {/* Clear Conversation Messages */}
+                    {(activeConversation.type !== "GENERAL" || currentUser?.role === "ADMIN") && (
+                      <button
+                        type="button"
+                        onClick={() => setShowClearConfirm(true)}
+                        className="p-1.5 rounded-lg text-slate-500 hover:bg-orange-50 dark:hover:bg-slate-800 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-medium"
+                        title={
+                          activeConversation.type === "GENERAL"
+                            ? "Clear General Floor messages (Admin Moderation)"
+                            : "Clear conversation messages"
+                        }
+                      >
+                        <Eraser className="w-3.5 h-3.5 text-slate-500 hover:text-orange-600" />
+                        <span className="text-[10px] hidden sm:inline">Clear Chat</span>
+                      </button>
+                    )}
+
+                    {/* Delete Entire Conversation */}
+                    {activeConversation.type !== "GENERAL" && (
+                      <button
+                        type="button"
+                        onClick={() => setConversationToDelete(activeConversation)}
+                        className="p-1.5 rounded-lg text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-medium"
+                        title="Delete conversation"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-slate-500 hover:text-red-600" />
+                        <span className="text-[10px] hidden sm:inline">Delete</span>
+                      </button>
+                    )}
                   </div>
                 </div>
+
+                {/* Feedback Toast / Banner */}
+                {actionFeedback && (
+                  <div
+                    className={`px-3.5 py-1.5 text-xs font-medium flex items-center justify-between border-b shrink-0 ${
+                      actionFeedback.type === "error"
+                        ? "bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900"
+                        : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900"
+                    }`}
+                  >
+                    <span>{actionFeedback.text}</span>
+                    <button
+                      type="button"
+                      onClick={() => setActionFeedback(null)}
+                      className="p-0.5 hover:opacity-75 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
 
                 {/* In-Thread Search Input Bar */}
                 {showInThreadSearch && (
@@ -1141,7 +1308,7 @@ export function EmployeeChatWidget() {
                             <div
                               className={`absolute top-[-14px] ${
                                 msg.isOwn ? "left-0" : "right-0"
-                              } opacity-0 group-hover/bubble:opacity-100 transition-opacity bg-white dark:bg-slate-800 rounded-full px-1.5 py-0.5 shadow-md border border-slate-200 dark:border-slate-700 flex items-center gap-1 text-xs z-10 scale-90 origin-bottom`}
+                              } opacity-0 group-hover/bubble:opacity-100 transition-opacity bg-white dark:bg-slate-800 rounded-full px-2 py-0.5 shadow-md border border-slate-200 dark:border-slate-700 flex items-center gap-1 text-xs z-10 scale-90 origin-bottom`}
                             >
                               {["👍", "🔥", "👀", "❤️", "✅"].map((emoji) => (
                                 <button
@@ -1153,6 +1320,29 @@ export function EmployeeChatWidget() {
                                   {emoji}
                                 </button>
                               ))}
+
+                              {/* Single Message Delete (Sender or Admin Moderation) */}
+                              {(msg.isOwn || currentUser?.role === "ADMIN") && (
+                                <>
+                                  <div className="w-px h-3.5 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteMessage(msg.id);
+                                    }}
+                                    disabled={deletingMessageId === msg.id}
+                                    className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-full transition-colors cursor-pointer"
+                                    title={msg.isOwn ? "Delete your message" : "Delete message (Admin Moderation)"}
+                                  >
+                                    {deletingMessageId === msg.id ? (
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" />
+                                    ) : (
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </div>
 
@@ -1538,6 +1728,114 @@ export function EmployeeChatWidget() {
           onClose={() => setSelectedLeadForDetails(null)}
           isAdmin={currentUser?.role === "ADMIN"}
         />
+      )}
+
+      {/* Clear Messages Confirmation Modal */}
+      {showClearConfirm && activeConversation && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/90 dark:border-slate-800 p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
+                <Eraser className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                  Clear Conversation Messages?
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                  {activeConversation.name}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              This will permanently wipe all messages inside this conversation. The conversation thread will remain in your list.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isClearing}
+                onClick={() => setShowClearConfirm(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isClearing}
+                onClick={handleClearConversation}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 shadow-md shadow-red-500/25 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isClearing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Clearing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Eraser className="w-3.5 h-3.5" />
+                    <span>Clear Messages</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Conversation Confirmation Modal */}
+      {conversationToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/90 dark:border-slate-800 p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                  Delete Entire Conversation?
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                  {conversationToDelete.name}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              This will permanently delete this conversation and all its messages. This action cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingConv}
+                onClick={() => setConversationToDelete(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingConv}
+                onClick={() => handleDeleteConversation(conversationToDelete)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 shadow-md shadow-red-500/25 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingConv ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Conversation</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

@@ -175,6 +175,9 @@ export function sendInMemoryMessage(params: {
   inMemoryMessages.push(newMsg);
 
   if (conv) {
+    if (!conv.participantIds.includes(senderId) && conv.type !== "GENERAL") {
+      conv.participantIds.push(senderId);
+    }
     conv.updatedAt = now;
     conv.lastMessage = {
       content: leadId ? `📋 Shared Lead: ${metadata?.customerName || "Lead details"}` : content,
@@ -200,6 +203,75 @@ export function sendInMemoryMessage(params: {
   }
 
   return newMsg;
+}
+
+export function deleteInMemoryMessage(messageId: string): boolean {
+  initializeSeedData();
+  const index = inMemoryMessages.findIndex((m) => m.id === messageId);
+  if (index === -1) return false;
+
+  const [deletedMsg] = inMemoryMessages.splice(index, 1);
+
+  // Update conversation's lastMessage if the deleted message was the last one
+  const conv = inMemoryConversations.get(deletedMsg.conversationId);
+  if (conv) {
+    const remainingMessages = inMemoryMessages
+      .filter((m) => m.conversationId === deletedMsg.conversationId)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    if (remainingMessages.length > 0) {
+      const last = remainingMessages[remainingMessages.length - 1];
+      conv.lastMessage = {
+        content: last.leadId ? `📋 Shared Lead: ${last.metadata?.customerName || "Lead details"}` : last.content,
+        senderName: last.senderName,
+        createdAt: last.createdAt,
+      };
+      conv.updatedAt = last.createdAt;
+    } else {
+      conv.lastMessage = null;
+      conv.updatedAt = new Date().toISOString();
+    }
+  }
+
+  return true;
+}
+
+export function clearInMemoryConversationMessages(conversationId: string): boolean {
+  initializeSeedData();
+  for (let i = inMemoryMessages.length - 1; i >= 0; i--) {
+    if (inMemoryMessages[i].conversationId === conversationId) {
+      inMemoryMessages.splice(i, 1);
+    }
+  }
+
+  const conv = inMemoryConversations.get(conversationId);
+  if (conv) {
+    conv.lastMessage = null;
+    conv.updatedAt = new Date().toISOString();
+    if (conv.unreadCounts) {
+      for (const k of Object.keys(conv.unreadCounts)) {
+        conv.unreadCounts[k] = 0;
+      }
+    }
+  }
+
+  return true;
+}
+
+export function deleteInMemoryConversation(conversationId: string): boolean {
+  initializeSeedData();
+  if (conversationId === "conv-general-floor") {
+    clearInMemoryConversationMessages(conversationId);
+    return true;
+  }
+
+  for (let i = inMemoryMessages.length - 1; i >= 0; i--) {
+    if (inMemoryMessages[i].conversationId === conversationId) {
+      inMemoryMessages.splice(i, 1);
+    }
+  }
+
+  return inMemoryConversations.delete(conversationId);
 }
 
 export function getInMemoryTotalUnread(userId: string): number {

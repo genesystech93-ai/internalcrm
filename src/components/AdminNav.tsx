@@ -13,6 +13,7 @@ import {
   Settings,
   LogOut,
   Clock,
+  MessageSquare,
 } from "lucide-react";
 import { EmployeeChatWidget } from "@/components/EmployeeChatWidget";
 import { DatabaseStatusBadge } from "@/components/DatabaseStatusBadge";
@@ -78,6 +79,20 @@ export function AdminNav({ sessionUser }: AdminNavProps) {
 
           {/* Floor Activity Notifications */}
           <NotificationBell />
+
+          {/* Quick Admin Live Chat Launcher */}
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("crm:open-chat"));
+              }
+            }}
+            className="p-2 rounded-xl text-[#64748B] dark:text-[#94A3B8] hover:text-[#EA580C] dark:hover:text-[#FB923C] hover:bg-orange-50 dark:hover:bg-slate-800/80 transition-colors relative cursor-pointer"
+            title="Open Live Pulse Chat (Floor Supervisor)"
+          >
+            <MessageSquare className="w-4 h-4" />
+          </button>
 
           <div className="text-right hidden sm:block">
             <p className="text-xs font-bold text-[#0F172A] dark:text-white">

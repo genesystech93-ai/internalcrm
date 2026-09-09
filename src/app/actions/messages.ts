@@ -10,6 +10,9 @@ import {
   getInMemoryMessages,
   sendInMemoryMessage,
   getInMemoryTotalUnread,
+  deleteInMemoryMessage,
+  clearInMemoryConversationMessages,
+  deleteInMemoryConversation,
   StaffMember,
 } from "@/lib/chat-store";
 import { getDevAttendances } from "@/app/actions/attendance";
@@ -340,8 +343,8 @@ export async function getMessagesAction(conversationId: string): Promise<ChatMes
           id: m.id,
           conversationId: m.conversationId,
           senderId: m.senderId,
-          senderName: m.sender.name,
-          senderRole: m.sender.role,
+          senderName: m.sender?.name || "User",
+          senderRole: m.sender?.role || "AGENT",
           content: m.content,
           leadId: m.leadId,
           metadata: parsedMetadata,
@@ -349,6 +352,15 @@ export async function getMessagesAction(conversationId: string): Promise<ChatMes
           isOwn: m.senderId === currentUserId,
         };
       });
+    }
+
+    // If 0 messages, verify if conversation exists in Prisma
+    const convExists = await db.conversation.findUnique({
+      where: { id: conversationId },
+      select: { id: true },
+    });
+    if (convExists) {
+      return [];
     }
   } catch {
     // Fallback to in-memory store
@@ -752,6 +764,178 @@ export async function getCurrentUserChatInfoAction(): Promise<{
     username: session.username,
     role: session.role,
   };
+}
+
+// 9. Delete an individual chat message (Sender or Admin moderation)
+export async function deleteMessageAction(messageId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Unauthorized. Please log in." };
+  }
+
+  const currentUserId = session.userId;
+  const isAdmin = session.role === "ADMIN";
+
+  try {
+    const existingMsg = await db.chatMessage.findUnique({
+      where: { id: messageId },
+      select: { id: true, conversationId: true, senderId: true },
+    });
+
+    if (existingMsg) {
+      // Permission check: Admins can delete any message (moderation), regular users can only delete their own
+      if (!isAdmin && existingMsg.senderId !== currentUserId) {
+        return {
+          success: false,
+          error: "Permission denied: You can only delete your own messages.",
+        };
+      }
+
+      await db.chatMessage.delete({
+        where: { id: messageId },
+      });
+
+      // Touch conversation updatedAt
+      await db.conversation.update({
+        where: { id: existingMsg.conversationId },
+        data: { updatedAt: new Date() },
+      }).catch(() => {});
+
+      deleteInMemoryMessage(messageId);
+      return { success: true };
+    }
+  } catch {
+    // Fallback to in-memory store
+  }
+
+  // Fallback in-memory deletion
+  const inMemorySuccess = deleteInMemoryMessage(messageId);
+  return { success: inMemorySuccess };
+}
+
+// 10. Clear all messages in a conversation (wipes history while preserving the thread)
+export async function clearConversationMessagesAction(conversationId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Unauthorized. Please log in." };
+  }
+
+  const currentUserId = session.userId;
+  const isAdmin = session.role === "ADMIN";
+
+  try {
+    const conv = await db.conversation.findUnique({
+      where: { id: conversationId },
+      include: { participants: true },
+    });
+
+    if (conv) {
+      // If General Floor channel, only ADMIN can clear it
+      if (conv.type === "GENERAL" && !isAdmin) {
+        return {
+          success: false,
+          error: "Only floor administrators can clear the General Floor channel.",
+        };
+      }
+
+      // If direct or team chat, must be participant or admin
+      if (!isAdmin) {
+        const isParticipant = conv.participants.some(
+          (p: any) => p.userId === currentUserId
+        );
+        if (!isParticipant) {
+          return {
+            success: false,
+            error: "Unauthorized: You are not a participant in this conversation.",
+          };
+        }
+      }
+
+      await db.chatMessage.deleteMany({
+        where: { conversationId },
+      });
+
+      await db.conversationParticipant.updateMany({
+        where: { conversationId },
+        data: { unreadCount: 0 },
+      });
+
+      await db.conversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: new Date() },
+      });
+
+      clearInMemoryConversationMessages(conversationId);
+      return { success: true };
+    }
+  } catch {
+    // Fallback to in-memory store
+  }
+
+  const inMemoryCleared = clearInMemoryConversationMessages(conversationId);
+  return { success: inMemoryCleared };
+}
+
+// 11. Delete an entire conversation (wipes thread, participants, and all messages)
+export async function deleteConversationAction(conversationId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Unauthorized. Please log in." };
+  }
+
+  const currentUserId = session.userId;
+  const isAdmin = session.role === "ADMIN";
+
+  try {
+    const conv = await db.conversation.findUnique({
+      where: { id: conversationId },
+      include: { participants: true },
+    });
+
+    if (conv) {
+      // General floor channel cannot be permanently deleted
+      if (conv.type === "GENERAL") {
+        return {
+          success: false,
+          error: "The General Floor channel cannot be deleted. You can clear its messages instead.",
+        };
+      }
+
+      // Permission check: Admins can delete any thread; agents can only delete direct/team threads they are part of
+      if (!isAdmin) {
+        const isParticipant = conv.participants.some(
+          (p: any) => p.userId === currentUserId
+        );
+        if (!isParticipant) {
+          return {
+            success: false,
+            error: "Unauthorized: You are not authorized to delete this conversation.",
+          };
+        }
+      }
+
+      await db.conversation.delete({
+        where: { id: conversationId },
+      });
+
+      deleteInMemoryConversation(conversationId);
+      return { success: true };
+    }
+  } catch {
+    // Fallback to in-memory store
+  }
+
+  const inMemoryDeleted = deleteInMemoryConversation(conversationId);
+  return { success: inMemoryDeleted };
 }
 
 
