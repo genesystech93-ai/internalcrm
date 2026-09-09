@@ -26,6 +26,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { ModalPortal } from "./ModalPortal";
+import { formatMonthLabel, getDefaultAvailableMonths } from "@/lib/date-utils";
 
 export function AdminAttendanceBoard() {
   const [summary, setSummary] = useState<AttendanceDashboardSummary | null>(null);
@@ -376,9 +377,11 @@ export function AdminAttendanceBoard() {
                   onChange={(e) => setSelectedMonth(e.target.value)}
                   className="liquid-glass-input w-full px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none"
                 >
-                  <option value="ALL">📅 All Months (Lifetime Shift History)</option>
-                  <option value="2026-08">August 2026 (Aug.xlsx Ingested)</option>
-                  <option value="2026-09">September 2026 (Active Roster Floor)</option>
+                  {(summary?.availableMonths || getDefaultAvailableMonths()).map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.value === "ALL" ? `📅 ${m.label}` : m.label}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -400,7 +403,7 @@ export function AdminAttendanceBoard() {
               </button>
             )}
             <span className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20">
-              {selectedMonth === "ALL" ? "All Time" : selectedMonth === "2026-08" ? "Aug 2026" : "Sep 2026"} · {selectedEmployee === "ALL" ? "All Staff" : "Single Staff"}
+              {formatMonthLabel(selectedMonth)} · {selectedEmployee === "ALL" ? "All Staff" : "Single Staff"}
             </span>
           </div>
         </div>

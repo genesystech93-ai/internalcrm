@@ -23,17 +23,16 @@ import {
   SingleEmployeeAttendanceStats,
 } from "@/app/actions/attendance";
 import { getMySalaryRecordAction, AugustLedgerItem } from "@/app/actions/salary";
+import { getCurrentMonthKey, formatMonthLabel, getDefaultAvailableMonths } from "@/lib/date-utils";
 
 export function AgentAttendanceAndSalaryView() {
   const [activeTab, setActiveTab] = useState<"attendance" | "salary">("attendance");
-  const [selectedMonth, setSelectedMonth] = useState<string>("2026-08");
+  const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonthKey());
   const [attendanceData, setAttendanceData] = useState<SingleEmployeeAttendanceStats | null>(null);
   const [salaryData, setSalaryData] = useState<AugustLedgerItem | null>(null);
-  const [availableMonths, setAvailableMonths] = useState<Array<{ value: string; label: string }>>([
-    { value: "2026-08", label: "August 2026 (Aug.xlsx Imported)" },
-    { value: "2026-09", label: "September 2026 (Active Cycle)" },
-    { value: "ALL", label: "All Recorded Months" },
-  ]);
+  const [availableMonths, setAvailableMonths] = useState<Array<{ value: string; label: string }>>(
+    getDefaultAvailableMonths()
+  );
   const [isPending, startTransition] = useTransition();
 
   const loadData = (month: string) => {
@@ -41,7 +40,7 @@ export function AgentAttendanceAndSalaryView() {
       try {
         const [attRes, salRes] = await Promise.all([
           getMyAttendanceSummaryAction(month),
-          getMySalaryRecordAction(month === "ALL" ? "2026-08" : month),
+          getMySalaryRecordAction(month),
         ]);
         if (attRes?.summary) {
           setAttendanceData(attRes.summary);
@@ -326,7 +325,7 @@ export function AgentAttendanceAndSalaryView() {
                 No Salary Statement Found for Selected Month
               </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                Official salary ledger records for August 2026 have been synchronized from the master payroll. If your record is missing, please speak with an Administrator.
+                Official salary ledger records for {formatMonthLabel(selectedMonth)} are generated from your verified shift attendance and active salary profile. If your record is missing, please speak with an Administrator.
               </p>
             </div>
           ) : (
@@ -359,7 +358,7 @@ export function AgentAttendanceAndSalaryView() {
                 <div className="text-left sm:text-right">
                   <p className="text-xs font-semibold text-slate-400">PAYROLL PERIOD</p>
                   <p className="text-lg font-black text-orange-600 dark:text-orange-400">
-                    {selectedMonth === "2026-08" ? "August 2026" : selectedMonth}
+                    {formatMonthLabel(selectedMonth)}
                   </p>
                   <p className="text-[11px] text-slate-400">Genesoft Infotech Internal CRM</p>
                 </div>

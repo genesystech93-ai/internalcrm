@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { AttendanceStatus, BreakType } from "@prisma/client";
 import { getStoredUser } from "@/lib/user-store";
+import { getCurrentMonthKey, parseMonthDateRange, getDefaultAvailableMonths, formatMonthLabel } from "@/lib/date-utils";
 
 export interface AttendanceResult {
   success?: boolean;
@@ -800,11 +801,7 @@ export async function getAttendanceDashboardSummaryAction(
   let shiftStartTime = "19:00";
   let shiftEndTime = "04:00";
 
-  const availableMonths = [
-    { value: "ALL", label: "All Months (Lifetime)" },
-    { value: "2026-08", label: "August 2026 (Aug.xlsx Imported)" },
-    { value: "2026-09", label: "September 2026 (Active Roster)" },
-  ];
+  const availableMonths = getDefaultAvailableMonths();
 
   try {
     const startSetting = await prisma.systemSetting.findUnique({ where: { key: "global_shift_start_time" } });
@@ -812,15 +809,15 @@ export async function getAttendanceDashboardSummaryAction(
     if (startSetting?.value) shiftStartTime = startSetting.value;
     if (endSetting?.value) shiftEndTime = endSetting.value;
 
-    // Date range filter
+    // Dynamic date range filter
     let monthStart: Date | null = null;
     let monthEnd: Date | null = null;
-    if (filterMonth === "2026-08") {
-      monthStart = new Date("2026-08-01T00:00:00.000Z");
-      monthEnd = new Date("2026-08-31T23:59:59.999Z");
-    } else if (filterMonth === "2026-09") {
-      monthStart = new Date("2026-09-01T00:00:00.000Z");
-      monthEnd = new Date("2026-09-30T23:59:59.999Z");
+    if (filterMonth && filterMonth !== "ALL") {
+      const dateRange = parseMonthDateRange(filterMonth);
+      if (dateRange) {
+        monthStart = dateRange.start;
+        monthEnd = dateRange.end;
+      }
     }
 
     const staffUsers = await prisma.user.findMany({
@@ -1017,29 +1014,27 @@ export async function getAttendanceDashboardSummaryAction(
 
 // 9b. Personal Attendance Record for Logged-In Employee
 export async function getMyAttendanceSummaryAction(
-  filterMonth = "2026-08"
+  filterMonth?: string
 ): Promise<{
   summary: SingleEmployeeAttendanceStats | null;
   availableMonths: Array<{ value: string; label: string }>;
 }> {
+  const currentMonthKey = getCurrentMonthKey();
+  const targetMonth = filterMonth || currentMonthKey;
   const session = await getSession();
-  const availableMonths = [
-    { value: "2026-08", label: "August 2026 (Aug.xlsx Imported)" },
-    { value: "2026-09", label: "September 2026 (Active)" },
-    { value: "ALL", label: "All Months" },
-  ];
+  const availableMonths = getDefaultAvailableMonths();
 
   if (!session) return { summary: null, availableMonths };
 
   try {
     let monthStart: Date | null = null;
     let monthEnd: Date | null = null;
-    if (filterMonth === "2026-08") {
-      monthStart = new Date("2026-08-01T00:00:00.000Z");
-      monthEnd = new Date("2026-08-31T23:59:59.999Z");
-    } else if (filterMonth === "2026-09") {
-      monthStart = new Date("2026-09-01T00:00:00.000Z");
-      monthEnd = new Date("2026-09-30T23:59:59.999Z");
+    if (targetMonth && targetMonth !== "ALL") {
+      const dateRange = parseMonthDateRange(targetMonth);
+      if (dateRange) {
+        monthStart = dateRange.start;
+        monthEnd = dateRange.end;
+      }
     }
 
     const user = await prisma.user.findUnique({

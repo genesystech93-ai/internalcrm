@@ -7,9 +7,11 @@ import {
   getSalaryProfilesAction,
   updateSalaryProfileAction,
   getAugustPayrollLedgerAction,
+  getMonthlySalaryLedgerAction,
   SalaryProfileItem,
   AugustLedgerItem,
 } from "@/app/actions/salary";
+import { getCurrentMonthKey, formatMonthLabel, getDefaultAvailableMonths } from "@/lib/date-utils";
 import {
   getCampaignIncentivesAction,
   saveCampaignIncentiveAction,
@@ -62,10 +64,10 @@ export function AdminWorkforceManager() {
   const [newFrequencyVal, setNewFrequencyVal] = useState<string>("MONTHLY");
   const [newEffectiveDateVal, setNewEffectiveDateVal] = useState<string>("");
 
-  // August 2026 Payroll & Banking Ledger (from Aug.xlsx)
+  // Dynamic Payroll & Banking Ledger
   const [augustLedger, setAugustLedger] = useState<AugustLedgerItem[]>([]);
   const [payrollEmployeeFilter, setPayrollEmployeeFilter] = useState<string>("ALL");
-  const [payrollMonthFilter, setPayrollMonthFilter] = useState<string>("2026-08");
+  const [payrollMonthFilter, setPayrollMonthFilter] = useState<string>(getCurrentMonthKey());
 
   // Unified Campaign Incentive Rules state
   const [campaignIncentives, setCampaignIncentives] = useState<CampaignIncentiveItem[]>([]);
@@ -109,7 +111,7 @@ export function AdminWorkforceManager() {
         getCampaignIncentivesAction(),
         getTeamsAction(),
         getCampaignsAction(),
-        getAugustPayrollLedgerAction(),
+        getMonthlySalaryLedgerAction(payrollMonthFilter, payrollEmployeeFilter),
       ]);
 
       if (results[0].status === "fulfilled") setSalaries(results[0].value);
@@ -121,13 +123,20 @@ export function AdminWorkforceManager() {
           setRuleCampaignId(results[3].value[0].id);
         }
       }
-      if (results[4].status === "fulfilled") setAugustLedger(results[4].value);
+      if (results[4].status === "fulfilled") setAugustLedger(results[4].value.items);
     } catch (err) {
       console.error("Error loading workforce operations data:", err);
     } finally {
       setIsRefreshing(false);
     }
   };
+
+  // Dynamically update payroll ledger when month or employee filter changes
+  useEffect(() => {
+    getMonthlySalaryLedgerAction(payrollMonthFilter, payrollEmployeeFilter).then((res) => {
+      if (res?.items) setAugustLedger(res.items);
+    });
+  }, [payrollMonthFilter, payrollEmployeeFilter]);
 
   const handleExportAugustPayrollCSV = () => {
     if (augustLedger.length === 0) return;
@@ -166,7 +175,7 @@ export function AdminWorkforceManager() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `August_2026_Payroll_Ledger_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("download", `Payroll_Ledger_${payrollMonthFilter}_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -575,7 +584,7 @@ export function AdminWorkforceManager() {
             </div>
           )}
 
-          {/* August 2026 Shift Attendance, Salary & Banking Ledger (Imported from Aug.xlsx) */}
+          {/* Shift Attendance, Salary & Banking Ledger */}
           {augustLedger.length > 0 && (
             <div className="liquid-glass-card rounded-3xl p-6 sm:p-8 mt-6 border border-emerald-500/20">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -585,14 +594,16 @@ export function AdminWorkforceManager() {
                       <FileSpreadsheet className="w-4 h-4" />
                     </div>
                     <h2 className="text-lg font-bold text-[#0F172A] dark:text-white">
-                      August 2026 Shift Attendance, Salary & Banking Ledger
+                      {payrollMonthFilter === "2026-08"
+                        ? "August 2026 Shift Attendance, Salary & Banking Ledger"
+                        : `${formatMonthLabel(payrollMonthFilter)} Shift Attendance & Salary Ledger`}
                     </h2>
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                      Verified from Aug.xlsx
+                      {payrollMonthFilter === "2026-08" ? "Verified from Aug.xlsx" : "Live Floor Ledger"}
                     </span>
                   </div>
                   <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-                    Official bank routing codes, IFSC, daily shift counts, and pro-rated earned net payouts for August 2026.
+                    Official bank routing codes, IFSC, daily shift counts, and pro-rated earned net payouts for {formatMonthLabel(payrollMonthFilter)}.
                   </p>
                 </div>
 
@@ -602,7 +613,7 @@ export function AdminWorkforceManager() {
                   className="liquid-glass-button px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shrink-0"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Download Aug Payroll CSV</span>
+                  <span>Download {formatMonthLabel(payrollMonthFilter)} CSV</span>
                 </button>
               </div>
 
@@ -632,8 +643,11 @@ export function AdminWorkforceManager() {
                       onChange={(e) => setPayrollMonthFilter(e.target.value)}
                       className="liquid-glass-input px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none"
                     >
-                      <option value="2026-08">August 2026 (Aug.xlsx Verified)</option>
-                      <option value="2026-09">September 2026 (Current Active)</option>
+                      {getDefaultAvailableMonths().filter((m) => m.value !== "ALL").map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

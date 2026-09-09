@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { listStoredUsers } from "@/lib/user-store";
+import { getCurrentMonthKey, parseMonthDateRange, getDefaultAvailableMonths, formatMonthLabel } from "@/lib/date-utils";
 
 export interface SalaryProfileItem {
   id: string;
@@ -176,28 +177,25 @@ export interface MonthlyPayrollResponse {
 }
 
 export async function getMonthlySalaryLedgerAction(
-  month = "2026-08",
+  month?: string,
   filterUserId = "ALL"
 ): Promise<MonthlyPayrollResponse> {
+  const currentMonthKey = getCurrentMonthKey();
+  const targetMonth = month && month !== "ALL" ? month : currentMonthKey;
+
   const session = await getSession();
+  const availableMonths = getDefaultAvailableMonths();
+
   if (!session || session.role !== "ADMIN") {
     return {
-      selectedMonth: month,
+      selectedMonth: targetMonth,
       selectedUserId: filterUserId,
       items: [],
       allStaff: [],
-      availableMonths: [
-        { value: "2026-08", label: "August 2026 (Aug.xlsx Imported)" },
-        { value: "2026-09", label: "September 2026 (Active Roster)" },
-      ],
+      availableMonths,
       totals: { staffCount: 0, totalPresent: 0, totalAbsent: 0, grossBasePayroll: 0, totalNetPayout: 0 },
     };
   }
-
-  const availableMonths = [
-    { value: "2026-08", label: "August 2026 (Aug.xlsx Imported)" },
-    { value: "2026-09", label: "September 2026 (Active Roster)" },
-  ];
 
   try {
     // Fetch all staff users
@@ -216,7 +214,7 @@ export async function getMonthlySalaryLedgerAction(
 
     let rawItems: AugustLedgerItem[] = [];
 
-    if (month === "2026-08") {
+    if (targetMonth === "2026-08") {
       const setting = await prisma.systemSetting.findUnique({
         where: { key: "august_2026_payroll_ledger" },
       });
@@ -224,9 +222,11 @@ export async function getMonthlySalaryLedgerAction(
         rawItems = JSON.parse(setting.value);
       }
     } else {
-      // Projected September 2026 / Active month calculation
-      const mStart = new Date("2026-09-01T00:00:00.000Z");
-      const mEnd = new Date("2026-09-30T23:59:59.999Z");
+      // Dynamic month date range calculation
+      const dateRange = parseMonthDateRange(targetMonth) || parseMonthDateRange(currentMonthKey)!;
+      const mStart = dateRange.start;
+      const mEnd = dateRange.end;
+      const daysInMonth = dateRange.daysInMonth;
 
       const usersWithSal = await prisma.user.findMany({
         where: { role: { not: "ADMIN" } },
@@ -240,7 +240,7 @@ export async function getMonthlySalaryLedgerAction(
         orderBy: { name: "asc" },
       });
 
-      // Fetch August ledger to preserve banking info
+      // Preserve banking info from master ledger
       let bankInfoMap = new Map<string, { bank: string | null; ifsc: string | null; accountNo: string | null; accountType: string | null }>();
       try {
         const augSet = await prisma.systemSetting.findUnique({ where: { key: "august_2026_payroll_ledger" } });
@@ -255,8 +255,8 @@ export async function getMonthlySalaryLedgerAction(
         const present = u.attendances.filter((a) => a.status === "PRESENT" || a.status === "LATE").length;
         const half = u.attendances.filter((a) => a.status === "HALF_DAY").length;
         const effectivePresent = present + half * 0.5;
-        const absent = Math.max(0, 30 - effectivePresent);
-        const perDay = base / 30;
+        const absent = Math.max(0, daysInMonth - effectivePresent);
+        const perDay = base / daysInMonth;
         const net = Math.round(effectivePresent > 0 ? effectivePresent * perDay : base);
         const b = bankInfoMap.get(u.id);
 
@@ -294,7 +294,7 @@ export async function getMonthlySalaryLedgerAction(
     };
 
     return {
-      selectedMonth: month,
+      selectedMonth: targetMonth,
       selectedUserId: filterUserId,
       items,
       allStaff,
@@ -303,7 +303,7 @@ export async function getMonthlySalaryLedgerAction(
     };
   } catch {
     return {
-      selectedMonth: month,
+      selectedMonth: targetMonth,
       selectedUserId: filterUserId,
       items: [],
       allStaff: [],
@@ -314,22 +314,21 @@ export async function getMonthlySalaryLedgerAction(
 }
 
 // Single Employee Personal Salary Record
-export async function getMySalaryRecordAction(month = "2026-08"): Promise<{
+export async function getMySalaryRecordAction(month?: string): Promise<{
   item: AugustLedgerItem | null;
   availableMonths: Array<{ value: string; label: string }>;
 }> {
+  const currentMonthKey = getCurrentMonthKey();
+  const targetMonth = month && month !== "ALL" ? month : currentMonthKey;
   const session = await getSession();
-  const availableMonths = [
-    { value: "2026-08", label: "August 2026 (Aug.xlsx Imported)" },
-    { value: "2026-09", label: "September 2026 (Active)" },
-  ];
+  const availableMonths = getDefaultAvailableMonths();
 
   if (!session) return { item: null, availableMonths };
 
   try {
-    const res = await getMonthlySalaryLedgerAction(month, session.userId);
+    const res = await getMonthlySalaryLedgerAction(targetMonth, session.userId);
     const item = res.items[0] || null;
-    return { item, availableMonths };
+    return { item, availableMonths: res.availableMonths || availableMonths };
   } catch {
     return { item: null, availableMonths };
   }
