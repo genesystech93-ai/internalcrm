@@ -36,29 +36,40 @@ export function DatabaseHealthCard() {
   const runDiagnostic = async () => {
     setIsLoading(true);
     try {
-      const res = await checkDatabaseHealthAction();
-      setData(res);
-    } catch (err: unknown) {
-      const errMsg =
-        err instanceof Error
-          ? err.message
-          : typeof err === "object" && err !== null && "message" in err
-          ? String((err as any).message)
-          : "Server action failed to connect to database.";
-      setData({
-        status: "DISCONNECTED",
-        latencyMs: 0,
-        host: "aws-0-ap-south-1.pooler.supabase.com",
-        port: "6543",
-        database: "postgres",
-        userMasked: "postgres.tcdyyznmarfplpaovcdl",
-        isPooler: true,
-        tableCounts: { users: 0, leads: 0, campaigns: 0, systemSettings: 0 },
-        lastChecked: new Date().toLocaleTimeString(),
-        error: errMsg,
-        recommendation:
-          "In Vercel Project Settings > Environment Variables, verify DATABASE_URL is set for Production and trigger a Redeploy on the Deployments tab.",
-      });
+      // Primary: Direct API diagnostic probe (immune to Server Action masking)
+      const res = await fetch("/api/db-check", { cache: "no-store" });
+      if (res.ok) {
+        const json = await res.json();
+        setData(json);
+        return;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    } catch {
+      try {
+        const res = await checkDatabaseHealthAction();
+        setData(res);
+      } catch (err: unknown) {
+        const errMsg =
+          err instanceof Error
+            ? err.message
+            : typeof err === "object" && err !== null && "message" in err
+            ? String((err as any).message)
+            : "Failed to connect to database.";
+        setData({
+          status: "DISCONNECTED",
+          latencyMs: 0,
+          host: "aws-0-ap-south-1.pooler.supabase.com",
+          port: "6543",
+          database: "postgres",
+          userMasked: "postgres.tcdyyznmarfplpaovcdl",
+          isPooler: true,
+          tableCounts: { users: 0, leads: 0, campaigns: 0, systemSettings: 0 },
+          lastChecked: new Date().toLocaleTimeString("en-US"),
+          error: errMsg,
+          recommendation:
+            "In Vercel Project Settings > Environment Variables, verify DATABASE_URL is set for Production and trigger a Redeploy on the Deployments tab.",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
