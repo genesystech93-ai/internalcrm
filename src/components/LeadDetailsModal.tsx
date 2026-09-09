@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { LeadItem, adminDecisionAction, updateLeadCloserAction } from "@/app/actions/leads";
+import { LeadItem, adminDecisionAction, updateLeadCloserAction, deleteLeadAction } from "@/app/actions/leads";
 import { shareLeadToChatAction } from "@/app/actions/messages";
 import { LeadStatus } from "@prisma/client";
 import {
@@ -24,6 +24,7 @@ import {
   Loader2,
   Share2,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { ModalPortal } from "@/components/ModalPortal";
 
@@ -52,8 +53,27 @@ export function LeadDetailsModal({
   const [isSharing, setIsSharing] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const [isApproving, setIsApproving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   if (!isOpen || !lead) return null;
+
+  const handleDeleteLead = async () => {
+    if (!lead) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    const res = await deleteLeadAction(lead.id);
+    if (res.error) {
+      setDeleteError(res.error);
+      setIsDeleting(false);
+    } else {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+      onRefresh?.();
+      onClose();
+    }
+  };
 
   const handleCopy = (text: string, type: "mobile" | "email") => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -396,15 +416,30 @@ export function LeadDetailsModal({
 
           {/* Footer Actions */}
           <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 flex flex-wrap items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={handleShare}
-              disabled={isSharing}
-              className="liquid-glass-button-secondary py-2 px-3.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-            >
-              {isSharing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5 text-[#EA580C]" />}
-              <span>{shareFeedback || "Share to Pulse Chat"}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleShare}
+                disabled={isSharing}
+                className="liquid-glass-button-secondary py-2 px-3.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                {isSharing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5 text-[#EA580C]" />}
+                <span>{shareFeedback || "Share to Pulse Chat"}</span>
+              </button>
+
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={isDeleting}
+                  className="px-3 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/15 border border-rose-500/25 flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-60"
+                  title="Permanently Delete Lead Record"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+              )}
+            </div>
 
             <div className="flex items-center gap-2 ml-auto">
               {isAdmin && lead.status !== "APPROVED" && (
@@ -442,6 +477,49 @@ export function LeadDetailsModal({
               </button>
             </div>
           </div>
+
+          {/* Delete Confirmation Modal */}
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
+              <div className="w-full max-w-md rounded-3xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl relative">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-3.5">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <h4 className="text-base font-extrabold text-[#0F172A] dark:text-white">
+                  Permanently Delete Lead Record?
+                </h4>
+                <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1.5 leading-relaxed">
+                  Are you sure you want to permanently delete <strong className="text-[#0F172A] dark:text-white">{lead.customerName}</strong> ({lead.mobile})? All campaign records, status history, and associated earnings will be removed. This action cannot be undone.
+                </p>
+
+                {deleteError && (
+                  <p className="text-xs text-rose-600 dark:text-rose-400 mt-2.5 font-semibold bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
+                    {deleteError}
+                  </p>
+                )}
+
+                <div className="flex items-center gap-2.5 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
+                    className="liquid-glass-button-secondary flex-1 py-2.5 rounded-xl text-xs font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteLead}
+                    disabled={isDeleting}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+                  >
+                    {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    <span>{isDeleting ? "Deleting Lead..." : "Confirm Delete"}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </ModalPortal>

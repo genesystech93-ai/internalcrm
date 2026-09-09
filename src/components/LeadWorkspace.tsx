@@ -45,7 +45,7 @@ export function LeadWorkspace({ isAdmin = false }: LeadWorkspaceProps) {
   }, []);
 
   return (
-    <div className="w-full mb-8">
+    <div id="leads-workspace" className="w-full mb-8 scroll-mt-24">
       {/* Workspace Header Strip */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>

@@ -664,3 +664,65 @@ export async function updateLeadCloserAction(leadId: string, newCloserName: stri
     return { error: err instanceof Error ? err.message : "Failed to update closer." };
   }
 }
+
+// 7. Delete Lead Action (Admin Only - Permanently Deletes Lead and Cleans Up Relations)
+export async function deleteLeadAction(leadId: string): Promise<{ success?: boolean; error?: string; message?: string }> {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Admin authority required." };
+  }
+
+  if (!leadId) {
+    return { error: "Lead ID is required for deletion." };
+  }
+
+  try {
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { id: true, customerName: true, mobile: true },
+    });
+
+    if (!lead) {
+      return { error: "Lead not found or already deleted." };
+    }
+
+    // Safely unlink chat mentions and purge associated earnings/history
+    await prisma.chatMessage.updateMany({
+      where: { leadId },
+      data: { leadId: null },
+    });
+    await prisma.incentiveEarning.deleteMany({
+      where: { leadId },
+    });
+    await prisma.leadStatusHistory.deleteMany({
+      where: { leadId },
+    });
+
+    // Delete lead record
+    await prisma.lead.delete({
+      where: { id: leadId },
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/reports");
+    revalidatePath("/dashboard");
+
+    return {
+      success: true,
+      message: `Lead "${lead.customerName}" (${lead.mobile}) permanently deleted from system.`,
+    };
+  } catch (err: unknown) {
+    // Offline Dev Fallback
+    const idx = devLeads.findIndex((l) => l.id === leadId);
+    if (idx !== -1) {
+      const removed = devLeads.splice(idx, 1)[0];
+      revalidatePath("/admin");
+      revalidatePath("/dashboard");
+      return {
+        success: true,
+        message: `Lead "${removed.customerName}" permanently deleted (Dev Mode).`,
+      };
+    }
+    return { error: err instanceof Error ? err.message : "Failed to delete lead from database." };
+  }
+}

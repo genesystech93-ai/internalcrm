@@ -1,15 +1,16 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { LeadItem, adminDecisionAction } from "@/app/actions/leads";
+import { LeadItem, adminDecisionAction, deleteLeadAction } from "@/app/actions/leads";
 import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
 import { LeadStatus } from "@prisma/client";
 import { AdminDecisionModal } from "@/components/AdminDecisionModal";
 import { LeadDetailsModal } from "@/components/LeadDetailsModal";
 import { calculateRowHeight } from "@/lib/pretext-measure";
-import { Search, CheckCircle2, XCircle, Clock, Eye, MessageSquare, Check, Building2, Loader2 } from "lucide-react";
+import { Search, CheckCircle2, XCircle, Clock, Eye, MessageSquare, Check, Building2, Loader2, Trash2 } from "lucide-react";
 import { shareLeadToChatAction } from "@/app/actions/messages";
 import { ClientSubmissionModal } from "@/components/ClientSubmissionModal";
+import { ModalPortal } from "@/components/ModalPortal";
 
 interface LeadTableProps {
   leads: LeadItem[];
@@ -40,6 +41,24 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
   const [shareSuccess, setShareSuccess] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const [deletingLead, setDeletingLead] = useState<LeadItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleConfirmDelete = async () => {
+    if (!deletingLead) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    const res = await deleteLeadAction(deletingLead.id);
+    if (res.error) {
+      setDeleteError(res.error);
+      setIsDeleting(false);
+    } else {
+      setIsDeleting(false);
+      setDeletingLead(null);
+      onRefresh();
+    }
+  };
 
   const handleShareLead = async (lead: LeadItem) => {
     setSharingId(lead.id);
@@ -334,6 +353,17 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                               <XCircle className="w-3.5 h-3.5" />
                             </button>
                           )}
+
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => setDeletingLead(lead)}
+                              title="Permanently Delete Lead"
+                              className="p-1.5 rounded-lg hover:bg-rose-500/15 text-rose-600 dark:text-rose-400 cursor-pointer transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -394,6 +424,54 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
           currentClientName={clientSubmitLead.clientName}
           currentNetTerms={clientSubmitLead.clientNetTerms}
         />
+      )}
+
+      {/* Delete Lead Confirmation Modal */}
+      {deletingLead && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
+            <div className="w-full max-w-md rounded-3xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl relative">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-3.5">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <h4 className="text-base font-extrabold text-[#0F172A] dark:text-white">
+                Permanently Delete Lead?
+              </h4>
+              <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1.5 leading-relaxed">
+                Are you sure you want to permanently delete lead for <strong className="text-[#0F172A] dark:text-white">{deletingLead.customerName}</strong> ({deletingLead.mobile})? All campaign records, status history, and associated earnings will be removed.
+              </p>
+
+              {deleteError && (
+                <p className="text-xs text-rose-600 dark:text-rose-400 mt-2.5 font-semibold bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
+                  {deleteError}
+                </p>
+              )}
+
+              <div className="flex items-center gap-2.5 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeletingLead(null);
+                    setDeleteError(null);
+                  }}
+                  disabled={isDeleting}
+                  className="liquid-glass-button-secondary flex-1 py-2.5 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+                >
+                  {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  <span>{isDeleting ? "Deleting Lead..." : "Confirm Delete"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );
