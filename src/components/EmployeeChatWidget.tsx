@@ -614,36 +614,36 @@ export function EmployeeChatWidget() {
         <div
           className={`fixed z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
             isMaximized
-              ? "bottom-2 sm:bottom-6 right-2 sm:right-6 left-2 sm:left-auto sm:w-[94vw] sm:max-w-[1050px] h-[92vh] sm:h-[740px] max-h-[96dvh] rounded-2xl sm:rounded-3xl"
-              : "bottom-20 sm:bottom-6 right-3 sm:right-6 left-3 sm:left-auto w-auto sm:w-[780px] md:w-[840px] max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-3rem)] h-[80vh] sm:h-[650px] max-h-[calc(100dvh-5.5rem)] sm:max-h-[85vh] rounded-2xl sm:rounded-3xl"
+              ? "inset-2 sm:inset-6 sm:w-[94vw] sm:max-w-[1100px] sm:h-[88vh] sm:max-h-[850px] m-auto rounded-2xl sm:rounded-3xl"
+              : "bottom-20 sm:bottom-6 right-2 sm:right-6 left-2 sm:left-auto w-[calc(100vw-1rem)] sm:w-[760px] md:w-[820px] lg:w-[860px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-2.5rem)] h-[82vh] sm:h-[660px] max-h-[calc(100dvh-5.5rem)] sm:max-h-[86vh] rounded-2xl sm:rounded-3xl"
           }`}
         >
           {/* Top Bar / Global Header */}
-          <div className="px-4 py-3 bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2.5">
-              {/* Left Bar Toggle (Desktop) */}
+          <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 h-14">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              {/* Left Bar Toggle (Always available to collapse/expand sidebar) */}
               <button
                 type="button"
                 onClick={() => setShowSidebar(!showSidebar)}
-                className={`p-1.5 rounded-xl border transition-colors cursor-pointer hidden sm:flex items-center gap-1.5 text-xs font-semibold ${
+                className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold shrink-0 ${
                   showSidebar
-                    ? "bg-orange-500/10 text-orange-600 border-orange-500/30 dark:bg-orange-950/30 dark:text-orange-400"
+                    ? "bg-orange-500/15 text-orange-600 border-orange-500/30 dark:bg-orange-950/30 dark:text-orange-400"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-orange-500"
                 }`}
                 title={showSidebar ? "Hide Chats & Channels Sidebar" : "Show Chats & Channels Sidebar"}
               >
-                <PanelLeft className="w-4 h-4" />
+                {showSidebar ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
                 <span className="text-[11px] hidden md:inline">
                   {showSidebar ? "Hide Sidebar" : "Chats"}
                 </span>
               </button>
 
-              {/* Mobile Back Button when activeConversation is selected */}
+              {/* Mobile Back Button when activeConversation is selected on small screens */}
               {activeConversation && (
                 <button
                   type="button"
                   onClick={() => setActiveConversation(null)}
-                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer sm:hidden flex items-center gap-1 text-xs font-bold"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer min-[540px]:hidden flex items-center gap-1 text-xs font-bold shrink-0"
                   title="Back to conversations list"
                 >
                   <ArrowLeft className="w-4 h-4" />
@@ -655,43 +655,45 @@ export function EmployeeChatWidget() {
                 <Radio className="w-4 h-4 animate-pulse" />
               </div>
 
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <div className="min-w-0">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
                   <span>Live Pulse Chat</span>
                   {currentUser?.role === "ADMIN" && (
-                    <span className="px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 text-[9px] font-bold border border-purple-500/20 flex items-center gap-1">
+                    <span className="px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 text-[9px] font-bold border border-purple-500/20 flex items-center gap-1 shrink-0">
                       <Shield className="w-2.5 h-2.5" />
                       <span>Floor Supervisor</span>
                     </span>
                   )}
                 </h3>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[180px] sm:max-w-none">
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[160px] sm:max-w-none">
                   {currentUser?.role === "ADMIN"
-                    ? "Full floor oversight & team communication"
+                    ? "Floor oversight & direct messaging"
                     : "Internal messaging & floor channels"}
                 </p>
               </div>
             </div>
 
             {/* Header Action Buttons */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               {/* Audio Toggle */}
               <button
+                type="button"
                 onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
+                className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
                   soundEnabled
                     ? "text-orange-600 hover:bg-orange-50 dark:hover:bg-slate-800"
                     : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
                 title={soundEnabled ? "Mute audio notifications" : "Enable sound"}
               >
-                {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               </button>
 
               {/* Maximize / Restore Toggle */}
               <button
+                type="button"
                 onClick={() => setIsMaximized(!isMaximized)}
-                className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer flex items-center justify-center"
                 title={isMaximized ? "Restore standard view" : "Maximize chat view"}
               >
                 {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -699,8 +701,9 @@ export function EmployeeChatWidget() {
 
               {/* Minimize to launcher */}
               <button
+                type="button"
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer flex items-center justify-center"
                 title="Minimize chat"
               >
                 <Minus className="w-4 h-4" />
@@ -708,8 +711,9 @@ export function EmployeeChatWidget() {
 
               {/* Close button */}
               <button
+                type="button"
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-xl text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-xl text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-colors cursor-pointer flex items-center justify-center"
                 title="Close chat"
               >
                 <X className="w-4 h-4" />
@@ -719,13 +723,13 @@ export function EmployeeChatWidget() {
 
           {/* Chat Body: 2-Column Responsive Workspace */}
           <div className="flex-1 flex min-h-0 overflow-hidden">
-            {/* COLUMN 1: Conversations List / Staff Directory (Visible when showSidebar is true on desktop, or when !activeConversation on mobile) */}
-            {(showSidebar || !activeConversation) && (
+            {/* COLUMN 1: Conversations List / Staff Directory (Persistently visible alongside active chat) */}
+            {showSidebar && (
               <div
-                className={`flex flex-col min-h-0 bg-slate-50/70 dark:bg-slate-900/70 border-r border-slate-200/70 dark:border-slate-800 transition-all ${
+                className={`flex flex-col min-h-0 bg-slate-50/80 dark:bg-slate-900/80 border-r border-slate-200/80 dark:border-slate-800 transition-all shrink-0 ${
                   activeConversation
-                    ? "hidden sm:flex sm:w-[290px] md:w-[310px] shrink-0"
-                    : "flex-1 sm:w-[290px] md:w-[310px] sm:flex-none shrink-0"
+                    ? "w-full min-[540px]:w-[260px] sm:w-[280px] md:w-[300px] min-[540px]:flex"
+                    : "w-full min-[540px]:w-[260px] sm:w-[280px] md:w-[300px] flex"
                 }`}
               >
                 {/* Search & Navigation Tabs */}
@@ -944,31 +948,31 @@ export function EmployeeChatWidget() {
 
             {/* COLUMN 2: Active Chat Thread View */}
             {activeConversation ? (
-              <div className="flex-1 flex flex-col min-h-0 bg-slate-50/60 dark:bg-slate-950/60 relative">
+              <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-slate-50/60 dark:bg-slate-950/60 relative">
                 {/* Active Thread Toolbar (Search & Export Transcript) */}
-                <div className="px-3 py-2 bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate max-w-[180px] sm:max-w-[240px]">
+                <div className="px-3.5 py-2 bg-white/90 dark:bg-slate-900/90 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 h-11">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate max-w-[150px] sm:max-w-[220px]">
                       {activeConversation.name}
                     </span>
                     {activeConversation.isSupervisorView && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
                         👑 Supervisor Monitor Mode
                       </span>
                     )}
                     {activeConversation.recipientRole && (
                       <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${getRoleBadge(
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${getRoleBadge(
                           activeConversation.recipientRole
                         )}`}
                       >
                         {activeConversation.recipientRole}
                       </span>
                     )}
-                    <div>{getStatusDot(activeConversation.recipientShiftStatus)}</div>
+                    <div className="shrink-0">{getStatusDot(activeConversation.recipientShiftStatus)}</div>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     {/* In-Thread Search Toggle */}
                     <button
                       onClick={() => setShowInThreadSearch(!showInThreadSearch)}
@@ -1005,8 +1009,8 @@ export function EmployeeChatWidget() {
 
                 {/* In-Thread Search Input Bar */}
                 {showInThreadSearch && (
-                  <div className="px-3 py-1.5 bg-orange-50/80 dark:bg-slate-800/80 border-b border-orange-200/50 dark:border-slate-700 flex items-center gap-2 shrink-0">
-                    <Search className="w-3 h-3 text-orange-600 shrink-0" />
+                  <div className="px-3 py-1.5 bg-orange-50/80 dark:bg-slate-800/80 border-b border-orange-200/50 dark:border-slate-700 flex items-center gap-2 shrink-0 h-9">
+                    <Search className="w-3.5 h-3.5 text-orange-600 shrink-0" />
                     <input
                       type="text"
                       placeholder="Filter messages in this conversation..."
@@ -1015,7 +1019,7 @@ export function EmployeeChatWidget() {
                       className="flex-1 bg-transparent text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none"
                     />
                     {inThreadSearchQuery && (
-                      <span className="text-[10px] text-slate-500 font-mono">
+                      <span className="text-[10px] text-slate-500 font-mono shrink-0">
                         {displayedMessages.length} match{displayedMessages.length !== 1 ? "es" : ""}
                       </span>
                     )}
@@ -1024,15 +1028,15 @@ export function EmployeeChatWidget() {
                         setShowInThreadSearch(false);
                         setInThreadSearchQuery("");
                       }}
-                      className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                      className="text-slate-400 hover:text-slate-600 cursor-pointer shrink-0"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
 
                 {/* Message Feed */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar">
                   {displayedMessages.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
                       <Sparkles className="w-8 h-8 text-orange-400 mb-2 opacity-80" />
@@ -1079,7 +1083,7 @@ export function EmployeeChatWidget() {
                             </div>
                           )}
 
-                          <div className="relative group/bubble max-w-[85%]">
+                          <div className="relative group/bubble max-w-[85%] sm:max-w-[80%]">
                             <div
                               className={`rounded-2xl px-3.5 py-2.5 text-xs shadow-sm ${
                                 msg.isOwn
@@ -1193,17 +1197,22 @@ export function EmployeeChatWidget() {
 
                 {/* Lead Attachment Preview Chip (if selected) */}
                 {selectedLead && (
-                  <div className="px-3 py-1.5 bg-orange-50 dark:bg-orange-950/30 border-t border-orange-200 dark:border-orange-900/50 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-2 text-xs text-orange-900 dark:text-orange-200">
-                      <FileText className="w-4 h-4 text-orange-500 shrink-0" />
-                      <span className="font-bold">{selectedLead.customerName}</span>
-                      <span className="text-[10px] text-orange-600 dark:text-orange-400 font-mono">
-                        ({selectedLead.mobile} · {selectedLead.campaignName})
-                      </span>
+                  <div className="px-3 py-2 bg-orange-500/10 dark:bg-orange-950/30 border-t border-orange-500/20 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2 text-xs text-orange-900 dark:text-orange-200 min-w-0">
+                      <div className="w-6 h-6 rounded-lg bg-orange-500/15 flex items-center justify-center shrink-0">
+                        <FileText className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <div className="truncate">
+                        <span className="font-bold">{selectedLead.customerName}</span>
+                        <span className="text-[10px] text-orange-600 dark:text-orange-400 font-mono ml-2">
+                          {selectedLead.mobile} · {selectedLead.campaignName}
+                        </span>
+                      </div>
                     </div>
                     <button
+                      type="button"
                       onClick={() => setSelectedLead(null)}
-                      className="p-1 text-orange-600 hover:text-orange-800 cursor-pointer"
+                      className="p-1 rounded-lg text-orange-600 hover:bg-orange-500/15 cursor-pointer transition-colors shrink-0 ml-2"
                       title="Remove lead attachment"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -1211,17 +1220,19 @@ export function EmployeeChatWidget() {
                   </div>
                 )}
 
-                {/* Editable Canned Operational Quick Replies Bar */}
-                <div className="px-3 py-1.5 bg-slate-100/80 dark:bg-slate-900/80 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+                {/* Canned Operational Quick Replies Bar */}
+                <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900/60 border-t border-slate-200/70 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
                   <button
                     type="button"
                     onClick={() => setShowQuickRepliesManager(true)}
-                    className="p-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-orange-600 hover:border-orange-300 transition-colors cursor-pointer shrink-0"
-                    title="Manage / Edit Canned Quick Replies"
+                    className="h-6 w-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-orange-600 hover:border-orange-400 transition-colors flex items-center justify-center shrink-0 cursor-pointer shadow-2xs"
+                    title="Manage Canned Quick Replies"
                   >
-                    <Settings className="w-3.5 h-3.5" />
+                    <Settings className="w-3 h-3" />
                   </button>
-
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-0.5 hidden sm:inline">
+                    Quick:
+                  </span>
                   {quickReplies.map((reply, idx) => (
                     <button
                       key={idx}
@@ -1229,7 +1240,7 @@ export function EmployeeChatWidget() {
                       onClick={() => {
                         setInputContent((prev) => (prev ? `${prev} ${reply}` : reply));
                       }}
-                      className="px-2.5 py-1 rounded-xl text-[11px] whitespace-nowrap bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-orange-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50/50 transition-all cursor-pointer shadow-2xs font-medium"
+                      className="h-6 px-2.5 rounded-lg text-[11px] font-medium whitespace-nowrap bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50/50 transition-all cursor-pointer shadow-2xs flex items-center shrink-0"
                     >
                       {reply}
                     </button>
@@ -1239,20 +1250,20 @@ export function EmployeeChatWidget() {
                 {/* Message Input Bar & Lead Attachment Button */}
                 <form
                   onSubmit={handleSendMessage}
-                  className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 flex items-end gap-2 shrink-0"
+                  className="p-2.5 sm:p-3 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 flex items-end gap-2 shrink-0 w-full min-w-0"
                 >
                   {/* Attach Lead Button */}
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <button
                       type="button"
                       onClick={() => {
                         if (!showLeadPicker) loadRecentLeads();
                         setShowLeadPicker(!showLeadPicker);
                       }}
-                      className={`p-2.5 rounded-2xl border transition-colors cursor-pointer flex items-center justify-center ${
+                      className={`h-10 w-10 rounded-xl border flex items-center justify-center shrink-0 transition-all cursor-pointer ${
                         showLeadPicker || selectedLead
                           ? "bg-orange-500 text-white border-orange-600 shadow-sm"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-orange-500"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-orange-500 hover:border-orange-300"
                       }`}
                       title="Attach lead from floor"
                     >
@@ -1261,8 +1272,8 @@ export function EmployeeChatWidget() {
 
                     {/* Popover Lead Picker */}
                     {showLeadPicker && (
-                      <div className="absolute bottom-12 left-0 w-72 sm:w-80 max-w-[calc(100vw-3.5rem)] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-3 z-30 space-y-2">
-                        <div className="flex items-center justify-between">
+                      <div className="absolute bottom-14 left-0 w-80 max-w-[calc(100vw-3rem)] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-3 z-30 space-y-2.5">
+                        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-700">
                           <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                             <FileText className="w-3.5 h-3.5 text-orange-500" />
                             <span>Attach Floor Lead</span>
@@ -1270,7 +1281,7 @@ export function EmployeeChatWidget() {
                           <button
                             type="button"
                             onClick={() => setShowLeadPicker(false)}
-                            className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                            className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
@@ -1280,10 +1291,10 @@ export function EmployeeChatWidget() {
                           <Search className="w-3 h-3 absolute left-2.5 top-2.5 text-slate-400" />
                           <input
                             type="text"
-                            placeholder="Filter by customer or phone..."
+                            placeholder="Filter by customer, phone, or campaign..."
                             value={leadSearchQuery}
                             onChange={(e) => setLeadSearchQuery(e.target.value)}
-                            className="w-full pl-7 pr-2 py-1 text-xs rounded-xl bg-slate-100 dark:bg-slate-700 border-none focus:outline-none focus:ring-1 focus:ring-orange-500 text-slate-900 dark:text-white"
+                            className="w-full pl-7 pr-2.5 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-700 border-none focus:outline-none focus:ring-1 focus:ring-orange-500 text-slate-900 dark:text-white placeholder:text-slate-400"
                           />
                         </div>
 
@@ -1306,17 +1317,17 @@ export function EmployeeChatWidget() {
                                   setSelectedLead(lead);
                                   setShowLeadPicker(false);
                                 }}
-                                className="w-full p-2 text-left rounded-xl hover:bg-orange-50 dark:hover:bg-slate-700 transition-colors cursor-pointer flex items-center justify-between group"
+                                className="w-full p-2 text-left rounded-xl hover:bg-orange-50 dark:hover:bg-slate-700/70 transition-colors cursor-pointer flex items-center justify-between group border border-transparent hover:border-orange-200 dark:hover:border-slate-600"
                               >
-                                <div>
-                                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                <div className="min-w-0 pr-2">
+                                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
                                     {lead.customerName}
                                   </p>
-                                  <p className="text-[10px] text-slate-400 font-mono">
+                                  <p className="text-[10px] text-slate-400 font-mono truncate">
                                     {lead.mobile} · {lead.campaignName}
                                   </p>
                                 </div>
-                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 font-mono">
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 font-mono shrink-0">
                                   {lead.status}
                                 </span>
                               </button>
@@ -1327,8 +1338,8 @@ export function EmployeeChatWidget() {
                     )}
                   </div>
 
-                  {/* Message Input Field */}
-                  <div className="flex-1 relative rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-orange-500/30 focus-within:border-orange-500 transition-all">
+                  {/* Message Input Field Wrapper */}
+                  <div className="flex-1 min-w-0 relative flex items-center rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:bg-white dark:focus-within:bg-slate-800 px-3 py-1.5 transition-all min-h-[40px]">
                     <textarea
                       rows={1}
                       value={inputContent}
@@ -1340,7 +1351,7 @@ export function EmployeeChatWidget() {
                         }
                       }}
                       placeholder={`Message ${activeConversation.name}... (Enter to send)`}
-                      className="w-full max-h-24 p-2.5 text-xs bg-transparent border-none resize-none focus:outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
+                      className="w-full bg-transparent border-none resize-none focus:outline-none text-xs text-slate-900 dark:text-white placeholder:text-slate-400 leading-relaxed max-h-24 custom-scrollbar"
                     />
                   </div>
 
@@ -1348,7 +1359,7 @@ export function EmployeeChatWidget() {
                   <button
                     type="submit"
                     disabled={(!inputContent.trim() && !selectedLead) || isSending}
-                    className="p-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold shadow-md hover:shadow-orange-500/25 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center shrink-0"
+                    className="h-10 w-10 min-w-[40px] rounded-xl bg-gradient-to-tr from-orange-500 to-orange-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-orange-500/20 hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:hover:scale-100 disabled:shadow-none disabled:cursor-not-allowed transition-all cursor-pointer"
                     title="Send message (Enter)"
                   >
                     {isSending ? (
@@ -1360,8 +1371,8 @@ export function EmployeeChatWidget() {
                 </form>
               </div>
             ) : (
-              /* Empty State for when no chat is currently selected (shown on desktop alongside sidebar) */
-              <div className="hidden sm:flex flex-1 flex-col items-center justify-center p-8 text-center bg-slate-50/40 dark:bg-slate-950/40">
+              /* Empty State when no chat is currently selected (shown alongside sidebar on >= 540px) */
+              <div className="hidden min-[540px]:flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-slate-50/40 dark:bg-slate-950/40">
                 <div className="w-16 h-16 rounded-3xl bg-orange-500/10 text-orange-500 flex items-center justify-center mb-4 shadow-inner">
                   <MessageSquare className="w-8 h-8" />
                 </div>
