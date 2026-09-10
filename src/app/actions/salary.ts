@@ -7,6 +7,15 @@ import { revalidatePath } from "next/cache";
 import { listStoredUsers } from "@/lib/user-store";
 import { getCurrentMonthKey, parseMonthDateRange, getDefaultAvailableMonths, formatMonthLabel } from "@/lib/date-utils";
 
+export interface StaffBankingRecord {
+  bank?: string | null;
+  accountNo?: string | null;
+  ifsc?: string | null;
+  accountType?: string | null;
+  panNo?: string | null;
+  upiId?: string | null;
+}
+
 export interface SalaryProfileItem {
   id: string;
   userId: string;
@@ -16,14 +25,65 @@ export interface SalaryProfileItem {
   baseSalary: number;
   payFrequency: string;
   effectiveDate: string;
+  bank?: string | null;
+  accountNo?: string | null;
+  ifsc?: string | null;
+  accountType?: string | null;
+  panNo?: string | null;
+  upiId?: string | null;
 }
 
-// In-memory salary overrides for offline development
+// In-memory salary and banking overrides for offline development
 const devSalaryOverrides = new Map<string, { baseSalary: number; payFrequency: string; effectiveDate: string }>();
+const devStaffBankingMap = new Map<string, StaffBankingRecord>();
+
+export async function getStaffBankingMap(): Promise<Map<string, StaffBankingRecord>> {
+  const result = new Map<string, StaffBankingRecord>();
+
+  // 1. Check august_2026_payroll_ledger for baseline historical accounts
+  try {
+    const augSet = await prisma.systemSetting.findUnique({ where: { key: "august_2026_payroll_ledger" } });
+    if (augSet) {
+      const augList: AugustLedgerItem[] = JSON.parse(augSet.value);
+      augList.forEach((a) => {
+        const item: StaffBankingRecord = {
+          bank: a.bank || null,
+          ifsc: a.ifsc || null,
+          accountNo: a.accountNo || null,
+          accountType: a.accountType || "SAVINGS",
+        };
+        result.set(a.userId, item);
+        if (a.username) {
+          result.set(a.username.toLowerCase(), item);
+        }
+      });
+    }
+  } catch {}
+
+  // 2. Check dedicated staff_banking_profiles (overrides baseline)
+  try {
+    const setting = await prisma.systemSetting.findUnique({ where: { key: "staff_banking_profiles" } });
+    if (setting) {
+      const customMap: Record<string, StaffBankingRecord> = JSON.parse(setting.value);
+      Object.entries(customMap).forEach(([uid, b]) => {
+        result.set(uid, { ...(result.get(uid) || {}), ...b });
+      });
+    }
+  } catch {}
+
+  // 3. Merge in-memory dev overrides
+  devStaffBankingMap.forEach((val, key) => {
+    result.set(key, { ...(result.get(key) || {}), ...val });
+  });
+
+  return result;
+}
 
 export async function getSalaryProfilesAction(): Promise<SalaryProfileItem[]> {
   const session = await getSession();
   if (session && session.role !== "ADMIN") return [];
+
+  const bankingMap = await getStaffBankingMap();
 
   try {
     // 1. Fetch all staff members (agents, closers, TLs, etc. - all non-admin users)
@@ -41,6 +101,7 @@ export async function getSalaryProfilesAction(): Promise<SalaryProfileItem[]> {
       return users.map((u) => {
         const profile = u.salaryProfile;
         const override = devSalaryOverrides.get(u.id) || devSalaryOverrides.get(u.username);
+        const b = bankingMap.get(u.id) || bankingMap.get(u.username.toLowerCase());
         return {
           id: profile ? profile.id : `sal-${u.id}`,
           userId: u.id,
@@ -62,6 +123,12 @@ export async function getSalaryProfilesAction(): Promise<SalaryProfileItem[]> {
             : override
             ? override.effectiveDate
             : (u.createdAt instanceof Date ? u.createdAt.toISOString().split("T")[0] : new Date(u.createdAt).toISOString().split("T")[0]),
+          bank: b?.bank || null,
+          accountNo: b?.accountNo || null,
+          ifsc: b?.ifsc || null,
+          accountType: b?.accountType || "SAVINGS",
+          panNo: b?.panNo || null,
+          upiId: b?.upiId || null,
         };
       });
     }
@@ -72,6 +139,7 @@ export async function getSalaryProfilesAction(): Promise<SalaryProfileItem[]> {
     const staff = listStoredUsers().filter((u) => u.role !== "ADMIN");
     return staff.map((u) => {
       const override = devSalaryOverrides.get(u.id) || devSalaryOverrides.get(u.username);
+      const b = bankingMap.get(u.id) || bankingMap.get(u.username.toLowerCase());
       return {
         id: `sal-${u.id}`,
         userId: u.id,
@@ -81,8 +149,130 @@ export async function getSalaryProfilesAction(): Promise<SalaryProfileItem[]> {
         baseSalary: override ? override.baseSalary : 25000.0,
         payFrequency: override ? override.payFrequency : "MONTHLY",
         effectiveDate: override ? override.effectiveDate : (u.createdAt ? u.createdAt.split("T")[0] : new Date().toISOString().split("T")[0]),
+        bank: b?.bank || null,
+        accountNo: b?.accountNo || null,
+        ifsc: b?.ifsc || null,
+        accountType: b?.accountType || "SAVINGS",
+        panNo: b?.panNo || null,
+        upiId: b?.upiId || null,
       };
     });
+  }
+}
+
+export async function updateStaffSalaryAndBankingAction(
+  userId: string,
+  data: {
+    baseSalary: number;
+    payFrequency?: string;
+    effectiveDateStr?: string;
+    bank?: string | null;
+    accountNo?: string | null;
+    ifsc?: string | null;
+    accountType?: string | null;
+    panNo?: string | null;
+    upiId?: string | null;
+  }
+) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return { error: "Unauthorized. Admin authority required." };
+  }
+
+  const effectiveDate = data.effectiveDateStr ? new Date(data.effectiveDateStr) : new Date();
+
+  try {
+    // 1. Update salary profile in Prisma
+    await prisma.salaryProfile.upsert({
+      where: { userId },
+      update: {
+        baseSalary: data.baseSalary,
+        payFrequency: data.payFrequency || "MONTHLY",
+        effectiveDate,
+      },
+      create: {
+        userId,
+        baseSalary: data.baseSalary,
+        payFrequency: data.payFrequency || "MONTHLY",
+        effectiveDate,
+      },
+    });
+
+    // 2. Persist banking details in SystemSetting
+    let customMap: Record<string, StaffBankingRecord> = {};
+    try {
+      const setting = await prisma.systemSetting.findUnique({ where: { key: "staff_banking_profiles" } });
+      if (setting) {
+        customMap = JSON.parse(setting.value);
+      }
+    } catch {}
+
+    const bankingRecord: StaffBankingRecord = {
+      bank: data.bank ? data.bank.trim() : null,
+      accountNo: data.accountNo ? data.accountNo.trim() : null,
+      ifsc: data.ifsc ? data.ifsc.trim().toUpperCase() : null,
+      accountType: data.accountType || "SAVINGS",
+      panNo: data.panNo ? data.panNo.trim().toUpperCase() : null,
+      upiId: data.upiId ? data.upiId.trim() : null,
+    };
+
+    customMap[userId] = bankingRecord;
+    devStaffBankingMap.set(userId, bankingRecord);
+
+    await prisma.systemSetting.upsert({
+      where: { key: "staff_banking_profiles" },
+      update: { value: JSON.stringify(customMap) },
+      create: { key: "staff_banking_profiles", value: JSON.stringify(customMap) },
+    });
+
+    // 3. Also update august_2026_payroll_ledger if user exists in it
+    try {
+      const augSet = await prisma.systemSetting.findUnique({ where: { key: "august_2026_payroll_ledger" } });
+      if (augSet) {
+        let augList: AugustLedgerItem[] = JSON.parse(augSet.value);
+        augList = augList.map((item) => {
+          if (item.userId === userId || item.username.toLowerCase() === userId.toLowerCase()) {
+            return {
+              ...item,
+              basicSalary: data.baseSalary,
+              bank: bankingRecord.bank || item.bank,
+              accountNo: bankingRecord.accountNo || item.accountNo,
+              ifsc: bankingRecord.ifsc || item.ifsc,
+              accountType: bankingRecord.accountType || item.accountType,
+            };
+          }
+          return item;
+        });
+        await prisma.systemSetting.update({
+          where: { key: "august_2026_payroll_ledger" },
+          data: { value: JSON.stringify(augList) },
+        });
+      }
+    } catch {}
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/employees");
+    revalidatePath("/dashboard");
+    return { success: true, message: "Staff salary & banking details saved successfully." };
+  } catch (err: any) {
+    // Dev fallback
+    devSalaryOverrides.set(userId, {
+      baseSalary: data.baseSalary,
+      payFrequency: data.payFrequency || "MONTHLY",
+      effectiveDate: data.effectiveDateStr || new Date().toISOString().split("T")[0],
+    });
+    devStaffBankingMap.set(userId, {
+      bank: data.bank || null,
+      accountNo: data.accountNo || null,
+      ifsc: data.ifsc || null,
+      accountType: data.accountType || "SAVINGS",
+      panNo: data.panNo || null,
+      upiId: data.upiId || null,
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/employees");
+    return { success: true, message: "Staff salary & banking details saved successfully (Dev Mode)." };
   }
 }
 
@@ -92,36 +282,11 @@ export async function updateSalaryProfileAction(
   payFrequency = "MONTHLY",
   effectiveDateStr?: string
 ) {
-  const session = await getSession();
-  if (!session || session.role !== "ADMIN") {
-    return { error: "Unauthorized. Admin authority required." };
-  }
-
-  const effectiveDate = effectiveDateStr ? new Date(effectiveDateStr) : new Date();
-
-  try {
-    await prisma.salaryProfile.upsert({
-      where: { userId },
-      update: { baseSalary, payFrequency, effectiveDate },
-      create: { userId, baseSalary, payFrequency, effectiveDate },
-    });
-
-    revalidatePath("/admin");
-    revalidatePath("/admin/employees");
-    return { success: true, message: "Salary profile updated successfully." };
-  } catch {
-    // Offline Dev Fallback: Persist in memory so the Admin sees immediate updates
-    const targetDate = effectiveDateStr || new Date().toISOString().split("T")[0];
-    devSalaryOverrides.set(userId, {
-      baseSalary,
-      payFrequency,
-      effectiveDate: targetDate,
-    });
-
-    revalidatePath("/admin");
-    revalidatePath("/admin/employees");
-    return { success: true, message: "Salary profile updated successfully (Dev Mode)." };
-  }
+  return updateStaffSalaryAndBankingAction(userId, {
+    baseSalary,
+    payFrequency,
+    effectiveDateStr,
+  });
 }
 
 export interface SalaryAdjustmentRecord {
@@ -300,14 +465,7 @@ export async function getMonthlySalaryLedgerAction(
       });
 
       // Preserve banking info from master ledger
-      const bankInfoMap = new Map<string, { bank: string | null; ifsc: string | null; accountNo: string | null; accountType: string | null }>();
-      try {
-        const augSet = await prisma.systemSetting.findUnique({ where: { key: "august_2026_payroll_ledger" } });
-        if (augSet) {
-          const augList: AugustLedgerItem[] = JSON.parse(augSet.value);
-          augList.forEach((a) => bankInfoMap.set(a.userId, { bank: a.bank, ifsc: a.ifsc, accountNo: a.accountNo, accountType: a.accountType }));
-        }
-      } catch {}
+      const bankInfoMap = await getStaffBankingMap();
 
       rawItems = usersWithSal.map((u) => {
         const base = u.salaryProfile ? Number(u.salaryProfile.baseSalary) : 25000;

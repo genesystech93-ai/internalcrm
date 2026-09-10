@@ -56,17 +56,26 @@ import {
   SlidersHorizontal,
   CheckCircle2,
   CheckCheck,
+  Building2,
+  CreditCard,
 } from "lucide-react";
 import { ModalPortal } from "./ModalPortal";
 import { PayslipModal } from "./PayslipModal";
+import { SalaryAndBankingModal } from "./SalaryAndBankingModal";
 
 interface AdminWorkforceManagerProps {
-  initialTab?: "attendance" | "leaves" | "salaries" | "incentives";
+  initialTab?: "attendance" | "leaves" | "salaries" | "payroll" | "incentives";
 }
 
 export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforceManagerProps = {}) {
-  const [activeTab, setActiveTab] = useState<"attendance" | "leaves" | "salaries" | "incentives">(initialTab);
+  const [activeTab, setActiveTab] = useState<"attendance" | "leaves" | "salaries" | "payroll" | "incentives">(initialTab);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Salary Profiles state
   const [salaries, setSalaries] = useState<SalaryProfileItem[]>([]);
@@ -74,6 +83,11 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
   const [newSalaryVal, setNewSalaryVal] = useState<number>(25000);
   const [newFrequencyVal, setNewFrequencyVal] = useState<string>("MONTHLY");
   const [newEffectiveDateVal, setNewEffectiveDateVal] = useState<string>("");
+
+  // Salary & Banking Modal state
+  const [selectedSalaryStaff, setSelectedSalaryStaff] = useState<SalaryProfileItem | null>(null);
+  const [showSalaryBankModal, setShowSalaryBankModal] = useState(false);
+  const [salarySearch, setSalarySearch] = useState("");
 
   // Dynamic Payroll & Banking Ledger
   const [augustLedger, setAugustLedger] = useState<AugustLedgerItem[]>([]);
@@ -481,6 +495,32 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
       <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl liquid-glass mb-6">
         <button
           type="button"
+          onClick={() => setActiveTab("salaries")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === "salaries"
+              ? "bg-[#F97316] text-white shadow-md shadow-orange-500/25"
+              : "text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white"
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          <span>Salaries & Banking Master</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("payroll")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === "payroll"
+              ? "bg-[#F97316] text-white shadow-md shadow-orange-500/25"
+              : "text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white"
+          }`}
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5" />
+          <span>Monthly Payroll Ledger</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab("attendance")}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === "attendance"
@@ -503,19 +543,6 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
         >
           <Calendar className="w-3.5 h-3.5" />
           <span>Leave Requests & Approvals</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("salaries")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-            activeTab === "salaries"
-              ? "bg-[#F97316] text-white shadow-md shadow-orange-500/25"
-              : "text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white"
-          }`}
-        >
-          <DollarSign className="w-3.5 h-3.5" />
-          <span>Employee Salary Profiles</span>
         </button>
 
         <button
@@ -555,49 +582,108 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
       {/* Tab 2: Leave Management */}
       {activeTab === "leaves" && <LeaveManagement isAdmin={true} />}
 
-      {/* Tab 3: Salary Profiles Master */}
+      {/* Tab 3: Salary & Banking Master Directory */}
       {activeTab === "salaries" && (
         <div className="liquid-glass-card rounded-3xl p-6 sm:p-8 border border-white/80 dark:border-slate-800">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <div className="flex items-center gap-2.5 mb-1">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-[#10B981]">
-                  <DollarSign className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-orange-500/10 flex items-center justify-center text-[#F97316]">
+                  <Building2 className="w-4 h-4" />
                 </div>
                 <h2 className="text-lg font-bold text-[#0F172A] dark:text-white">
-                  Employee Base Salary Profile Master
+                  Staff Base Salary & Official Banking Directory
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
                   {salaries.length} Staff {salaries.length === 1 ? "Member" : "Members"}
                 </span>
               </div>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-                Configure monthly base salaries and pay frequencies. Incentives are added on top of base pay.
+                Configure monthly base salaries and official bank routing information (Bank Name, Account #, IFSC, Account Type, PAN, UPI). Updates directly sync to monthly payroll ledgers and official payslips.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => loadData()}
-              disabled={isRefreshing}
-              className="liquid-glass-button-secondary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
-              title="Refresh Salary Profiles"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-[#10B981]" : "text-[#64748B]"}`} />
-              <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
-            </button>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setActiveTab("payroll")}
+                className="liquid-glass-button-primary px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm shadow-orange-500/20"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Monthly Payroll Ledger &rarr;</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => loadData()}
+                disabled={isRefreshing}
+                className="liquid-glass-button-secondary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                title="Refresh Salary Profiles"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-[#F97316]" : "text-[#64748B]"}`} />
+                <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+              <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Total Staff Registered</p>
+              <p className="text-lg font-extrabold text-[#0F172A] dark:text-white font-mono">{salaries.length}</p>
+            </div>
+            <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+              <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Monthly Base Payroll</p>
+              <p className="text-lg font-extrabold text-[#EA580C] dark:text-[#FB923C] font-mono">
+                ₹{salaries.reduce((sum, s) => sum + (s.baseSalary || 0), 0).toLocaleString("en-IN")}
+              </p>
+            </div>
+            <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+              <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Bank Profiles Linked</p>
+              <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+                {salaries.filter((s) => Boolean(s.bank && s.accountNo)).length} / {salaries.length}
+              </p>
+            </div>
+            <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+              <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Missing Bank Info</p>
+              <p className="text-lg font-extrabold text-amber-600 dark:text-amber-400 font-mono">
+                {salaries.filter((s) => !s.bank || !s.accountNo).length}
+              </p>
+            </div>
+          </div>
+
+          {/* Search bar */}
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={salarySearch}
+                onChange={(e) => setSalarySearch(e.target.value)}
+                placeholder="Search staff name, username, bank, or IFSC..."
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl text-xs bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-orange-500"
+              />
+            </div>
+            {salarySearch && (
+              <button
+                type="button"
+                onClick={() => setSalarySearch("")}
+                className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-medium cursor-pointer"
+              >
+                Clear Search
+              </button>
+            )}
           </div>
 
           {salaries.length === 0 ? (
             <div className="py-12 px-4 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-[#10B981] mx-auto mb-3">
-                <DollarSign className="w-6 h-6" />
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-[#F97316] mx-auto mb-3">
+                <Building2 className="w-6 h-6" />
               </div>
               <h3 className="text-sm font-bold text-[#0F172A] dark:text-white mb-1">
                 No Staff Employees Registered Yet
               </h3>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8] max-w-md mx-auto">
-                When you create agents, closers, or team leads in the Employee Accounts panel above, their salary profiles will appear here automatically with editable base pay and pay frequencies.
+                When you create staff accounts in Employee Accounts, their salary and banking profiles will appear here automatically with editable base pay and bank routing details.
               </p>
             </div>
           ) : (
@@ -608,102 +694,101 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
                     <th className="py-2.5 px-3">Employee</th>
                     <th className="py-2.5 px-3">Role</th>
                     <th className="py-2.5 px-3">Base Salary (₹)</th>
-                    <th className="py-2.5 px-3">Frequency</th>
+                    <th className="py-2.5 px-3">Official Bank Routing</th>
+                    <th className="py-2.5 px-3">PAN & UPI</th>
                     <th className="py-2.5 px-3">Effective Date</th>
-                    <th className="py-2.5 px-3 text-right">Actions</th>
+                    <th className="py-2.5 px-3 text-right">Admin Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {salaries.map((s) => (
-                    <tr key={s.id} className="hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3 px-3">
-                        <p className="font-bold text-[#0F172A] dark:text-white">{s.name}</p>
-                        <p className="font-mono text-[10px] text-[#64748B] dark:text-[#94A3B8]">@{s.username}</p>
-                      </td>
-                      <td className="py-3 px-3 font-semibold">{s.role}</td>
-                      <td className="py-3 px-3 font-mono font-bold text-[#0F172A] dark:text-white">
-                        {editingUserId === s.userId ? (
-                          <input
-                            type="number"
-                            value={newSalaryVal}
-                            onChange={(e) => setNewSalaryVal(Number(e.target.value))}
-                            className="liquid-glass-input w-28 px-2 py-1 rounded-lg text-xs font-mono font-bold"
-                          />
-                        ) : (
-                          `₹${s.baseSalary.toLocaleString("en-IN")}`
-                        )}
-                      </td>
-                      <td className="py-3 px-3 font-mono">
-                        {editingUserId === s.userId ? (
-                          <select
-                            value={newFrequencyVal}
-                            onChange={(e) => setNewFrequencyVal(e.target.value)}
-                            className="liquid-glass-input px-2 py-1 rounded-lg text-xs font-mono font-semibold"
-                          >
-                            <option value="MONTHLY">MONTHLY</option>
-                            <option value="BI_WEEKLY">BI_WEEKLY</option>
-                            <option value="WEEKLY">WEEKLY</option>
-                          </select>
-                        ) : (
-                          s.payFrequency
-                        )}
-                      </td>
-                      <td className="py-3 px-3">
-                        {editingUserId === s.userId ? (
-                          <input
-                            type="date"
-                            value={newEffectiveDateVal}
-                            onChange={(e) => setNewEffectiveDateVal(e.target.value)}
-                            className="liquid-glass-input px-2 py-1 rounded-lg text-xs font-mono"
-                          />
-                        ) : (
-                          <span className="text-[#64748B] dark:text-[#94A3B8] font-mono">{s.effectiveDate}</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        {editingUserId === s.userId ? (
-                          <div className="flex items-center gap-1.5 justify-end">
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateSalary(s.userId)}
-                              className="liquid-glass-button-primary py-1 px-3 rounded-lg text-xs font-bold cursor-pointer"
-                            >
-                              Save
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingUserId(null)}
-                              className="liquid-glass-button-secondary py-1 px-2 rounded-lg text-xs cursor-pointer"
-                            >
-                              Cancel
-                            </button>
+                  {salaries
+                    .filter((s) => {
+                      if (!salarySearch.trim()) return true;
+                      const q = salarySearch.toLowerCase();
+                      return (
+                        s.name.toLowerCase().includes(q) ||
+                        s.username.toLowerCase().includes(q) ||
+                        (s.bank && s.bank.toLowerCase().includes(q)) ||
+                        (s.ifsc && s.ifsc.toLowerCase().includes(q)) ||
+                        s.role.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((s) => (
+                      <tr key={s.id} className="hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-3 px-3">
+                          <p className="font-bold text-[#0F172A] dark:text-white">{s.name}</p>
+                          <p className="font-mono text-[10px] text-[#64748B] dark:text-[#94A3B8]">@{s.username}</p>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="px-2 py-0.5 rounded-full font-bold text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                            {s.role}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-mono font-bold text-[#0F172A] dark:text-white">
+                          <div className="flex flex-col">
+                            <span className="text-sm">₹{s.baseSalary.toLocaleString("en-IN")}</span>
+                            <span className="text-[10px] font-medium text-slate-400 font-sans">{s.payFrequency}</span>
                           </div>
-                        ) : (
+                        </td>
+                        <td className="py-3 px-3">
+                          {s.bank ? (
+                            <div>
+                              <p className="font-bold text-[#0F172A] dark:text-white flex items-center gap-1.5">
+                                <span>{s.bank}</span>
+                                {s.accountType && (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 font-semibold text-slate-500 border border-slate-200 dark:border-slate-700">
+                                    {s.accountType}
+                                  </span>
+                                )}
+                              </p>
+                              <p className="font-mono text-[10px] text-slate-500" title={`A/C: ${s.accountNo} | IFSC: ${s.ifsc}`}>
+                                A/C: {s.accountNo ? `••••${s.accountNo.slice(-4)}` : "—"} &bull; IFSC: {s.ifsc || "—"}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-900/40">
+                              <AlertCircle className="w-3 h-3" />
+                              <span>Missing Banking Info</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-[10px]">
+                          <p className="text-slate-600 dark:text-slate-400">
+                            PAN: <span className="font-bold text-slate-900 dark:text-white">{s.panNo || "—"}</span>
+                          </p>
+                          <p className="text-slate-500">
+                            UPI: {s.upiId || "—"}
+                          </p>
+                        </td>
+                        <td className="py-3 px-3 font-mono text-slate-500 text-[11px]">
+                          {s.effectiveDate}
+                        </td>
+                        <td className="py-3 px-3 text-right">
                           <button
                             type="button"
                             onClick={() => {
-                              setEditingUserId(s.userId);
-                              setNewSalaryVal(s.baseSalary);
-                              setNewFrequencyVal(s.payFrequency);
-                              setNewEffectiveDateVal(s.effectiveDate);
+                              setSelectedSalaryStaff(s);
+                              setShowSalaryBankModal(true);
                             }}
-                            className="liquid-glass-button-secondary py-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1.5 ml-auto cursor-pointer"
+                            className="liquid-glass-button-primary py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 ml-auto cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
+                            title="Edit Employee Base Salary & Bank Routing Details"
                           >
-                            <Edit2 className="w-3 h-3" />
-                            <span>Edit</span>
+                            <CreditCard className="w-3.5 h-3.5" />
+                            <span>Edit Salary & Bank</span>
                           </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
           )}
+        </div>
+      )}
 
-          {/* Shift Attendance, Salary & Banking Ledger */}
-          {augustLedger.length > 0 && (
-            <div className="liquid-glass-card rounded-3xl p-6 sm:p-8 mt-6 border border-emerald-500/20">
+      {/* Tab 3b: Monthly Payroll Ledger */}
+      {activeTab === "payroll" && augustLedger.length > 0 && (
+        <div className="liquid-glass-card rounded-3xl p-6 sm:p-8 border border-emerald-500/20">
               {payrollToast && (
                 <div
                   className={`mb-4 p-3 rounded-2xl flex items-center justify-between text-xs font-bold ${
@@ -972,6 +1057,35 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
                             <button
                               type="button"
                               onClick={() => {
+                                const profile = salaries.find(
+                                  (s) => s.userId === item.userId || s.username.toLowerCase() === item.username.toLowerCase()
+                                );
+                                setSelectedSalaryStaff(
+                                  profile || {
+                                    id: `sal-${item.userId}`,
+                                    userId: item.userId,
+                                    name: item.name,
+                                    username: item.username,
+                                    role: item.role,
+                                    baseSalary: item.basicSalary,
+                                    payFrequency: "MONTHLY",
+                                    effectiveDate: new Date().toISOString().split("T")[0],
+                                    bank: item.bank || undefined,
+                                    accountNo: item.accountNo || undefined,
+                                    ifsc: item.ifsc || undefined,
+                                    accountType: item.accountType || undefined,
+                                  }
+                                );
+                                setShowSalaryBankModal(true);
+                              }}
+                              className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                              title="Edit Staff Salary & Banking Details"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
                                 setSelectedPayslipItem(item);
                                 setShowPayslipModal(true);
                               }}
@@ -997,8 +1111,6 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
               </div>
             </div>
           )}
-        </div>
-      )}
 
       {/* Tab 4: Incentive Rules & Team Pools */}
       {activeTab === "incentives" && (
@@ -1920,6 +2032,17 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
           </div>
         </ModalPortal>
       )}
+
+      {/* Modal: Edit Staff Salary & Banking Routing Details */}
+      <SalaryAndBankingModal
+        isOpen={showSalaryBankModal}
+        staff={selectedSalaryStaff}
+        onClose={() => setShowSalaryBankModal(false)}
+        onSuccess={async () => {
+          await loadData();
+          setMessage({ text: "Staff salary & bank routing details updated successfully.", type: "success" });
+        }}
+      />
     </div>
   );
 }

@@ -25,9 +25,13 @@ import {
   Filter,
   Loader2,
   Edit2,
+  CreditCard,
+  Building2,
 } from "lucide-react";
 import { Role } from "@prisma/client";
 import { ModalPortal } from "@/components/ModalPortal";
+import { SalaryAndBankingModal } from "@/components/SalaryAndBankingModal";
+import { getSalaryProfilesAction, SalaryProfileItem } from "@/app/actions/salary";
 
 interface AdminUserManagementProps {
   initialUsers?: UserManagementItem[];
@@ -44,6 +48,11 @@ export function AdminUserManagement({
   const [loading, setLoading] = useState(initialUsers.length === 0);
   const [togglingUsername, setTogglingUsername] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
+
+  // Salary & Banking Modal state
+  const [salaryProfiles, setSalaryProfiles] = useState<SalaryProfileItem[]>([]);
+  const [selectedSalaryStaff, setSelectedSalaryStaff] = useState<SalaryProfileItem | null>(null);
+  const [isSalaryModalOpen, setIsSalaryModalOpen] = useState(false);
 
   // Change Password Modal
   const [selectedUser, setSelectedUser] = useState<UserManagementItem | null>(null);
@@ -79,6 +88,7 @@ export function AdminUserManagement({
         getAdminUsersAction(),
         getCampaignsAction(),
         getTeamsAction(),
+        getSalaryProfilesAction(),
       ]);
 
       if (results[0].status === "fulfilled" && results[0].value.length > 0) {
@@ -108,11 +118,37 @@ export function AdminUserManagement({
       if (results[2].status === "fulfilled") {
         setTeams(results[2].value);
       }
+
+      if (results[3].status === "fulfilled") {
+        setSalaryProfiles(results[3].value);
+      }
     } catch (err) {
       console.error("Failed to load staff roster:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const openSalaryBankModal = (u: UserManagementItem) => {
+    const profile = salaryProfiles.find(
+      (s) => s.userId === u.id || s.username.toLowerCase() === u.username.toLowerCase()
+    );
+    if (profile) {
+      setSelectedSalaryStaff(profile);
+    } else {
+      setSelectedSalaryStaff({
+        id: `sal-${u.id}`,
+        userId: u.id,
+        name: u.name,
+        username: u.username,
+        role: u.role,
+        baseSalary: 25000,
+        payFrequency: "MONTHLY",
+        effectiveDate: new Date().toISOString().split("T")[0],
+        accountType: "SAVINGS",
+      });
+    }
+    setIsSalaryModalOpen(true);
   };
 
   useEffect(() => {
@@ -457,6 +493,16 @@ export function AdminUserManagement({
                       >
                         <Edit2 className="w-3.5 h-3.5 text-[#EA580C]" />
                         <span>Edit</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openSalaryBankModal(u)}
+                        className="liquid-glass-button-secondary py-1.5 px-2.5 rounded-xl font-bold text-xs inline-flex items-center gap-1 hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
+                        title="Edit Employee Base Salary & Bank Routing Details"
+                      >
+                        <CreditCard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>Salary & Bank</span>
                       </button>
 
                       <button
@@ -897,6 +943,18 @@ export function AdminUserManagement({
         </div>
         </ModalPortal>
       )}
+
+      {/* Modal 3: Edit Staff Salary & Banking Details */}
+      <SalaryAndBankingModal
+        isOpen={isSalaryModalOpen}
+        staff={selectedSalaryStaff}
+        onClose={() => setIsSalaryModalOpen(false)}
+        onSuccess={async () => {
+          setNotification({ type: "success", text: "Employee salary & banking profile updated successfully." });
+          const salaryRes = await getSalaryProfilesAction();
+          if (salaryRes) setSalaryProfiles(salaryRes);
+        }}
+      />
     </div>
   );
 }
