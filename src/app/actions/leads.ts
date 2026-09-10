@@ -6,7 +6,12 @@ import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { LeadSource, LeadStatus } from "@prisma/client";
 import { sanitizeText, validateEmail, validateMobile } from "@/lib/sanitize";
-import { NetTermsType, computeApprovalSLA } from "@/lib/client-store";
+import {
+  NetTermsType,
+  computeApprovalSLA,
+  calculateApprovalDeadline,
+  getInMemoryClientById,
+} from "@/lib/client-store";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -79,16 +84,20 @@ export async function createLeadAction(formData: FormData) {
   const rawEmail = formData.get("email");
   const campaignId = sanitizeText(formData.get("campaignId"), 64);
   const source = (formData.get("source")?.toString() || "DIALER") as LeadSource;
-  const closerName = sanitizeText(formData.get("closerName"), 100);
+  const closerNameRaw = sanitizeText(formData.get("closerName"), 100);
+  const closerName = closerNameRaw || "Direct";
+  const clientId = sanitizeText(formData.get("clientId"), 64) || null;
+  const clientNetTermsRaw = formData.get("clientNetTerms")?.toString();
+  const clientNetTerms = (clientNetTermsRaw as NetTermsType) || "NET_14";
   const status = (formData.get("status")?.toString() || "UPLOADED") as LeadStatus;
   const callBackTimeStr = formData.get("callBackTime")?.toString();
   const notes = sanitizeText(formData.get("notes"), 1000);
   const rawCustomStatus = formData.get("customStatusName")?.toString()?.trim();
   const customStatusName = rawCustomStatus ? sanitizeText(rawCustomStatus, 100) : "";
 
-  // Validation: Required fields
-  if (!customerName || !dobStr || !rawMobile || !address || !rawEmail || !campaignId || !closerName) {
-    return { error: "Please fill all required fields (Name, DOB, Mobile, Address, Email, Campaign, Closer)." };
+  // Validation: Required fields (closerName defaults to Direct if empty)
+  if (!customerName || !dobStr || !rawMobile || !address || !rawEmail || !campaignId) {
+    return { error: "Please fill all required fields (Name, DOB, Mobile, Address, Email, Campaign)." };
   }
 
   // Name length guard
@@ -127,6 +136,7 @@ export async function createLeadAction(formData: FormData) {
 
   const dob = new Date(dobStr);
   const callBackTime = callBackTimeStr ? new Date(callBackTimeStr) : null;
+  const expectedApprovalDate = clientId ? calculateApprovalDeadline(new Date(), clientNetTerms) : null;
 
   try {
     // Campaign-Scoped Mobile Duplicate Check
@@ -163,6 +173,11 @@ export async function createLeadAction(formData: FormData) {
         rejectionReason: rejectionReasonVal,
         agentId: session.userId,
         notes: notes || null,
+        clientId: clientId || null,
+        clientNetTerms: clientId ? clientNetTerms : null,
+        clientSubmittedAt: clientId ? new Date() : null,
+        expectedApprovalDate: clientId ? expectedApprovalDate : null,
+        clientApprovalStatus: clientId ? "PENDING" : null,
       },
       include: { campaign: true },
     });
@@ -184,7 +199,11 @@ export async function createLeadAction(formData: FormData) {
         previousStatus: status,
         newStatus: status === "CUSTOM" && customStatusName ? `CUSTOM (${customStatusName})` : status,
         changedById: session.userId,
-        reason: status === "CUSTOM" && customStatusName ? `Custom status: ${customStatusName}` : "Initial lead submission.",
+        reason: clientId
+          ? `Directly submitted to corporate buyer on ${clientNetTerms.replace("_", " ")} terms upon entry.`
+          : status === "CUSTOM" && customStatusName
+          ? `Custom status: ${customStatusName}`
+          : "Initial lead submission.",
       },
     });
 
@@ -204,6 +223,21 @@ export async function createLeadAction(formData: FormData) {
     const rejectionReasonVal = status === "CUSTOM"
       ? (customStatusName ? `CUSTOM:${customStatusName}` : "Custom Status")
       : null;
+
+    let clientName: string | null = null;
+    let expectedApprovalDateStr: string | null = null;
+    let slaLabel: string | null = null;
+    let daysRemaining: number | null = null;
+
+    if (clientId) {
+      const memClient = getInMemoryClientById(clientId);
+      clientName = memClient ? memClient.name : "Corporate Buyer";
+      const exp = calculateApprovalDeadline(new Date(), clientNetTerms);
+      expectedApprovalDateStr = exp.toISOString();
+      const sla = computeApprovalSLA(exp);
+      slaLabel = sla.statusLabel;
+      daysRemaining = sla.daysRemaining;
+    }
 
     const newLead: LeadItem = {
       id: `dev-lead-${Date.now()}`,
@@ -226,13 +260,26 @@ export async function createLeadAction(formData: FormData) {
       notes: notes || null,
       approvedAt: null,
       createdAt: new Date().toISOString(),
+      clientId: clientId || null,
+      clientName,
+      clientNetTerms: clientId ? clientNetTerms : null,
+      clientSubmittedAt: clientId ? new Date().toISOString() : null,
+      expectedApprovalDate: expectedApprovalDateStr,
+      clientApprovalStatus: clientId ? "PENDING" : null,
+      daysRemaining,
+      isOverdue: false,
+      slaLabel,
       history: [
         {
           id: `hist-${Date.now()}`,
           fromStatus: status,
           toStatus: status,
           changedByName: session.name,
-          reason: status === "CUSTOM" && customStatusName ? `Custom: ${customStatusName}` : "Initial lead submission (Dev Mode).",
+          reason: clientId
+            ? `Directly submitted to ${clientName} on ${clientNetTerms.replace("_", " ")} terms upon entry.`
+            : status === "CUSTOM" && customStatusName
+            ? `Custom: ${customStatusName}`
+            : "Initial lead submission (Dev Mode).",
           createdAt: new Date().toISOString(),
         },
       ],

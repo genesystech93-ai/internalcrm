@@ -4,8 +4,9 @@ import React, { useState, useEffect } from "react";
 import { createLeadAction, getCustomStatusesAction, CustomStatusItem } from "@/app/actions/leads";
 import { getCampaignsAction, CampaignItem } from "@/app/actions/campaigns";
 import { getAssignableStaffAction, AssignableStaffItem } from "@/app/actions/teams";
+import { getClientsAction, ClientItem } from "@/app/actions/clients";
 import { LeadSource, LeadStatus } from "@prisma/client";
-import { PlusCircle, X, Calendar, Phone, Mail, MapPin, User, Clock, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { PlusCircle, X, Calendar, Phone, Mail, MapPin, User, Clock, AlertCircle, CheckCircle2, Loader2, Building2 } from "lucide-react";
 import { ModalPortal } from "@/components/ModalPortal";
 
 interface LeadEntryModalProps {
@@ -35,6 +36,9 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
   const [customStatuses, setCustomStatuses] = useState<CustomStatusItem[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [staffSuggestions, setStaffSuggestions] = useState<AssignableStaffItem[]>([]);
+  const [clients, setClients] = useState<ClientItem[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [selectedTerms, setSelectedTerms] = useState<string>("NET_14");
 
   useEffect(() => {
     if (isOpen) {
@@ -46,6 +50,7 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
         }
       });
       getAssignableStaffAction().then((res) => setStaffSuggestions(res));
+      getClientsAction().then((res) => setClients(res));
     }
   }, [isOpen, campaignId]);
 
@@ -92,13 +97,17 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
       fd.append("callBackTime", callBackTime);
     }
     fd.append("notes", notes);
+    if (selectedClientId) {
+      fd.append("clientId", selectedClientId);
+      fd.append("clientNetTerms", selectedTerms);
+    }
 
     const res = await createLeadAction(fd);
 
     if (res.error) {
       setMessage({ text: res.error, type: "error" });
     } else {
-      setMessage({ text: "Lead successfully recorded in pipeline!", type: "success" });
+      setMessage({ text: selectedClientId ? "Lead created & directly submitted to corporate buyer!" : "Lead successfully recorded in pipeline!", type: "success" });
       setTimeout(() => {
         onSuccess?.();
         onClose();
@@ -112,6 +121,8 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
         setCustomStatusName("");
         setCallBackTime("");
         setNotes("");
+        setSelectedClientId("");
+        setSelectedTerms("NET_14");
         setMessage(null);
       }, 700);
     }
@@ -317,29 +328,42 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8]">
-                  8. Assigned Closer *
+                  8. Assigned Closer (Optional)
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setCloserName("Self (Agent Closed)")}
-                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
-                    closerName.toLowerCase().includes("self")
-                      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                      : "bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] hover:bg-orange-500/20 border border-orange-500/20"
-                  }`}
-                  title="Click if you closed this deal yourself"
-                >
-                  {closerName.toLowerCase().includes("self") ? "✓ Marked Self-Closed" : "+ Self-Close (Same Agent)"}
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCloserName("Direct")}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                      closerName === "Direct"
+                        ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30"
+                        : "bg-slate-500/10 text-slate-600 dark:text-slate-400 hover:bg-slate-500/20 border border-slate-500/20"
+                    }`}
+                    title="Direct intake without assigned closer"
+                  >
+                    + Direct
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCloserName("Self (Agent Closed)")}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                      closerName.toLowerCase().includes("self")
+                        ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                        : "bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] hover:bg-orange-500/20 border border-orange-500/20"
+                    }`}
+                    title="Click if you closed this deal yourself"
+                  >
+                    {closerName.toLowerCase().includes("self") ? "✓ Self" : "+ Self"}
+                  </button>
+                </div>
               </div>
               <input
                 type="text"
                 list="closer-suggestions"
-                required
                 maxLength={100}
                 value={closerName}
                 onChange={(e) => setCloserName(e.target.value)}
-                placeholder="e.g. Self, or select closer..."
+                placeholder="e.g. Direct, Self, or select closer..."
                 className="liquid-glass-input w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold focus:outline-none"
               />
               {closerName.toLowerCase().includes("self") && (
@@ -349,6 +373,7 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
                 </p>
               )}
               <datalist id="closer-suggestions">
+                <option value="Direct" />
                 <option value="Self (Agent Closed)" />
                 {staffSuggestions.map((s) => (
                   <option
@@ -360,6 +385,57 @@ export function LeadEntryModal({ isOpen, onClose, onSuccess }: LeadEntryModalPro
                 ))}
               </datalist>
             </div>
+          </div>
+
+          {/* Optional Direct Client Buyer Dispatch */}
+          <div className="p-3.5 rounded-2xl bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/20 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Direct Client Buyer Submission (Optional)</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium">Skip closer verification</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <select
+                  value={selectedClientId}
+                  onChange={(e) => {
+                    setSelectedClientId(e.target.value);
+                    const c = clients.find((cl) => cl.id === e.target.value);
+                    if (c) setSelectedTerms(c.defaultNetTerms);
+                  }}
+                  className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-semibold focus:outline-none"
+                >
+                  <option value="">-- No Direct Buyer (Pipeline Only) --</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.defaultNetTerms.replace("_", " ")})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedClientId && (
+                <div>
+                  <select
+                    value={selectedTerms}
+                    onChange={(e) => setSelectedTerms(e.target.value)}
+                    className="liquid-glass-input w-full px-3 py-2 rounded-xl text-xs font-semibold focus:outline-none"
+                  >
+                    <option value="NET_7">Net 7 (7 Days SLA)</option>
+                    <option value="NET_14">Net 14 (14 Days SLA)</option>
+                    <option value="NET_21">Net 21 (21 Days SLA)</option>
+                    <option value="NET_30">Net 30 (30 Days SLA)</option>
+                  </select>
+                </div>
+              )}
+            </div>
+            {selectedClientId && (
+              <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                ⚡ Direct Submission Enabled: Lead will be immediately dispatched to {clients.find(c => c.id === selectedClientId)?.name || "buyer"} with {selectedTerms.replace("_", " ")} SLA upon creation.
+              </p>
+            )}
           </div>
 
           {/* Row 5: Status & Callback Time */}

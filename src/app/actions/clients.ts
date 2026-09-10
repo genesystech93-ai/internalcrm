@@ -14,8 +14,9 @@ import {
   updateInMemoryClient,
   deleteInMemoryClient,
   calculateApprovalDeadline,
+  computeApprovalSLA,
 } from "@/lib/client-store";
-import { adminDecisionAction } from "@/app/actions/leads";
+import { adminDecisionAction, getDevLeads } from "@/app/actions/leads";
 
 // Safe dynamic accessor to prevent stale language server issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -284,8 +285,8 @@ export async function submitLeadToClientAction(params: {
   netTerms?: NetTermsType;
 }> {
   const session = await getSession();
-  if (!session || session.role !== "ADMIN") {
-    return { error: "Permission Denied: Only Admins can submit leads to external buyers/clients." };
+  if (!session) {
+    return { error: "Permission Denied: Please log in to submit leads to external buyers/clients." };
   }
 
   const { leadId, clientId } = params;
@@ -361,6 +362,30 @@ export async function submitLeadToClientAction(params: {
     }
   } catch {
     // In-memory fallback
+    try {
+      const devLeads = await getDevLeads();
+      const devLead = devLeads.find((l) => l.id === leadId);
+      if (devLead) {
+        devLead.clientId = clientId;
+        devLead.clientName = clientName;
+        devLead.clientNetTerms = chosenTerms;
+        devLead.clientSubmittedAt = submissionDate.toISOString();
+        devLead.expectedApprovalDate = expectedApprovalDate.toISOString();
+        devLead.clientApprovalStatus = "PENDING";
+        const sla = computeApprovalSLA(expectedApprovalDate);
+        devLead.daysRemaining = sla.daysRemaining;
+        devLead.isOverdue = sla.isOverdue;
+        devLead.slaLabel = sla.statusLabel;
+        devLead.history.push({
+          id: `hist-${Date.now()}`,
+          fromStatus: devLead.status,
+          toStatus: devLead.status,
+          changedByName: session.name,
+          reason: `Submitted to ${clientName} on ${chosenTerms.replace("_", " ")} terms. Approval expected by ${expectedApprovalDate.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}.`,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } catch {}
   }
 
   revalidatePath("/admin");

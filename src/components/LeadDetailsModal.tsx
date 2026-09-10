@@ -7,10 +7,6 @@ import {
   updateLeadCloserAction,
   deleteLeadAction,
 } from "@/app/actions/leads";
-import {
-  parseIntakeAnswers,
-  formatClientSubmissionScript,
-} from "@/lib/campaign-intake";
 import { shareLeadToChatAction } from "@/app/actions/messages";
 import { LeadStatus } from "@prisma/client";
 import {
@@ -34,11 +30,10 @@ import {
   Share2,
   AlertTriangle,
   Trash2,
-  ClipboardList,
-  ListChecks,
+  Send,
 } from "lucide-react";
 import { ModalPortal } from "@/components/ModalPortal";
-import { CloserIntakeModal } from "@/components/CloserIntakeModal";
+import { ClientSubmissionModal } from "@/components/ClientSubmissionModal";
 
 interface LeadDetailsModalProps {
   lead: LeadItem | null;
@@ -68,23 +63,9 @@ export function LeadDetailsModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [showCloserIntake, setShowCloserIntake] = useState(false);
-  const [copiedScript, setCopiedScript] = useState(false);
+  const [showClientSubmitModal, setShowClientSubmitModal] = useState(false);
 
   if (!isOpen || !lead) return null;
-
-  const intakeAnswers = parseIntakeAnswers(lead.notes);
-  const answeredQuestionsCount = Object.keys(intakeAnswers).length;
-
-  const handleCopySubmissionScript = () => {
-    if (!lead) return;
-    const script = formatClientSubmissionScript(lead, intakeAnswers);
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(script);
-      setCopiedScript(true);
-      setTimeout(() => setCopiedScript(false), 2500);
-    }
-  };
 
   const handleDeleteLead = async () => {
     if (!lead) return;
@@ -384,33 +365,69 @@ export function LeadDetailsModal({
               </div>
             </div>
 
-            {/* Client SLA Section if submitted */}
-            {lead.clientName && (
-              <div className="p-3.5 rounded-2xl bg-orange-500/5 dark:bg-orange-500/10 border border-orange-500/20">
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-[#F97316]" />
-                    <span className="font-bold text-xs text-[#0F172A] dark:text-white">Client SLA & Submission</span>
+            {/* Direct Client Buyer Lead Submission */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500/5 via-indigo-500/5 to-cyan-500/5 dark:from-blue-500/10 dark:via-indigo-500/10 dark:to-cyan-500/10 border border-blue-500/20 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <Building2 className="w-4.5 h-4.5" />
                   </div>
-                  <span className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                    lead.isOverdue
-                      ? "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30"
-                      : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                  }`}>
-                    {lead.slaLabel || "Active"}
+                  <div>
+                    <h4 className="text-xs font-extrabold text-[#0F172A] dark:text-white flex items-center gap-2">
+                      <span>Corporate Buyer Lead Submission</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        lead.clientName
+                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                          : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                      }`}>
+                        {lead.clientName ? `Submitted: ${lead.clientName}` : "Direct Dispatch Ready"}
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">
+                      Directly submit this lead to client buyers without requiring closer verification questionnaires.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowClientSubmitModal(true)}
+                  className="liquid-glass-button text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-xs bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+                >
+                  <Building2 className="w-3.5 h-3.5 text-white" />
+                  <span>{lead.clientName ? "Reassign Buyer / Terms" : "Direct Submit to Client"}</span>
+                </button>
+              </div>
+
+              {lead.clientName ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 text-[11px]">
+                  <div className="p-2.5 rounded-xl bg-white/70 dark:bg-slate-800/70 border border-slate-100 dark:border-slate-700/60">
+                    <span className="text-[10px] text-slate-400 block font-semibold">Assigned Buyer</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate block">
+                      {lead.clientName}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white/70 dark:bg-slate-800/70 border border-slate-100 dark:border-slate-700/60">
+                    <span className="text-[10px] text-slate-400 block font-semibold">Agreed Net Terms</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate block">
+                      {lead.clientNetTerms?.replace("_", " ") || "NET 14"}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white/70 dark:bg-slate-800/70 border border-slate-100 dark:border-slate-700/60 col-span-2 sm:col-span-1">
+                    <span className="text-[10px] text-slate-400 block font-semibold">Approval SLA Status</span>
+                    <span className={`font-bold truncate block ${lead.isOverdue ? "text-red-500" : "text-emerald-500"}`}>
+                      {lead.slaLabel || "Active Window"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/10 flex items-center justify-between text-[11px]">
+                  <span className="text-[#64748B] dark:text-[#94A3B8]">
+                    No corporate buyer assigned yet. Submit now to track approval deadline and commission.
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 dark:text-slate-400 mt-2">
-                  <div>Assigned Client: <strong className="text-[#0F172A] dark:text-white">{lead.clientName}</strong></div>
-                  <div>Terms: <strong className="text-[#0F172A] dark:text-white">{lead.clientNetTerms?.replace("_", " ")}</strong></div>
-                  {lead.expectedApprovalDate && (
-                    <div className="col-span-2">
-                      Expected Decision Date: <strong className="text-[#0F172A] dark:text-white">{new Date(lead.expectedApprovalDate).toLocaleDateString()}</strong> ({lead.daysRemaining ?? 0} days remaining)
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Address */}
             <div>
@@ -423,82 +440,6 @@ export function LeadDetailsModal({
               </div>
             </div>
 
-            {/* Closer Case Verification & Intake Facts */}
-            <div className="p-4 rounded-2xl bg-orange-500/5 dark:bg-orange-500/10 border border-orange-500/20 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center">
-                    <ClipboardList className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <span>Closer Case Verification & Intake</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                        answeredQuestionsCount > 0
-                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                          : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                      }`}>
-                        {answeredQuestionsCount > 0 ? `${answeredQuestionsCount} Answers Logged` : "Pending Closer Call"}
-                      </span>
-                    </h4>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Campaign qualification questionnaire completed by closer during verification.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowCloserIntake(true)}
-                    className="liquid-glass-button text-xs px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
-                  >
-                    <ListChecks className="w-3.5 h-3.5 text-white" />
-                    <span>{answeredQuestionsCount > 0 ? "Edit Case Intake" : "Conduct Closer Call"}</span>
-                  </button>
-
-                  {answeredQuestionsCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleCopySubmissionScript}
-                      className="liquid-glass-button-secondary text-xs px-2.5 py-1.5 rounded-xl font-bold flex items-center gap-1 cursor-pointer text-orange-600 dark:text-orange-400 border-orange-500/20 hover:border-orange-500/40"
-                      title="Copy exact client submission text to clipboard"
-                    >
-                      {copiedScript ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedScript ? "Copied!" : "Copy Script"}</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {answeredQuestionsCount > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-800 text-[11px]">
-                  <div className="p-2 rounded-xl bg-white/70 dark:bg-slate-800/70 border border-slate-100 dark:border-slate-700/60">
-                    <span className="text-[10px] text-slate-400 block">Incident Date</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate block">
-                      {intakeAnswers["accident_date_time"] || "Recorded on file"}
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white/70 dark:bg-slate-800/70 border border-slate-100 dark:border-slate-700/60">
-                    <span className="text-[10px] text-slate-400 block">Hospital & Doctor</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate block">
-                      {intakeAnswers["hospital_name"] || intakeAnswers["doctor_name"] || "Verified"}
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white/70 dark:bg-slate-800/70 border border-slate-100 dark:border-slate-700/60 col-span-2 sm:col-span-1">
-                    <span className="text-[10px] text-slate-400 block">Vehicle & Insurance</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate block">
-                      {intakeAnswers["vehicle_name"] || intakeAnswers["insurance_company"] || "Verified"}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 italic pt-1">
-                  The Closer has not yet recorded the full case questionnaire. Click &ldquo;Conduct Closer Call&rdquo; to input all accident facts, medical details, and legal verification.
-                </p>
-              )}
-            </div>
-
             {/* Agent Notes */}
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Agent Notes & Remarks</span>
@@ -508,7 +449,7 @@ export function LeadDetailsModal({
                     ? `"${lead.notes}"`
                     : lead.notes?.includes("=== GENERAL NOTES ===")
                     ? `"${lead.notes.split("=== GENERAL NOTES ===")[1]?.trim() || "No additional general notes."}"`
-                    : "No internal notes recorded for this lead."}
+                    : lead.notes || "No internal notes recorded for this lead."}
                 </p>
               </div>
             </div>
@@ -573,6 +514,16 @@ export function LeadDetailsModal({
             </div>
 
             <div className="flex items-center gap-2 ml-auto">
+              <button
+                type="button"
+                onClick={() => setShowClientSubmitModal(true)}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20 flex items-center gap-1.5 cursor-pointer"
+                title="Directly submit lead to external corporate buyer"
+              >
+                <Building2 className="w-3.5 h-3.5 text-white" />
+                <span>{lead.clientName ? "Reassign Buyer" : "Submit to Client"}</span>
+              </button>
+
               {isAdmin && lead.status !== "APPROVED" && (
                 <button
                   type="button"
@@ -652,13 +603,21 @@ export function LeadDetailsModal({
             </div>
           )}
 
-          {/* Closer Case Verification & Intake Form Modal */}
-          <CloserIntakeModal
-            isOpen={showCloserIntake}
-            lead={lead}
-            onClose={() => setShowCloserIntake(false)}
-            onSuccess={onRefresh}
-          />
+          {/* Direct Client Buyer Submission Modal */}
+          {showClientSubmitModal && (
+            <ClientSubmissionModal
+              isOpen={showClientSubmitModal}
+              leadId={lead.id}
+              leadCustomerName={lead.customerName}
+              currentClientName={lead.clientName}
+              currentNetTerms={lead.clientNetTerms}
+              onClose={() => setShowClientSubmitModal(false)}
+              onSuccess={() => {
+                setShowClientSubmitModal(false);
+                onRefresh?.();
+              }}
+            />
+          )}
         </div>
       </div>
     </ModalPortal>

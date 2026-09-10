@@ -328,16 +328,14 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                             )}
                           </button>
 
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              onClick={() => setClientSubmitLead(lead)}
-                              title={lead.clientName ? `Reassign Client (${lead.clientName})` : "Submit Lead to Client Buyer"}
-                              className="p-1.5 rounded-lg hover:bg-blue-500/15 text-blue-600 dark:text-blue-400 cursor-pointer transition-colors"
-                            >
-                              <Building2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => setClientSubmitLead(lead)}
+                            title={lead.clientName ? `Reassign Client (${lead.clientName})` : "Direct Submit Lead to Client Buyer"}
+                            className="p-1.5 rounded-lg hover:bg-blue-500/15 text-blue-600 dark:text-blue-400 cursor-pointer transition-colors"
+                          >
+                            <Building2 className="w-3.5 h-3.5" />
+                          </button>
 
                           {isAdmin && lead.status !== "APPROVED" && (
                             <button
