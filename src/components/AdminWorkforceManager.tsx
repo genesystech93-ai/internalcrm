@@ -130,7 +130,6 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
   const [minLeadsTarget, setMinLeadsTarget] = useState("10");
   const [teamBonusPool, setTeamBonusPool] = useState("10000.00");
 
-
   // Teams state
   const [teams, setTeams] = useState<TeamItem[]>([]);
   const [showTeamModal, setShowTeamModal] = useState(false);
