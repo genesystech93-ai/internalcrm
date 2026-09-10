@@ -52,6 +52,7 @@ import {
 } from "@/app/actions/messages";
 import { getLeadByIdAction, LeadItem } from "@/app/actions/leads";
 import { LeadDetailsModal } from "@/components/LeadDetailsModal";
+import { ModalPortal } from "@/components/ModalPortal";
 import { StaffMember } from "@/lib/chat-store";
 import { Role, LeadStatus } from "@prisma/client";
 
@@ -669,9 +670,9 @@ export function EmployeeChatWidget() {
     : messages;
 
   return (
-    <>
-      {/* Floating Bottom-Right Launcher Widget */}
-      <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 flex items-center gap-2">
+    <ModalPortal>
+      {/* Floating Bottom-Right Launcher Widget (Always anchored to true screen bottom-right) */}
+      <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[9999] flex items-center gap-2">
         {!isOpen && (
           <button
             onClick={() => {
@@ -713,7 +714,7 @@ export function EmployeeChatWidget() {
       {/* Main Chat Window (Docked Workspace or Maximized Screen) */}
       {isOpen && (
         <div
-          className={`fixed z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
+          className={`fixed z-[9999] bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${
             isMaximized
               ? "inset-2 sm:inset-6 sm:w-[94vw] sm:max-w-[1100px] sm:h-[88vh] sm:max-h-[850px] m-auto rounded-2xl sm:rounded-3xl"
               : "bottom-20 sm:bottom-6 right-2 sm:right-6 left-2 sm:left-auto w-[calc(100vw-1rem)] sm:w-[760px] md:w-[820px] lg:w-[860px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-2.5rem)] h-[82vh] sm:h-[660px] max-h-[calc(100dvh-5.5rem)] sm:max-h-[86vh] rounded-2xl sm:rounded-3xl"
@@ -1849,6 +1850,6 @@ export function EmployeeChatWidget() {
           </div>
         </div>
       )}
-    </>
+    </ModalPortal>
   );
 }

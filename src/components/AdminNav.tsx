@@ -58,7 +58,8 @@ export function AdminNav({ sessionUser }: AdminNavProps) {
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-2xs">
+    <>
+      <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-2xs">
       {/* Unified Single-Bar Corporate Header (56px) */}
       <div className="w-full max-w-[2160px] mx-auto px-3 sm:px-6 2xl:px-8 h-14 flex items-center justify-between gap-3">
         {/* Left: Brand Identity + Clean Single-Tier Navigation */}
@@ -171,9 +172,10 @@ export function AdminNav({ sessionUser }: AdminNavProps) {
           );
         })}
       </div>
-
-      {/* Internal Staff Floor Messaging & Team Chat Widget */}
-      <EmployeeChatWidget />
     </header>
+
+    {/* Internal Staff Floor Messaging & Team Chat Widget (Outside sticky header) */}
+    <EmployeeChatWidget />
+    </>
   );
 }
