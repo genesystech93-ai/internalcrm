@@ -18,7 +18,6 @@ import {
 import { EmployeeChatWidget } from "@/components/EmployeeChatWidget";
 import { DatabaseStatusBadge } from "@/components/DatabaseStatusBadge";
 import { NotificationBell } from "@/components/NotificationBell";
-import { ShiftHeaderWidget } from "@/components/ShiftHeaderWidget";
 
 interface AdminNavProps {
   sessionUser?: {
@@ -96,9 +95,6 @@ export function AdminNav({ sessionUser }: AdminNavProps) {
 
         {/* Right: Operational Status, Floor Chat & Account Actions */}
         <div className="flex items-center gap-2.5 sm:gap-3">
-          {/* Shift Punch & Status Widget */}
-          <ShiftHeaderWidget />
-
           {/* Database Infrastructure Status */}
           <div className="hidden xl:block">
             <DatabaseStatusBadge />
