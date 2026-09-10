@@ -5,6 +5,7 @@ import {
   LeadItem,
   adminDecisionAction,
   updateLeadCloserAction,
+  updateLeadCaseAction,
   deleteLeadAction,
 } from "@/app/actions/leads";
 import { shareLeadToChatAction } from "@/app/actions/messages";
@@ -34,6 +35,7 @@ import {
 } from "lucide-react";
 import { ModalPortal } from "@/components/ModalPortal";
 import { ClientSubmissionModal } from "@/components/ClientSubmissionModal";
+import { ShareLeadModal } from "@/components/ShareLeadModal";
 
 interface LeadDetailsModalProps {
   lead: LeadItem | null;
@@ -57,13 +59,19 @@ export function LeadDetailsModal({
   const [isEditingCloser, setIsEditingCloser] = useState(false);
   const [editCloserVal, setEditCloserVal] = useState("");
   const [isSavingCloser, setIsSavingCloser] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const [isApproving, setIsApproving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showClientSubmitModal, setShowClientSubmitModal] = useState(false);
+
+  // Case Details inline edit & copy states (Zero character limit)
+  const [isEditingCase, setIsEditingCase] = useState(false);
+  const [editCaseVal, setEditCaseVal] = useState("");
+  const [isSavingCase, setIsSavingCase] = useState(false);
+  const [copiedCase, setCopiedCase] = useState(false);
 
   if (!isOpen || !lead) return null;
 
@@ -96,27 +104,28 @@ export function LeadDetailsModal({
     }
   };
 
-  const handleShare = async () => {
-    setIsSharing(true);
-    const res = await shareLeadToChatAction({
-      leadId: lead.id,
-      note: `📋 [Floor Lead Share]\nCustomer: ${lead.customerName}\nPhone: ${lead.mobile || "N/A"}\nCampaign: ${lead.campaignName || "General"}\nStatus: ${lead.status}`,
-    });
-    if (res.success) {
-      setShareFeedback("Shared to Pulse Chat!");
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("crm:open-chat", {
-            detail: {
-              conversationId: res.conversationId,
-              leadId: lead.id,
-            },
-          })
-        );
-      }
-      setTimeout(() => setShareFeedback(null), 3000);
+  const handleCopyCase = () => {
+    if (lead?.caseDetails && typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(lead.caseDetails);
+      setCopiedCase(true);
+      setTimeout(() => setCopiedCase(false), 2000);
     }
-    setIsSharing(false);
+  };
+
+  const handleSaveCase = async () => {
+    if (!lead) return;
+    setIsSavingCase(true);
+    const res = await updateLeadCaseAction(lead.id, editCaseVal);
+    if (!res.error) {
+      lead.caseDetails = editCaseVal;
+      setIsEditingCase(false);
+      onRefresh?.();
+    }
+    setIsSavingCase(false);
+  };
+
+  const handleShare = () => {
+    setShowShareModal(true);
   };
 
   const handleFastApprove = async () => {
@@ -186,9 +195,18 @@ export function LeadDetailsModal({
                   {lead.campaignName || "General Campaign"}
                 </span>
               </div>
-              <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-                Intake Source: <strong className="text-[#0F172A] dark:text-white">{lead.source}</strong> • Submitted by <strong className="text-[#0F172A] dark:text-white">@{lead.agentUsername}</strong> ({lead.agentName}) on {new Date(lead.createdAt).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
-              </p>
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                  Intake Source: <strong className="text-[#0F172A] dark:text-white">{lead.source}</strong>
+                  {lead.referredByName && (
+                    <span className="ml-1.5 font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-500/25 inline-flex items-center gap-1">
+                      <span>🤝 Referred by:</span>
+                      <strong className="text-amber-950 dark:text-amber-100">{lead.referredByName}</strong>
+                    </span>
+                  )}
+                  {" "}• Submitted by <strong className="text-[#0F172A] dark:text-white">@{lead.agentUsername}</strong> ({lead.agentName}) on {new Date(lead.createdAt).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+                </p>
+              </div>
             </div>
             <button
               type="button"
@@ -239,6 +257,27 @@ export function LeadDetailsModal({
 
             {/* Core Info Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Reference Attribution Card */}
+              {(lead.source === "REFERENCE" || lead.referredByName) && (
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/25 flex items-center justify-between sm:col-span-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                      <span className="text-sm">🤝</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-amber-800/80 dark:text-amber-300/80 block">
+                        Customer Referral Attribution
+                      </span>
+                      <p className="font-extrabold text-xs text-amber-950 dark:text-amber-100">
+                        Referred by: <strong>{lead.referredByName || "Existing Customer Reference"}</strong>
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                    Source: REFERENCE
+                  </span>
+                </div>
+              )}
               {/* Mobile Phone */}
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -440,6 +479,102 @@ export function LeadDetailsModal({
               </div>
             </div>
 
+            {/* Case Details (Full Incident Narrative, Police Report & Facts - No Character Limit) */}
+            <div className="p-4 rounded-2xl bg-orange-500/5 dark:bg-orange-500/10 border border-orange-500/20 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-xs text-[#0F172A] dark:text-white flex items-center gap-1.5">
+                      <span>Case Details</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        ✨ No Character Limit
+                      </span>
+                    </h4>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {lead.caseDetails ? `${lead.caseDetails.length.toLocaleString()} characters recorded` : "No case narrative pasted yet"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {lead.caseDetails && (
+                    <button
+                      type="button"
+                      onClick={handleCopyCase}
+                      className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-orange-500 flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Copy full case details to clipboard"
+                    >
+                      {copiedCase ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedCase ? "Copied!" : "Copy Case"}</span>
+                    </button>
+                  )}
+
+                  {!isEditingCase && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditCaseVal(lead.caseDetails || "");
+                        setIsEditingCase(true);
+                      }}
+                      className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-orange-500/15 text-[#EA580C] dark:text-[#FB923C] hover:bg-orange-500/25 flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                      <span>{lead.caseDetails ? "Edit Case" : "+ Add Case"}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {isEditingCase ? (
+                <div className="space-y-2 mt-2">
+                  <textarea
+                    rows={6}
+                    value={editCaseVal}
+                    onChange={(e) => setEditCaseVal(e.target.value)}
+                    placeholder="Paste full incident narrative, police report numbers, injury facts, liability statements, attorney info... (Zero character limit)"
+                    className="liquid-glass-input w-full p-3 rounded-xl text-xs font-mono focus:outline-none resize-y"
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {editCaseVal.length.toLocaleString()} chars
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={isSavingCase}
+                        onClick={handleSaveCase}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer flex items-center gap-1"
+                      >
+                        {isSavingCase && <Loader2 className="w-3 h-3 animate-spin" />}
+                        <span>{isSavingCase ? "Saving Case..." : "Save Case"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSavingCase}
+                        onClick={() => setIsEditingCase(false)}
+                        className="px-3 py-1.5 rounded-xl text-xs text-slate-500 hover:text-slate-700 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : lead.caseDetails ? (
+                <div className="p-3.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 max-h-60 overflow-y-auto custom-scrollbar">
+                  <p className="text-xs text-slate-700 dark:text-slate-200 font-mono whitespace-pre-wrap leading-relaxed break-words">
+                    {lead.caseDetails}
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center text-[11px] text-slate-400">
+                  No incident facts or case description recorded yet. Click &ldquo;+ Add Case&rdquo; to paste details.
+                </div>
+              )}
+            </div>
+
             {/* Agent Notes */}
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Agent Notes & Remarks</span>
@@ -492,10 +627,10 @@ export function LeadDetailsModal({
               <button
                 type="button"
                 onClick={handleShare}
-                disabled={isSharing}
                 className="liquid-glass-button-secondary py-2 px-3.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                title="Share lead and case facts to Pulse Chat"
               >
-                {isSharing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5 text-[#EA580C]" />}
+                <MessageSquare className="w-3.5 h-3.5 text-[#EA580C]" />
                 <span>{shareFeedback || "Share to Pulse Chat"}</span>
               </button>
 
@@ -615,6 +750,19 @@ export function LeadDetailsModal({
               onSuccess={() => {
                 setShowClientSubmitModal(false);
                 onRefresh?.();
+              }}
+            />
+          )}
+
+          {/* Floor Pulse Chat Sharing Modal */}
+          {showShareModal && (
+            <ShareLeadModal
+              isOpen={showShareModal}
+              lead={lead}
+              onClose={() => setShowShareModal(false)}
+              onSuccess={(info) => {
+                setShareFeedback(info);
+                setTimeout(() => setShareFeedback(null), 3500);
               }}
             />
           )}

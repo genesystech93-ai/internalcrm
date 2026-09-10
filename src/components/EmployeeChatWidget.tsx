@@ -576,6 +576,7 @@ export function EmployeeChatWidget() {
         agentName: "Floor Staff",
         agentUsername: "floor",
         notes: "Shared lead attachment from pulse chat.",
+        caseDetails: metadata.caseDetails || null,
         approvedAt: null,
         createdAt: new Date().toISOString(),
         history: [],
@@ -1292,12 +1293,22 @@ export function EmployeeChatWidget() {
                                     <span className="truncate max-w-[130px]">{msg.metadata?.campaign || "Floor Campaign"}</span>
                                   </div>
 
+                                  {msg.metadata?.caseDetails && (
+                                    <div className="p-1.5 rounded-lg bg-black/5 dark:bg-black/25 border border-black/5 text-[10px] text-left">
+                                      <div className="font-bold flex items-center gap-1 text-orange-600 dark:text-orange-300">
+                                        <FileText className="w-3 h-3 shrink-0" />
+                                        <span>Case Facts:</span>
+                                      </div>
+                                      <p className="line-clamp-2 italic opacity-90 mt-0.5">{msg.metadata.caseDetails}</p>
+                                    </div>
+                                  )}
+
                                   <div className="pt-1 border-t border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between text-[9px] font-medium text-orange-600 dark:text-orange-400">
-                                    <span>Click to open lead modal</span>
+                                    <span>Click to open full lead</span>
                                     {loadingLeadId === (msg.leadId || msg.metadata?.leadId) ? (
                                       <Loader2 className="w-3 h-3 animate-spin text-orange-500" />
                                     ) : (
-                                      <span className="group-hover/leadcard:underline font-bold">View Intake & Profile ↗</span>
+                                      <span className="group-hover/leadcard:underline font-bold">Open Lead & Case ↗</span>
                                     )}
                                   </div>
                                 </div>

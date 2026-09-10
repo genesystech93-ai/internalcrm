@@ -135,6 +135,8 @@ model Lead {
   campaignId      String
   campaign        Campaign           @relation(fields: [campaignId], references: [id])
   source          LeadSource         @default(DIALER)
+  referredByName  String?
+  referredByLeadId String?
   closerName      String
   status          LeadStatus         @default(UPLOADED)
   callBackTime    DateTime?
@@ -142,6 +144,7 @@ model Lead {
   agentId         String
   agent           User               @relation("AgentLeads", fields: [agentId], references: [id])
   notes           String?            @db.Text
+  caseDetails     String?            @db.Text
   approvedAt      DateTime?
   clientId             String?
   client               Client?               @relation(fields: [clientId], references: [id])

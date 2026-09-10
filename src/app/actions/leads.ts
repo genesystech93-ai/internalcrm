@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { LeadSource, LeadStatus } from "@prisma/client";
-import { sanitizeText, validateEmail, validateMobile } from "@/lib/sanitize";
+import { sanitizeText, sanitizeLongText, validateEmail, validateMobile } from "@/lib/sanitize";
 import {
   NetTermsType,
   computeApprovalSLA,
@@ -26,6 +26,8 @@ export interface LeadItem {
   campaignId: string;
   campaignName: string;
   source: LeadSource;
+  referredByName?: string | null;
+  referredByLeadId?: string | null;
   closerName: string;
   status: LeadStatus;
   callBackTime: string | null;
@@ -34,6 +36,7 @@ export interface LeadItem {
   agentName: string;
   agentUsername: string;
   notes: string | null;
+  caseDetails?: string | null;
   approvedAt: string | null;
   createdAt: string;
   clientId?: string | null;
@@ -84,6 +87,9 @@ export async function createLeadAction(formData: FormData) {
   const rawEmail = formData.get("email");
   const campaignId = sanitizeText(formData.get("campaignId"), 64);
   const source = (formData.get("source")?.toString() || "DIALER") as LeadSource;
+  const referredByNameRaw = sanitizeText(formData.get("referredByName"), 150);
+  const referredByLeadId = sanitizeText(formData.get("referredByLeadId"), 100) || null;
+  const referredByName = referredByNameRaw || null;
   const closerNameRaw = sanitizeText(formData.get("closerName"), 100);
   const closerName = closerNameRaw || "Direct";
   const clientId = sanitizeText(formData.get("clientId"), 64) || null;
@@ -92,6 +98,7 @@ export async function createLeadAction(formData: FormData) {
   const status = (formData.get("status")?.toString() || "UPLOADED") as LeadStatus;
   const callBackTimeStr = formData.get("callBackTime")?.toString();
   const notes = sanitizeText(formData.get("notes"), 1000);
+  const caseDetails = sanitizeLongText(formData.get("caseDetails"));
   const rawCustomStatus = formData.get("customStatusName")?.toString()?.trim();
   const customStatusName = rawCustomStatus ? sanitizeText(rawCustomStatus, 100) : "";
 
@@ -103,6 +110,11 @@ export async function createLeadAction(formData: FormData) {
   // Name length guard
   if (customerName.length < 2) {
     return { error: "Customer Name must be at least 2 characters long." };
+  }
+
+  // Reference Source Validation: Must specify referring lead/customer name
+  if (source === "REFERENCE" && !referredByName) {
+    return { error: "Referring Customer Name is required when Lead Source is set to 'Reference'." };
   }
 
   // Strict Mobile Validation (10-15 digits only, blocks any text or SQL injection syntax)
@@ -138,6 +150,11 @@ export async function createLeadAction(formData: FormData) {
   const callBackTime = callBackTimeStr ? new Date(callBackTimeStr) : null;
   const expectedApprovalDate = clientId ? calculateApprovalDeadline(new Date(), clientNetTerms) : null;
 
+  let finalNotes = notes || null;
+  if (source === "REFERENCE" && referredByName) {
+    finalNotes = finalNotes ? `[Referred by: ${referredByName}]\n${finalNotes}` : `[Referred by: ${referredByName}]`;
+  }
+
   try {
     // Campaign-Scoped Mobile Duplicate Check
     const duplicate = await prisma.lead.findFirst({
@@ -158,27 +175,37 @@ export async function createLeadAction(formData: FormData) {
       ? (customStatusName ? `CUSTOM:${customStatusName}` : "Custom Status")
       : null;
 
+    const leadData: any = {
+      customerName,
+      dob,
+      mobile,
+      address,
+      email,
+      campaignId,
+      source,
+      closerName,
+      status,
+      callBackTime,
+      rejectionReason: rejectionReasonVal,
+      agentId: session.userId,
+      notes: finalNotes,
+      caseDetails: caseDetails || null,
+      clientId: clientId || null,
+      clientNetTerms: clientId ? clientNetTerms : null,
+      clientSubmittedAt: clientId ? new Date() : null,
+      expectedApprovalDate: clientId ? expectedApprovalDate : null,
+      clientApprovalStatus: clientId ? "PENDING" : null,
+    };
+
+    if (referredByName) {
+      leadData.referredByName = referredByName;
+    }
+    if (referredByLeadId) {
+      leadData.referredByLeadId = referredByLeadId;
+    }
+
     const created = await prisma.lead.create({
-      data: {
-        customerName,
-        dob,
-        mobile,
-        address,
-        email,
-        campaignId,
-        source,
-        closerName,
-        status,
-        callBackTime,
-        rejectionReason: rejectionReasonVal,
-        agentId: session.userId,
-        notes: notes || null,
-        clientId: clientId || null,
-        clientNetTerms: clientId ? clientNetTerms : null,
-        clientSubmittedAt: clientId ? new Date() : null,
-        expectedApprovalDate: clientId ? expectedApprovalDate : null,
-        clientApprovalStatus: clientId ? "PENDING" : null,
-      },
+      data: leadData,
       include: { campaign: true },
     });
 
@@ -249,6 +276,8 @@ export async function createLeadAction(formData: FormData) {
       campaignId,
       campaignName,
       source,
+      referredByName,
+      referredByLeadId,
       closerName,
       status,
       callBackTime: callBackTimeStr || null,
@@ -257,7 +286,8 @@ export async function createLeadAction(formData: FormData) {
       agentId: session.userId,
       agentName: session.name,
       agentUsername: session.username,
-      notes: notes || null,
+      notes: finalNotes,
+      caseDetails: caseDetails || null,
       approvedAt: null,
       createdAt: new Date().toISOString(),
       clientId: clientId || null,
@@ -292,6 +322,114 @@ export async function createLeadAction(formData: FormData) {
   }
 }
 
+// 2. Update Lead Case Details (No Character Limit)
+export async function updateLeadCaseAction(leadId: string, caseDetails: string) {
+  const session = await getSession();
+  if (!session) return { error: "Unauthorized. Please log in." };
+
+  const sanitized = sanitizeLongText(caseDetails);
+
+  try {
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: { caseDetails: sanitized || null },
+    });
+
+    await prisma.leadStatusHistory.create({
+      data: {
+        leadId,
+        changedById: session.userId,
+        previousStatus: "UPLOADED",
+        newStatus: "UPLOADED",
+        reason: "Updated case details.",
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/admin");
+    return { success: true, message: "Case details updated successfully." };
+  } catch {
+    const devLeads = await getDevLeads();
+    const devL = devLeads.find((l) => l.id === leadId);
+    if (devL) {
+      devL.caseDetails = sanitized || null;
+      devL.history.push({
+        id: `hist-${Date.now()}`,
+        fromStatus: devL.status,
+        toStatus: devL.status,
+        changedByName: session.name,
+        reason: "Updated case details.",
+        createdAt: new Date().toISOString(),
+      });
+      revalidatePath("/dashboard");
+      revalidatePath("/admin");
+      return { success: true, message: "Case details updated successfully (Dev Mode)." };
+    }
+    return { error: "Lead not found." };
+  }
+}
+
+// Candidate for referring customer picker
+export interface ReferrerCandidate {
+  id: string;
+  customerName: string;
+  mobile: string;
+  campaignName: string;
+}
+
+// Fetch candidate referring leads from existing submitted leads
+export async function getReferrerCandidatesAction(query?: string): Promise<ReferrerCandidate[]> {
+  const session = await getSession();
+  if (!session) return [];
+
+  try {
+    const whereClause: any = {};
+    if (query && query.trim()) {
+      const q = query.trim();
+      whereClause.OR = [
+        { customerName: { contains: q, mode: "insensitive" } },
+        { mobile: { contains: q } },
+      ];
+    }
+
+    const leads = await prisma.lead.findMany({
+      where: whereClause,
+      take: 30,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        customerName: true,
+        mobile: true,
+        campaign: { select: { name: true } },
+      },
+    });
+
+    if (leads.length > 0) {
+      return leads.map((l: any) => ({
+        id: l.id,
+        customerName: l.customerName,
+        mobile: l.mobile,
+        campaignName: l.campaign?.name || "General Campaign",
+      }));
+    }
+  } catch {
+    // Fallback to dev leads
+  }
+
+  const dev = await getDevLeads();
+  let list = dev;
+  if (query && query.trim()) {
+    const q = query.trim().toLowerCase();
+    list = dev.filter((l) => l.customerName.toLowerCase().includes(q) || l.mobile.includes(q));
+  }
+  return list.slice(0, 30).map((l) => ({
+    id: l.id,
+    customerName: l.customerName,
+    mobile: l.mobile,
+    campaignName: l.campaignName || "General Campaign",
+  }));
+}
+
 // Internal mapper from DB Lead to LeadItem
 function mapDbLeadToLeadItem(l: any): LeadItem {
   let daysRemaining: number | null = null;
@@ -316,6 +454,13 @@ function mapDbLeadToLeadItem(l: any): LeadItem {
     }
   }
 
+  // Parse referredByName if stored in notes fallback
+  let referredByName: string | null = l.referredByName || null;
+  if (!referredByName && l.notes && l.notes.includes("[Referred by: ")) {
+    const m = l.notes.match(/\[Referred by:\s*([^\]]+)\]/);
+    if (m) referredByName = m[1].trim();
+  }
+
   return {
     id: l.id,
     customerName: l.customerName,
@@ -326,6 +471,8 @@ function mapDbLeadToLeadItem(l: any): LeadItem {
     campaignId: l.campaignId,
     campaignName: l.campaign?.name || "General Campaign",
     source: l.source,
+    referredByName,
+    referredByLeadId: l.referredByLeadId || null,
     closerName: l.closerName,
     status: l.status,
     callBackTime: l.callBackTime ? (typeof l.callBackTime === "string" ? l.callBackTime : l.callBackTime.toISOString()) : null,
@@ -335,6 +482,7 @@ function mapDbLeadToLeadItem(l: any): LeadItem {
     agentName: l.agent?.name || "Agent",
     agentUsername: l.agent?.username || "agent",
     notes: l.notes,
+    caseDetails: l.caseDetails || l.notes || null,
     approvedAt: l.approvedAt ? (typeof l.approvedAt === "string" ? l.approvedAt : l.approvedAt.toISOString()) : null,
     createdAt: l.createdAt ? (typeof l.createdAt === "string" ? l.createdAt : l.createdAt.toISOString()) : new Date().toISOString(),
     clientId: l.clientId,

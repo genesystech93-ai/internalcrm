@@ -46,6 +46,27 @@ export function sanitizeText(raw: unknown, maxLength = 255): string {
 }
 
 /**
+ * Sanitizes long unstructured text blocks (such as Case details, police reports, and attorney notes)
+ * without imposing ANY character length limit.
+ * Strips script tags, HTML injections, and null bytes.
+ */
+export function sanitizeLongText(raw: unknown): string {
+  if (raw === null || raw === undefined) return "";
+  let str = String(raw).trim();
+
+  // Strip null bytes and non-printable control characters (except newline \n, carriage return \r, and tab \t)
+  str = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+
+  // Strip entire script tags and their inner payload
+  str = str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+
+  // Strip remaining HTML tags
+  str = str.replace(/<[^>]*>/g, "");
+
+  return str;
+}
+
+/**
  * Validates and sanitizes a username.
  * Blocks SQL injection vectors like "admin' OR 1=1 --", quotes, spaces, and special symbols.
  */

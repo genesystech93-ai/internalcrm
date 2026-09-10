@@ -10,6 +10,7 @@ import { calculateRowHeight } from "@/lib/pretext-measure";
 import { Search, CheckCircle2, XCircle, Clock, Eye, MessageSquare, Check, Building2, Loader2, Trash2 } from "lucide-react";
 import { shareLeadToChatAction } from "@/app/actions/messages";
 import { ClientSubmissionModal } from "@/components/ClientSubmissionModal";
+import { ShareLeadModal } from "@/components/ShareLeadModal";
 import { ModalPortal } from "@/components/ModalPortal";
 
 interface LeadTableProps {
@@ -30,6 +31,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
 
   const [inspectLead, setInspectLead] = useState<LeadItem | null>(null);
   const [clientSubmitLead, setClientSubmitLead] = useState<LeadItem | null>(null);
+  const [shareModalLead, setShareModalLead] = useState<LeadItem | null>(null);
   const [selectedLeadForDecision, setSelectedLeadForDecision] = useState<{
     leadId: string;
     leadCustomerName: string;
@@ -40,7 +42,6 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
 
   const [shareSuccess, setShareSuccess] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [sharingId, setSharingId] = useState<string | null>(null);
   const [deletingLead, setDeletingLead] = useState<LeadItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -60,27 +61,8 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
     }
   };
 
-  const handleShareLead = async (lead: LeadItem) => {
-    setSharingId(lead.id);
-    const res = await shareLeadToChatAction({
-      leadId: lead.id,
-      note: `📋 [Floor Lead Share]\nCustomer: ${lead.customerName}\nPhone: ${lead.mobile || "N/A"}\nCampaign: ${lead.campaignName || "General"}\nStatus: ${lead.status}`,
-    });
-    if (res.success) {
-      setShareSuccess(`Lead "${lead.customerName}" shared to Pulse Chat!`);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("crm:open-chat", {
-            detail: {
-              conversationId: res.conversationId,
-              leadId: lead.id,
-            },
-          })
-        );
-      }
-      setTimeout(() => setShareSuccess(null), 3500);
-    }
-    setSharingId(null);
+  const handleShareLead = (lead: LeadItem) => {
+    setShareModalLead(lead);
   };
 
   // Filter leads
@@ -235,7 +217,14 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20">
                           {lead.campaignName}
                         </span>
-                        <p className="text-[10px] text-[#94A3B8] mt-1">{lead.source}</p>
+                        <div className="text-[10px] text-[#94A3B8] mt-1 flex items-center gap-1 flex-wrap">
+                          <span>{lead.source}</span>
+                          {lead.referredByName && (
+                            <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1 rounded truncate max-w-[120px]" title={`Referred by ${lead.referredByName}`}>
+                              via {lead.referredByName}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       {/* Client & Net Approval SLA */}
                       <td className="py-3 px-3">
@@ -317,15 +306,10 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                           <button
                             type="button"
                             onClick={() => handleShareLead(lead)}
-                            disabled={sharingId === lead.id}
-                            title="Share Lead to Floor Pulse Chat"
-                            className="p-1.5 rounded-lg hover:bg-orange-500/15 text-[#EA580C] dark:text-orange-400 cursor-pointer transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                            title="Share Lead and Case to Floor Pulse Chat"
+                            className="p-1.5 rounded-lg hover:bg-orange-500/15 text-[#EA580C] dark:text-orange-400 cursor-pointer transition-colors"
                           >
-                            {sharingId === lead.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#EA580C]" />
-                            ) : (
-                              <MessageSquare className="w-3.5 h-3.5" />
-                            )}
+                            <MessageSquare className="w-3.5 h-3.5" />
                           </button>
 
                           <button
@@ -433,6 +417,19 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
           leadCustomerName={clientSubmitLead.customerName}
           currentClientName={clientSubmitLead.clientName}
           currentNetTerms={clientSubmitLead.clientNetTerms}
+        />
+      )}
+
+      {/* Pulse Chat Floor Sharing Modal */}
+      {shareModalLead && (
+        <ShareLeadModal
+          isOpen={true}
+          lead={shareModalLead}
+          onClose={() => setShareModalLead(null)}
+          onSuccess={(info) => {
+            setShareSuccess(info);
+            setTimeout(() => setShareSuccess(null), 3500);
+          }}
         />
       )}
 

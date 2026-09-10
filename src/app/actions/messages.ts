@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { sanitizeText } from "@/lib/sanitize";
+import { sanitizeText, sanitizeLongText } from "@/lib/sanitize";
 import { Role } from "@prisma/client";
 import { listStoredUsers } from "@/lib/user-store";
 import {
@@ -51,6 +51,7 @@ export interface ChatMessageView {
     mobile?: string;
     campaign?: string;
     status?: string;
+    caseDetails?: string;
   } | null;
   createdAt: string;
   isOwn: boolean;
@@ -382,10 +383,12 @@ export async function sendMessageAction(payload: {
   content: string;
   leadId?: string | null;
   metadata?: {
+    leadId?: string;
     customerName?: string;
     mobile?: string;
     campaign?: string;
     status?: string;
+    caseDetails?: string;
   } | null;
 }): Promise<{ success: boolean; message?: ChatMessageView; error?: string }> {
   const session = await getSession();
@@ -393,7 +396,12 @@ export async function sendMessageAction(payload: {
     return { success: false, error: "Unauthorized. Please log in." };
   }
 
-  const cleanContent = sanitizeText(payload.content, 2000);
+  // Preserve case facts and lead details without character limit truncation
+  const hasCaseOrLead = Boolean(payload.leadId || payload.metadata?.caseDetails);
+  const cleanContent = hasCaseOrLead
+    ? sanitizeLongText(payload.content)
+    : sanitizeText(payload.content, 4000);
+
   if (!cleanContent && !payload.leadId) {
     return { success: false, error: "Message cannot be empty." };
   }
@@ -630,9 +638,11 @@ export async function getStaffDirectoryAction(): Promise<StaffMember[]> {
 // 6. Share Lead to Chat action
 export async function shareLeadToChatAction(params: {
   leadId: string;
+  targetType?: "GENERAL" | "ADMIN" | "AGENT";
   recipientId?: string;
   conversationId?: string;
   note?: string;
+  caseDetails?: string;
 }): Promise<{ success: boolean; conversationId?: string; messageId?: string; error?: string }> {
   const session = await getSession();
   if (!session) return { success: false, error: "Unauthorized." };
@@ -643,6 +653,7 @@ export async function shareLeadToChatAction(params: {
     mobile: string;
     campaign: string;
     status: string;
+    caseDetails?: string;
   } | null = null;
 
   try {
@@ -658,6 +669,7 @@ export async function shareLeadToChatAction(params: {
         mobile: lead.mobile || "",
         campaign: lead.campaign?.name || "General Campaign",
         status: lead.status || "PENDING",
+        caseDetails: (lead as any).caseDetails || params.caseDetails || lead.notes || undefined,
       };
     }
   } catch (err) {
@@ -675,6 +687,7 @@ export async function shareLeadToChatAction(params: {
           mobile: devL.mobile || "",
           campaign: devL.campaignName || "General Campaign",
           status: devL.status || "PENDING",
+          caseDetails: devL.caseDetails || params.caseDetails || devL.notes || undefined,
         };
       }
     } catch {
@@ -686,13 +699,45 @@ export async function shareLeadToChatAction(params: {
     return { success: false, error: "Lead record could not be found to share." };
   }
 
-  const formattedContent =
-    params.note ||
-    `📋 [Floor Lead Share]\nCustomer: ${leadDetails.customerName}\nPhone: ${leadDetails.mobile}\nCampaign: ${leadDetails.campaign}\nStatus: ${leadDetails.status}`;
+  // Routing destination resolution
+  let convId = params.conversationId;
+  let targetRecipientId = params.recipientId;
+
+  if (params.targetType === "ADMIN" && !targetRecipientId) {
+    // Auto-resolve active admin for 1:1 direct chat dispatch
+    try {
+      const adminUser = await prisma.user.findFirst({
+        where: { role: "ADMIN", isActive: true },
+        select: { id: true },
+      });
+      if (adminUser) {
+        targetRecipientId = adminUser.id;
+      }
+    } catch {
+      // fallback
+    }
+
+    if (!targetRecipientId) {
+      const stored = listStoredUsers();
+      const admin = stored.find((u) => u.role === "ADMIN" && u.isActive);
+      if (admin) targetRecipientId = admin.id;
+    }
+  } else if (params.targetType === "GENERAL") {
+    // Explicit general floor room
+    targetRecipientId = undefined;
+    convId = undefined;
+  }
+
+  let formattedContent = params.note ? `${params.note}\n\n` : "";
+  formattedContent += `📋 [Floor Lead Share]\nCustomer: ${leadDetails.customerName}\nPhone: ${leadDetails.mobile}\nCampaign: ${leadDetails.campaign}\nStatus: ${leadDetails.status}`;
+  if (leadDetails.caseDetails) {
+    formattedContent += `\n\n📂 Case Details:\n${leadDetails.caseDetails}`;
+  }
 
   const result = await sendMessageAction({
-    conversationId: params.conversationId,
-    recipientId: params.recipientId,
+    conversationId: convId,
+    recipientId: targetRecipientId,
+    channelType: params.targetType === "GENERAL" ? "GENERAL" : undefined,
     content: formattedContent,
     leadId: params.leadId,
     metadata: leadDetails,

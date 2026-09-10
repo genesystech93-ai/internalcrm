@@ -34,6 +34,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { shareLeadToChatAction } from "@/app/actions/messages";
+import { ShareLeadModal } from "@/components/ShareLeadModal";
 
 interface KanbanBoardProps {
   leads: LeadItem[];
@@ -58,10 +59,12 @@ const ALL_COLUMNS: { id: LeadStatus; label: string; shortLabel: string; color: s
 export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardProps) {
   const [search, setSearch] = useState("");
   const [selectedCampaign, setSelectedCampaign] = useState("ALL");
+  const [selectedPresetFilter, setSelectedPresetFilter] = useState("ALL");
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [viewPreset, setViewPreset] = useState<ViewPreset>("ALL");
   const [cardDensity, setCardDensity] = useState<CardDensity>("comfortable");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
+  const [isMaximized, setIsMaximized] = useState(false);
   const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null);
 
   // Column collapse/fold state
@@ -84,7 +87,7 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
   const [inspectLead, setInspectLead] = useState<LeadItem | null>(null);
   const [shareSuccess, setShareSuccess] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [shareModalLead, setShareModalLead] = useState<LeadItem | null>(null);
   const [deletingLead, setDeletingLead] = useState<LeadItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -236,28 +239,9 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
     }
   };
 
-  const handleShareLead = async (lead: LeadItem, e?: React.MouseEvent) => {
+  const handleShareLead = (lead: LeadItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    setSharingId(lead.id);
-    const res = await shareLeadToChatAction({
-      leadId: lead.id,
-      note: `📋 [Floor Lead Share]\nCustomer: ${lead.customerName}\nPhone: ${lead.mobile || "N/A"}\nCampaign: ${lead.campaignName || "General"}\nStatus: ${lead.status}`,
-    });
-    if (res.success) {
-      setShareSuccess(`Lead "${lead.customerName}" shared to Pulse Chat!`);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("crm:open-chat", {
-            detail: {
-              conversationId: res.conversationId,
-              leadId: lead.id,
-            },
-          })
-        );
-      }
-      setTimeout(() => setShareSuccess(null), 3500);
-    }
-    setSharingId(null);
+    setShareModalLead(lead);
   };
 
   const handleFastApprove = async (leadId: string, e?: React.MouseEvent) => {
@@ -704,6 +688,16 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
                           </span>
                         </div>
 
+                        {/* Referral Source Attribution */}
+                        {(lead.source === "REFERENCE" || lead.referredByName) && (
+                          <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 text-[10px] bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md font-medium truncate" title={`Referred by ${lead.referredByName || "Reference"}`}>
+                            <span>🤝</span>
+                            <span className="truncate">
+                              Ref by: <strong>{lead.referredByName || "Reference"}</strong>
+                            </span>
+                          </div>
+                        )}
+
                         {/* Client SLA */}
                         {lead.clientName && (
                           <div className="flex items-center justify-between gap-1 text-[10px] pt-1 border-t border-slate-100 dark:border-slate-800">
@@ -789,15 +783,10 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
                             <button
                               type="button"
                               onClick={(e) => handleShareLead(lead, e)}
-                              disabled={sharingId === lead.id}
-                              title="Share Lead to Floor Pulse Chat"
-                              className="p-1 rounded hover:bg-orange-500/15 text-[#EA580C] dark:text-orange-400 cursor-pointer transition-colors disabled:opacity-60"
+                              title="Share Lead and Case to Floor Pulse Chat"
+                              className="p-1 rounded hover:bg-orange-500/15 text-[#EA580C] dark:text-orange-400 cursor-pointer transition-colors"
                             >
-                              {sharingId === lead.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin text-[#EA580C]" />
-                              ) : (
-                                <MessageSquare className="w-3.5 h-3.5" />
-                              )}
+                              <MessageSquare className="w-3.5 h-3.5" />
                             </button>
 
                             {/* Admin Decision Quick Actions */}
@@ -1032,6 +1021,19 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
             </div>
           </div>
         </ModalPortal>
+      )}
+
+      {/* Pulse Chat Floor Sharing Modal */}
+      {shareModalLead && (
+        <ShareLeadModal
+          isOpen={true}
+          lead={shareModalLead}
+          onClose={() => setShareModalLead(null)}
+          onSuccess={(info) => {
+            setShareSuccess(info);
+            setTimeout(() => setShareSuccess(null), 3500);
+          }}
+        />
       )}
     </div>
   );
