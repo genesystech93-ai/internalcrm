@@ -3,18 +3,14 @@
 import React from "react";
 import {
   CheckCircle2,
-  Clock,
+  Moon,
   Users,
   FileSpreadsheet,
-  Sparkles,
   ArrowRight,
-  Moon,
   Minimize2,
   Maximize2,
-  Layers,
-  DollarSign,
-  BarChart3,
-  Check,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
 import { AnimatedGreeting, PageTransition } from "@/components/ui/visual-utils";
 import { AdminWorkspaceTab } from "./AdminWorkspaceContainer";
@@ -98,20 +94,20 @@ export function AdminDashboardClient({
 
   return (
     <PageTransition>
-      {/* 1. Slim Executive Header Row */}
+      {/* 1. Slim Corporate Executive Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2.5">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/80 dark:bg-slate-800/80 border border-orange-200/70 dark:border-orange-500/30 text-[11px] font-bold text-[#EA580C] dark:text-[#FB923C] shadow-2xs backdrop-blur-md">
-              <Sparkles className="w-3 h-3 text-[#F97316]" />
-              <span>Executive Command Center</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-[11px] font-bold text-[#EA580C] dark:text-[#FB923C]">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#F97316]" />
+              <span>Executive Operations Command</span>
             </span>
-            <span className="text-xs text-slate-400 hidden sm:inline">&bull;</span>
+            <span className="text-xs text-slate-300 dark:text-slate-700 hidden sm:inline">&bull;</span>
             <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate hidden md:inline">
               1-click approve sales, review shifts, verify ledgers & track floor performance.
             </span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-[#0F172A] dark:text-white tracking-tight mt-1">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-1">
             Floor Operations & Leads Command Hub
           </h1>
         </div>
@@ -121,10 +117,10 @@ export function AdminDashboardClient({
           <button
             type="button"
             onClick={onToggleFocusMode}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer border ${
               isFocusMode
-                ? "bg-orange-500 text-white border-orange-600 shadow-sm shadow-orange-500/30"
-                : "bg-white/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-slate-700 hover:border-orange-500/50"
+                ? "bg-[#F97316] text-white border-[#EA580C] shadow-2xs font-bold"
+                : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-orange-500/50"
             }`}
             title={isFocusMode ? "Expand to Standard View with KPI cards" : "Collapse top cards into compact toolbar for maximum workspace height"}
           >
@@ -147,7 +143,7 @@ export function AdminDashboardClient({
 
       {/* 2. Interactive Command Controller (Expanded Cards or Collapsed Focus Bar) */}
       {!isFocusMode ? (
-        /* Standard Mode: High-Density Interactive Cards (Serve as primary workspace tabs) */
+        /* Standard Mode: High-Density Interactive Cards */
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-3">
           {cards.map((card) => {
             const Icon = card.icon;
@@ -158,24 +154,24 @@ export function AdminDashboardClient({
                 key={card.id}
                 type="button"
                 onClick={() => onTabChange(card.id)}
-                className={`text-left p-3.5 sm:p-4 rounded-2xl transition-all cursor-pointer relative flex flex-col justify-between group select-none border ${
+                className={`text-left p-3.5 sm:p-4 rounded-xl transition-all cursor-pointer relative flex flex-col justify-between group select-none border ${
                   isActive
-                    ? "bg-white dark:bg-slate-800/95 border-orange-500 shadow-md shadow-orange-500/10 ring-2 ring-orange-500/20 scale-[1.01]"
-                    : "liquid-glass-card border-white/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 opacity-85 hover:opacity-100 hover:scale-[1.005]"
+                    ? "bg-white dark:bg-slate-800 border-[#F97316] shadow-xs ring-1 ring-orange-500/30"
+                    : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
                       {card.label}
                     </span>
                     <div
-                      className={`w-7 h-7 rounded-lg ${card.badgeBg} flex items-center justify-center ${card.accentColor} transition-transform group-hover:scale-105 shrink-0`}
+                      className={`w-7 h-7 rounded-lg ${card.badgeBg} flex items-center justify-center ${card.accentColor} shrink-0`}
                     >
                       <Icon className="w-3.5 h-3.5" />
                     </div>
                   </div>
-                  <p className="text-lg sm:text-xl font-extrabold text-[#0F172A] dark:text-white tracking-tight">
+                  <p className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
                     {card.metric}
                   </p>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
@@ -183,10 +179,10 @@ export function AdminDashboardClient({
                   </p>
                 </div>
 
-                <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-bold">
+                <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] font-bold">
                   {isActive ? (
                     <span className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-ping" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#F97316]" />
                       <span>Active Workspace</span>
                     </span>
                   ) : (
@@ -196,7 +192,7 @@ export function AdminDashboardClient({
                   )}
                   <ArrowRight
                     className={`w-3.5 h-3.5 transition-transform ${
-                      isActive ? "text-orange-500 translate-x-0.5" : "text-slate-300 group-hover:translate-x-0.5 group-hover:text-slate-600"
+                      isActive ? "text-[#F97316] translate-x-0.5" : "text-slate-300 group-hover:translate-x-0.5 group-hover:text-slate-600"
                     }`}
                   />
                 </div>
@@ -206,7 +202,7 @@ export function AdminDashboardClient({
         </div>
       ) : (
         /* Focus Mode: Ultra-Slim 38px Segment Bar */
-        <div className="liquid-glass p-1.5 rounded-xl border border-white/60 dark:border-slate-800 shadow-2xs mb-2.5 flex items-center justify-between gap-2">
+        <div className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs mb-2.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
             {cards.map((card) => {
               const Icon = card.icon;
@@ -217,13 +213,13 @@ export function AdminDashboardClient({
                   key={card.id}
                   type="button"
                   onClick={() => onTabChange(card.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                     isActive
-                      ? "bg-[#F97316] text-white shadow-sm shadow-orange-500/30 scale-[1.01]"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/60"
+                      ? "bg-[#F97316] text-white shadow-2xs font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60"
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-white" : "text-orange-500"}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-white" : "text-[#F97316]"}`} />
                   <span>{card.label}</span>
                   {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
                 </button>
@@ -231,8 +227,9 @@ export function AdminDashboardClient({
             })}
           </div>
 
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden lg:inline-block pr-2">
-            ⛶ Focus Mode Active
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden lg:inline-block pr-2 flex items-center gap-1">
+            <Zap className="w-3 h-3 text-[#F97316]" />
+            <span>Focus Mode Active</span>
           </span>
         </div>
       )}

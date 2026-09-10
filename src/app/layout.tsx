@@ -48,12 +48,6 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-[#F8FAFC] dark:bg-[#0B0F19] text-[#0F172A] dark:text-[#F8FAFC] relative transition-colors duration-200">
-        {/* Ambient Liquid Gradient Mesh Background */}
-        <div className="liquid-mesh-backdrop" aria-hidden="true">
-          <div className="liquid-orb-orange" />
-          <div className="liquid-orb-amber" />
-          <div className="liquid-orb-sky" />
-        </div>
         {children}
       </body>
     </html>

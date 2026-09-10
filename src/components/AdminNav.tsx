@@ -12,8 +12,8 @@ import {
   FileSpreadsheet,
   Settings,
   LogOut,
-  Clock,
   MessageSquare,
+  ShieldCheck,
 } from "lucide-react";
 import { EmployeeChatWidget } from "@/components/EmployeeChatWidget";
 import { DatabaseStatusBadge } from "@/components/DatabaseStatusBadge";
@@ -38,19 +38,19 @@ export function AdminNav({ sessionUser }: AdminNavProps) {
       isActive: pathname === "/admin",
     },
     {
-      label: "Employees & Workforce",
+      label: "Workforce & Staff",
       href: "/admin/employees",
       icon: Users,
       isActive: pathname.startsWith("/admin/employees"),
     },
     {
-      label: "Performance & Reports",
+      label: "Reports & Auditing",
       href: "/admin/reports",
       icon: FileSpreadsheet,
       isActive: pathname.startsWith("/admin/reports"),
     },
     {
-      label: "System & Settings",
+      label: "Settings & Security",
       href: "/admin/settings",
       icon: Settings,
       isActive: pathname.startsWith("/admin/settings"),
@@ -58,29 +58,55 @@ export function AdminNav({ sessionUser }: AdminNavProps) {
   ];
 
   return (
-    <header className="sticky top-0 z-50">
-      {/* Top Bar: Brand, Session & Quick Actions */}
-      <div className="liquid-glass-header px-3 sm:px-6 2xl:px-8 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-4 sm:gap-6">
+    <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-2xs">
+      {/* Unified Single-Bar Corporate Header (56px) */}
+      <div className="w-full max-w-[2160px] mx-auto px-3 sm:px-6 2xl:px-8 h-14 flex items-center justify-between gap-3">
+        {/* Left: Brand Identity + Clean Single-Tier Navigation */}
+        <div className="flex items-center gap-5">
           <Logo size="md" />
-          <div className="h-6 w-px bg-slate-200/80 dark:bg-slate-700 hidden sm:block"></div>
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] font-bold text-xs border border-orange-500/20 backdrop-blur-md hidden md:inline-block">
-              👑 Admin Command Center
-            </span>
-            {/* Live Interactive Shift Attendance Status & Punch Controls for Admin */}
-            <ShiftHeaderWidget />
-          </div>
+
+          <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 hidden lg:block" />
+
+          {/* Desktop Navigation Links (Single Row) */}
+          <nav className="hidden md:flex items-center gap-1" aria-label="Main Navigation">
+            {navLinks.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <Link
+                  key={tab.href}
+                  href={tab.href}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                    tab.isActive
+                      ? "bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/25 font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                  }`}
+                >
+                  <Icon
+                    className={`w-3.5 h-3.5 ${
+                      tab.isActive ? "text-[#F97316]" : "text-slate-400 dark:text-slate-500"
+                    }`}
+                  />
+                  <span>{tab.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-4">
-          {/* Real-time Database Health Monitor Pill */}
-          <DatabaseStatusBadge />
+        {/* Right: Operational Status, Floor Chat & Account Actions */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Shift Punch & Status Widget */}
+          <ShiftHeaderWidget />
+
+          {/* Database Infrastructure Status */}
+          <div className="hidden xl:block">
+            <DatabaseStatusBadge />
+          </div>
 
           {/* Floor Activity Notifications */}
           <NotificationBell />
 
-          {/* Quick Admin Live Chat Launcher */}
+          {/* Live Floor Chat Launcher */}
           <button
             type="button"
             onClick={() => {
@@ -88,17 +114,18 @@ export function AdminNav({ sessionUser }: AdminNavProps) {
                 window.dispatchEvent(new CustomEvent("crm:open-chat"));
               }
             }}
-            className="p-2 rounded-xl text-[#64748B] dark:text-[#94A3B8] hover:text-[#EA580C] dark:hover:text-[#FB923C] hover:bg-orange-50 dark:hover:bg-slate-800/80 transition-colors relative cursor-pointer"
+            className="p-2 rounded-lg text-slate-500 hover:text-[#EA580C] dark:text-slate-400 dark:hover:text-[#FB923C] hover:bg-orange-50 dark:hover:bg-slate-800/80 transition-colors relative cursor-pointer"
             title="Open Live Pulse Chat (Floor Supervisor)"
           >
             <MessageSquare className="w-4 h-4" />
           </button>
 
-          <div className="text-right hidden sm:block">
-            <p className="text-xs font-bold text-[#0F172A] dark:text-white">
+          {/* User Account Info */}
+          <div className="text-right hidden sm:block pl-1 border-l border-slate-200 dark:border-slate-800">
+            <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
               {sessionUser?.name || "Administrator"}
             </p>
-            <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-mono">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
               @{sessionUser?.username || "admin"}
             </p>
           </div>
@@ -106,39 +133,43 @@ export function AdminNav({ sessionUser }: AdminNavProps) {
           {/* Light / Dark Mode Toggle */}
           <ThemeToggle />
 
+          {/* Clean Corporate Log Out Button */}
           <form action={logoutAction}>
             <button
               type="submit"
-              className="liquid-glass-button-secondary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 transition-all"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-slate-200 dark:border-slate-750 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-900/50 bg-white dark:bg-slate-800 transition-colors cursor-pointer shadow-2xs"
+              title="Sign out of administrative session"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>Log Out</span>
+              <span className="hidden sm:inline">Log Out</span>
             </button>
           </form>
         </div>
       </div>
 
-      {/* Sub-Navigation Strip: Purpose-Built Portal Tabs */}
-      <div className="liquid-glass px-3 sm:px-6 2xl:px-8 py-2 border-b border-white/60 dark:border-slate-800 shadow-sm backdrop-blur-md">
-        <div className="w-full max-w-[2160px] mx-auto flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
-          {navLinks.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                  tab.isActive
-                    ? "bg-[#F97316] text-white shadow-md shadow-orange-500/25"
-                    : "text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/60"
+      {/* Mobile Responsive Navigation Strip (< 768px only) */}
+      <div className="md:hidden flex items-center gap-1 px-3 py-1.5 border-t border-slate-100 dark:border-slate-800/80 overflow-x-auto custom-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
+        {navLinks.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                tab.isActive
+                  ? "bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/25 font-bold"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <Icon
+                className={`w-3 h-3 ${
+                  tab.isActive ? "text-[#F97316]" : "text-slate-400"
                 }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${tab.isActive ? "text-white" : "text-[#F97316]"}`} />
-                <span>{tab.label}</span>
-              </Link>
-            );
-          })}
-        </div>
+              />
+              <span>{tab.label}</span>
+            </Link>
+          );
+        })}
       </div>
 
       {/* Internal Staff Floor Messaging & Team Chat Widget */}

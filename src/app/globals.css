@@ -3,35 +3,35 @@
 @custom-variant dark (&:is(.dark, .dark *));
 
 :root {
-  /* Genesoft Brand Palette */
+  /* Official Corporate Brand Palette (Orange Identity from Company Logo) */
   --brand-orange: #F97316;
   --brand-orange-hover: #EA580C;
   --brand-orange-dark: #C2410C;
   --brand-orange-light: #FFF7ED;
   --brand-orange-border: #FED7AA;
 
-  /* Surfaces & Neutrals */
+  /* Executive Corporate Neutrals & Surfaces */
   --background: #F8FAFC;
   --foreground: #0F172A;
   --surface: #FFFFFF;
   --surface-subtle: #F1F5F9;
   --border: #E2E8F0;
 
-  /* Liquid Glass Design System */
-  --glass-bg: rgba(255, 255, 255, 0.76);
-  --glass-bg-subtle: rgba(255, 255, 255, 0.55);
-  --glass-bg-hover: rgba(255, 255, 255, 0.9);
-  --glass-border: rgba(255, 255, 255, 0.85);
-  --glass-border-subtle: rgba(226, 232, 240, 0.75);
-  --glass-edge: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
-  --glass-shadow: 0 12px 36px -4px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
-  --glass-shadow-orange: 0 14px 40px -6px rgba(249, 115, 22, 0.18), 0 2px 6px -1px rgba(249, 115, 22, 0.08);
+  /* Crisp Enterprise Card & Surface Styles */
+  --glass-bg: #FFFFFF;
+  --glass-bg-subtle: #F8FAFC;
+  --glass-bg-hover: #F1F5F9;
+  --glass-border: #E2E8F0;
+  --glass-border-subtle: #CBD5E1;
+  --glass-edge: none;
+  --glass-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+  --glass-shadow-orange: 0 4px 14px -2px rgba(249, 115, 22, 0.16);
 
   /* Status Tokens */
   --status-voicemail: #64748B;
   --status-uploaded: #0284C7;
   --status-pending: #8B5CF6;
-  --status-callback: #F59E0B;
+  --status-callback: #D97706;
   --status-approved: #10B981;
   --status-rejected: #EF4444;
 }
@@ -69,139 +69,94 @@ body {
   overflow-x: hidden;
 }
 
-/* Ambient Liquid Gradient Mesh Background */
-.liquid-mesh-backdrop {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  overflow: hidden;
-  background: #F8FAFC;
-}
+/* ============================================================
+   ENTERPRISE CORPORATE CORE UTILITIES
+   ============================================================ */
 
-.liquid-orb-orange {
-  position: absolute;
-  top: -120px;
-  right: 15%;
-  width: 580px;
-  height: 580px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(249, 115, 22, 0.16) 0%, rgba(254, 215, 170, 0.08) 50%, transparent 70%);
-  filter: blur(80px);
-  animation: floatOrb 18s ease-in-out infinite alternate;
-}
-
-.liquid-orb-amber {
-  position: absolute;
-  top: 40%;
-  left: -100px;
-  width: 520px;
-  height: 520px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, rgba(253, 230, 138, 0.06) 50%, transparent 70%);
-  filter: blur(90px);
-  animation: floatOrbReverse 22s ease-in-out infinite alternate;
-}
-
-.liquid-orb-sky {
-  position: absolute;
-  bottom: -80px;
-  right: 25%;
-  width: 480px;
-  height: 480px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(2, 132, 199, 0.08) 0%, rgba(186, 230, 253, 0.04) 50%, transparent 70%);
-  filter: blur(80px);
-}
-
-@keyframes floatOrb {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(-40px, 60px) scale(1.08); }
-}
-
-@keyframes floatOrbReverse {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(50px, -40px) scale(1.05); }
-}
-
-/* Liquid Glass Core Utilities */
-.liquid-glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(18px) saturate(180%);
-  -webkit-backdrop-filter: blur(18px) saturate(180%);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-edge), var(--glass-shadow);
-}
-
+/* Crisp Corporate Cards */
+.corporate-card,
 .liquid-glass-card {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95), 0 10px 30px -4px rgba(15, 23, 42, 0.05);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+.corporate-card:hover,
 .liquid-glass-card:hover {
-  background: rgba(255, 255, 255, 0.85);
-  border-color: rgba(249, 115, 22, 0.4);
-  box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 1), var(--glass-shadow-orange);
-  transform: translateY(-2px);
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.07);
 }
 
+/* Crisp Corporate Containers */
+.corporate-container,
+.liquid-glass {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.03);
+}
+
+/* Crisp Unified Corporate Header */
+.corporate-header,
 .liquid-glass-header {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(20px) saturate(190%);
-  -webkit-backdrop-filter: blur(20px) saturate(190%);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.6), 0 4px 20px -2px rgba(15, 23, 42, 0.04);
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid #E2E8F0;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.03);
 }
 
+/* High-Precision Corporate Form Inputs */
+.corporate-input,
 .liquid-glass-input {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(203, 213, 225, 0.8);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
-  transition: all 0.2s ease;
-}
-
-.liquid-glass-input:focus {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: var(--brand-orange);
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.8);
-}
-
-.liquid-glass-button-primary {
-  background: linear-gradient(135deg, #FB923C 0%, #F97316 50%, #EA580C 100%);
-  color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.4), 0 8px 24px -4px rgba(249, 115, 22, 0.4);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.liquid-glass-button-primary:hover {
-  background: linear-gradient(135deg, #F97316 0%, #EA580C 50%, #C2410C 100%);
-  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.5), 0 12px 30px -4px rgba(249, 115, 22, 0.5);
-  transform: translateY(-1px);
-}
-
-.liquid-glass-button-secondary {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  color: #334155;
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px -1px rgba(0, 0, 0, 0.04);
-  transition: all 0.2s ease;
-}
-
-.liquid-glass-button-secondary:hover {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(249, 115, 22, 0.3);
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E1;
   color: #0F172A;
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 1), 0 4px 14px -2px rgba(249, 115, 22, 0.12);
-  transform: translateY(-1px);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.corporate-input:focus,
+.liquid-glass-input:focus {
+  background-color: #FFFFFF;
+  border-color: var(--brand-orange);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+}
+
+/* Corporate Buttons */
+.corporate-button-primary,
+.liquid-glass-button-primary {
+  background-color: #F97316;
+  color: #FFFFFF;
+  border: 1px solid #EA580C;
+  font-weight: 600;
+  box-shadow: 0 1px 2px 0 rgba(249, 115, 22, 0.2);
+  transition: all 0.15s ease;
+}
+
+.corporate-button-primary:hover,
+.liquid-glass-button-primary:hover {
+  background-color: #EA580C;
+  border-color: #C2410C;
+  box-shadow: 0 2px 6px 0 rgba(249, 115, 22, 0.3);
+}
+
+.corporate-button-secondary,
+.liquid-glass-button-secondary {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  color: #334155;
+  font-weight: 600;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  transition: all 0.15s ease;
+}
+
+.corporate-button-secondary:hover,
+.liquid-glass-button-secondary:hover {
+  background-color: #F8FAFC;
+  border-color: #CBD5E1;
+  color: #0F172A;
 }
 
 /* Custom scrollbar for high-density tables */
@@ -215,32 +170,32 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(203, 213, 225, 0.8);
+  background: #CBD5E1;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.9);
+  background: #94A3B8;
 }
 
 /* ============================================================
-   DARK MODE (Liquid Obsidian Glass for Night Shift 7PM - 4AM)
+   DARK MODE (Executive Corporate Midnight)
    ============================================================ */
 .dark {
   --background: #0B0F19;
   --foreground: #F8FAFC;
   --surface: #111827;
-  --surface-subtle: #1F2937;
-  --border: #374151;
+  --surface-subtle: #1E293B;
+  --border: #1E293B;
 
-  --glass-bg: rgba(17, 24, 39, 0.78);
-  --glass-bg-subtle: rgba(17, 24, 39, 0.55);
-  --glass-bg-hover: rgba(31, 41, 55, 0.88);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-border-subtle: rgba(55, 65, 81, 0.7);
-  --glass-edge: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
-  --glass-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.5);
-  --glass-shadow-orange: 0 16px 44px -4px rgba(249, 115, 22, 0.28);
+  --glass-bg: #111827;
+  --glass-bg-subtle: #1E293B;
+  --glass-bg-hover: #1E293B;
+  --glass-border: #1E293B;
+  --glass-border-subtle: #334155;
+  --glass-edge: none;
+  --glass-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+  --glass-shadow-orange: 0 4px 16px -2px rgba(249, 115, 22, 0.25);
 }
 
 .dark body {
@@ -248,80 +203,73 @@ body {
   color: var(--foreground);
 }
 
-.dark .liquid-mesh-backdrop {
-  background: #0B0F19;
-}
-
-.dark .liquid-orb-orange {
-  background: radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(234, 88, 12, 0.1) 50%, transparent 70%);
-}
-
-.dark .liquid-orb-amber {
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 70%);
-}
-
-.dark .liquid-orb-sky {
-  background: radial-gradient(circle, rgba(14, 165, 233, 0.1) 0%, transparent 70%);
-}
-
-.dark .liquid-glass {
-  background: var(--glass-bg);
-  border-color: var(--glass-border);
-  box-shadow: var(--glass-edge), var(--glass-shadow);
-}
-
+.dark .corporate-card,
 .dark .liquid-glass-card {
-  background: rgba(17, 24, 39, 0.75);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.12), 0 10px 30px -4px rgba(0, 0, 0, 0.4);
+  background-color: #111827;
+  border-color: #1E293B;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
 }
 
+.dark .corporate-card:hover,
 .dark .liquid-glass-card:hover {
-  background: rgba(31, 41, 55, 0.85);
-  border-color: rgba(249, 115, 22, 0.5);
-  box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.2), var(--glass-shadow-orange);
+  border-color: #334155;
+  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.5);
 }
 
+.dark .corporate-container,
+.dark .liquid-glass {
+  background-color: #111827;
+  border-color: #1E293B;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.dark .corporate-header,
 .dark .liquid-glass-header {
-  background: rgba(11, 15, 25, 0.85);
-  border-bottom-color: rgba(55, 65, 81, 0.6);
-  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.05), 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+  background-color: rgba(17, 24, 39, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom-color: #1E293B;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
 }
 
+.dark .corporate-input,
 .dark .liquid-glass-input {
-  background: rgba(17, 24, 39, 0.7);
-  border-color: rgba(75, 85, 99, 0.6);
+  background-color: #0F172A;
+  border-color: #334155;
   color: #F8FAFC;
 }
 
+.dark .corporate-input:focus,
 .dark .liquid-glass-input:focus {
-  background: rgba(31, 41, 55, 0.95);
+  background-color: #0F172A;
   border-color: var(--brand-orange);
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
 }
 
+.dark .corporate-button-secondary,
 .dark .liquid-glass-button-secondary {
-  background: rgba(31, 41, 55, 0.7);
-  border-color: rgba(75, 85, 99, 0.7);
+  background-color: #1E293B;
+  border-color: #334155;
   color: #E2E8F0;
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.1), 0 2px 8px -1px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
 }
 
+.dark .corporate-button-secondary:hover,
 .dark .liquid-glass-button-secondary:hover {
-  background: rgba(55, 65, 81, 0.9);
-  border-color: rgba(249, 115, 22, 0.4);
+  background-color: #273549;
+  border-color: #475569;
   color: #FFFFFF;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(75, 85, 99, 0.8);
+  background: #334155;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(107, 114, 128, 0.9);
+  background: #475569;
 }
 
-/* High-Contrast Luminous Dark Mode Typography & Titles */
+/* High-Contrast Corporate Typography */
 .dark h1,
 .dark h2,
 .dark h3,
@@ -343,7 +291,7 @@ body {
   color: #94A3B8;
 }
 
-/* Shimmer animation for loading states */
+/* Clean Shimmer animation */
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
@@ -370,11 +318,11 @@ body {
   animation-fill-mode: both;
 }
 
-/* Enhanced card hover lift */
+/* Subtle card hover lift */
 .hover-lift {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
 }
 
 .hover-lift:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }

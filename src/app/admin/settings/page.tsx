@@ -17,16 +17,16 @@ export default async function AdminSettingsPage() {
 
       {/* Main Content Area: Dedicated Settings & Security Center (Device-Adaptive Screen Scaled) */}
       <main className="flex-1 w-full max-w-[2160px] mx-auto px-2.5 sm:px-5 lg:px-6 2xl:px-8 py-4 relative z-10">
-        <div className="mb-6">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-slate-800/80 border border-orange-200/70 dark:border-orange-500/30 text-xs font-bold text-[#EA580C] dark:text-[#FB923C] shadow-sm mb-2 backdrop-blur-md">
+        <div className="mb-4">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-xs font-semibold text-[#EA580C] dark:text-[#FB923C] mb-1.5">
             <Settings className="w-3.5 h-3.5 text-[#F97316]" />
-            <span>Corporate Branding, Security & System Health</span>
+            <span>System, Security & Infrastructure</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] dark:text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
             System, Branding & Infrastructure Settings
           </h1>
-          <p className="text-sm text-[#64748B] dark:text-[#94A3B8] mt-1 font-medium">
-            Monitor real-time database connection health, upload company logo, configure Global Public WAN IP whitelisting, and set campaign shift operating hours.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+            Database connection diagnostic, company logo branding, WAN IP access rules, shift operating windows, and SLA net terms.
           </p>
         </div>
 

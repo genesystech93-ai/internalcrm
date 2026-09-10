@@ -1074,8 +1074,9 @@ export function EmployeeChatWidget() {
                       {activeConversation.name}
                     </span>
                     {activeConversation.isSupervisorView && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
-                        👑 Supervisor Monitor Mode
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0 inline-flex items-center gap-1">
+                        <Shield className="w-2.5 h-2.5" />
+                        <span>Supervisor Monitor Mode</span>
                       </span>
                     )}
                     {activeConversation.recipientRole && (

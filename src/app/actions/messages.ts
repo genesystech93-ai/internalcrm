@@ -178,16 +178,16 @@ export async function getConversationsAction(): Promise<ConversationView[]> {
               const p1 = conv.participants[0]?.user;
               const p2 = conv.participants[1]?.user;
               if (p1 && p2) {
-                name = `👑 ${p1.name} ↔ ${p2.name}`;
-                avatarLetter = "👁️";
+                name = `[Audit] ${p1.name} ↔ ${p2.name}`;
+                avatarLetter = "A";
                 subtitle = `Floor Monitor · ${p1.role} & ${p2.role}`;
               } else if (p1) {
-                name = `👑 ${p1.name} (Direct)`;
-                avatarLetter = "👁️";
+                name = `[Audit] ${p1.name} (Direct)`;
+                avatarLetter = "A";
                 subtitle = `Floor Monitor · ${p1.role}`;
               } else {
                 name = "Floor Direct Chat";
-                avatarLetter = "👁️";
+                avatarLetter = "A";
                 subtitle = "Floor Monitor";
               }
             }
@@ -262,16 +262,16 @@ export async function getConversationsAction(): Promise<ConversationView[]> {
         const u1 = staffMap.get(conv.participantIds[0]);
         const u2 = staffMap.get(conv.participantIds[1]);
         if (u1 && u2) {
-          name = `👑 ${u1.name} ↔ ${u2.name}`;
-          avatarLetter = "👁️";
+          name = `[Audit] ${u1.name} ↔ ${u2.name}`;
+          avatarLetter = "A";
           subtitle = `Floor Monitor · ${u1.role} & ${u2.role}`;
         } else if (u1) {
-          name = `👑 ${u1.name} (Direct)`;
-          avatarLetter = "👁️";
+          name = `[Audit] ${u1.name} (Direct)`;
+          avatarLetter = "A";
           subtitle = `Floor Monitor · ${u1.role}`;
         } else {
           name = "Floor Direct Chat";
-          avatarLetter = "👁️";
+          avatarLetter = "A";
           subtitle = "Floor Monitor";
         }
       }

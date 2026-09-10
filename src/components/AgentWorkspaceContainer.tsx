@@ -7,9 +7,6 @@ import {
   CalendarCheck,
   TrendingUp,
   CalendarDays,
-  Sparkles,
-  PhoneCall,
-  DollarSign,
 } from "lucide-react";
 import { ShiftControls } from "@/components/ShiftControls";
 import { ShiftAttendanceBar } from "@/components/ShiftAttendanceBar";
@@ -67,15 +64,15 @@ export function AgentWorkspaceContainer({ sessionName }: { sessionName: string }
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Persistent Shift Attendance Punch & Status Hero Bar (Visible across all tabs) */}
       <div data-section="shift-controls">
         <ShiftAttendanceBar onNavigateToShiftTab={() => setActiveTab("shift")} />
       </div>
 
-      {/* Sleek Workspace Tab Bar */}
-      <div className="liquid-glass p-2 rounded-2xl border border-white/60 dark:border-slate-800 shadow-sm backdrop-blur-md">
-        <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar p-1">
+      {/* Corporate Workspace Tab Bar */}
+      <div className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -84,20 +81,20 @@ export function AgentWorkspaceContainer({ sessionName }: { sessionName: string }
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 whitespace-nowrap cursor-pointer relative ${
+                className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer relative ${
                   isActive
-                    ? "bg-[#F97316] text-white shadow-lg shadow-orange-500/30 scale-[1.01]"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-slate-800/60"
+                    ? "bg-[#F97316] text-white shadow-2xs font-bold"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60"
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-orange-500"}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? "text-white" : "text-[#F97316]"}`} />
                 <span>{tab.label}</span>
                 {tab.badge && (
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase ${
+                    className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
                       isActive
-                        ? "bg-white/20 text-white"
-                        : "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                        ? "bg-white/25 text-white"
+                        : "bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C]"
                     }`}
                   >
                     {tab.badge}
@@ -112,32 +109,32 @@ export function AgentWorkspaceContainer({ sessionName }: { sessionName: string }
       {/* Dynamic Tab Content Area */}
       <div className="min-h-[500px]">
         {activeTab === "leads" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="space-y-4 animate-in fade-in duration-150">
             <LeadWorkspace isAdmin={false} />
           </div>
         )}
 
         {activeTab === "shift" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="space-y-4 animate-in fade-in duration-150">
             <ShiftControls />
           </div>
         )}
 
         {activeTab === "attendance_salary" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="space-y-4 animate-in fade-in duration-150">
             <AgentAttendanceAndSalaryView />
           </div>
         )}
 
         {activeTab === "performance" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="space-y-4 animate-in fade-in duration-150">
             <AgentPerformanceDashboard />
             <AgentIncentiveTracker />
           </div>
         )}
 
         {activeTab === "leaves" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="space-y-4 animate-in fade-in duration-150">
             <LeaveManagement isAdmin={false} />
           </div>
         )}

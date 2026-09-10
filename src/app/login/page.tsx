@@ -4,7 +4,17 @@ import React, { useActionState, useState, useEffect } from "react";
 import { loginAction } from "@/app/actions/auth";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Lock, User, ArrowRight, Shield, Zap, BarChart3, Sparkles, Loader2 } from "lucide-react";
+import {
+  Lock,
+  User,
+  ArrowRight,
+  ShieldCheck,
+  Zap,
+  BarChart3,
+  Loader2,
+  AlertCircle,
+  Clock,
+} from "lucide-react";
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(loginAction, null);
@@ -17,125 +27,114 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden bg-slate-50 dark:bg-[#07090E] transition-colors duration-300">
+    <div className="min-h-screen flex relative overflow-hidden bg-slate-50 dark:bg-[#0B0F19] transition-colors duration-200">
       {/* Light / Dark Mode Toggle Button */}
-      <div className="absolute top-6 right-6 z-30">
+      <div className="absolute top-5 right-5 z-30">
         <ThemeToggle />
       </div>
 
-      {/* Left Panel — Executive Deep Midnight & Frosted Glass Slate */}
-      <div className="hidden lg:flex lg:w-[46%] relative bg-gradient-to-br from-[#0B1120] via-[#0F172A] to-[#1E293B] p-12 flex-col justify-between overflow-hidden border-r border-slate-800/50 shadow-2xl">
-        {/* Subtle dot matrix architectural grid */}
-        <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:24px_24px] opacity-30 pointer-events-none" />
-
-        {/* Ambient Luminescent Orbs */}
-        <div className="absolute top-[-100px] right-[-60px] w-[450px] h-[450px] rounded-full bg-blue-600/15 blur-[100px] animate-pulse pointer-events-none" style={{ animationDuration: "7s" }} />
-        <div className="absolute bottom-[-80px] left-[-60px] w-[400px] h-[400px] rounded-full bg-indigo-600/15 blur-[90px] pointer-events-none" />
-        <div className="absolute top-[45%] left-[25%] w-[280px] h-[280px] rounded-full bg-cyan-500/10 blur-[80px] pointer-events-none animate-pulse" style={{ animationDuration: "9s" }} />
+      {/* Left Panel — Executive Midnight Slate Canvas */}
+      <div className="hidden lg:flex lg:w-[45%] relative bg-[#0F172A] p-12 flex-col justify-between overflow-hidden border-r border-slate-800">
+        {/* Subtle architectural grid */}
+        <div className="absolute inset-0 bg-[radial-gradient(#1E293B_1px,transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
 
         {/* Brand Logo Showcase */}
         <div className="relative z-10">
-          <div className={`transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            <div className="inline-flex items-center gap-3 p-3 pr-6 rounded-2xl bg-white/10 dark:bg-white/5 backdrop-blur-xl border border-white/20 shadow-[0_12px_32px_rgba(0,0,0,0.3)]">
+          <div className={`transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}>
+            <div className="inline-flex items-center gap-3 p-3 pr-6 rounded-xl bg-slate-900/90 border border-slate-800 shadow-sm">
               <Logo size="lg" showText={true} href={null} variant="on-dark" imageBadge={true} />
             </div>
           </div>
         </div>
 
         {/* Center Presentation Pitch */}
-        <div className="relative z-10 space-y-8 my-auto py-12">
-          <div className={`transition-all duration-700 delay-200 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-400/25 text-xs font-semibold text-blue-300 mb-4 backdrop-blur-md">
-              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-              <span>Operations & Workforce Management</span>
+        <div className="relative z-10 space-y-6 my-auto py-10">
+          <div className={`transition-all duration-500 delay-150 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-orange-500/10 border border-orange-500/20 text-xs font-semibold text-[#FB923C] mb-3">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#F97316]" />
+              <span>Enterprise Floor Operations</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">
               High-Velocity<br />Sales Floor Operations
             </h2>
-            <p className="mt-3 text-sm text-slate-300 font-medium max-w-md leading-relaxed">
-              Tailored for fast-paced inside sales floors, automated commissions, attendance enforcement, and administrative quality auditing.
+            <p className="mt-2 text-sm text-slate-400 font-medium max-w-md leading-relaxed">
+              Designed for high-performance sales teams, automated commissions, strict attendance compliance, and executive lead auditing.
             </p>
           </div>
 
           {/* Feature Highlights */}
-          <div className="space-y-3.5">
+          <div className="space-y-3 pt-2">
             {[
               {
                 icon: Zap,
                 text: "1-Click Lead Approve, Reject & Reversal Decisions",
-                delay: 300,
-                badgeColor: "text-amber-400 bg-amber-400/15 border-amber-400/25",
+                badgeColor: "text-orange-400 bg-orange-500/10 border-orange-500/20",
               },
               {
                 icon: BarChart3,
-                text: "60 FPS Virtualized Pipeline & Live Leaderboards",
-                delay: 400,
-                badgeColor: "text-blue-400 bg-blue-400/15 border-blue-400/25",
+                text: "High-Density Virtualized Pipeline & Real-time Metrics",
+                badgeColor: "text-blue-400 bg-blue-500/10 border-blue-500/20",
               },
               {
-                icon: Shield,
-                text: "Strict Global WAN IP Security & Exempt Admin Access",
-                delay: 500,
-                badgeColor: "text-emerald-400 bg-emerald-400/15 border-emerald-400/25",
+                icon: Clock,
+                text: "Automated Shift Attendance, Breaks & SLA Tracking",
+                badgeColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
               },
-            ].map(({ icon: FeatureIcon, text, delay, badgeColor }) => (
+            ].map(({ icon: FeatureIcon, text, badgeColor }) => (
               <div
                 key={text}
-                className={`flex items-center gap-3.5 text-sm text-slate-200 transition-all duration-700 ${
-                  mounted ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"
-                }`}
-                style={{ transitionDelay: `${delay}ms` }}
+                className="flex items-center gap-3 text-sm text-slate-300"
               >
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 backdrop-blur-sm border ${badgeColor}`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 border ${badgeColor}`}>
                   <FeatureIcon className="w-4 h-4" />
                 </div>
-                <span className="font-medium">{text}</span>
+                <span className="font-medium text-xs sm:text-sm">{text}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Footer info */}
-        <div className={`relative z-10 transition-all duration-700 delay-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        <div className="relative z-10">
           <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Secure 256-bit Encrypted Session &bull; Protected Access</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>Secure 256-bit Encrypted Enterprise Session</span>
           </div>
         </div>
       </div>
 
-      {/* Right Panel — Login Form */}
+      {/* Right Panel — Corporate Authentication Form */}
       <div className="flex-1 flex flex-col justify-center items-center px-6 py-12 relative">
-        <div className={`w-full max-w-md relative z-10 transition-all duration-700 delay-100 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
+        <div className={`w-full max-w-md relative z-10 transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           {/* Mobile-only Logo */}
           <div className="flex flex-col items-center mb-8 text-center lg:hidden">
-            <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-lg inline-flex items-center mb-3">
+            <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm inline-flex items-center mb-3">
               <Logo size="lg" showText={true} href={null} imageBadge={true} />
             </div>
-            <p className="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium">
-              Sales Floor Operations & CRM Portal
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Sales Floor Operations & CRM Platform
             </p>
           </div>
 
-          {/* Desktop: Minimal header */}
-          <div className="hidden lg:block mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 text-xs font-semibold text-blue-600 dark:text-blue-400 mb-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Floor Portal Active &bull; Night Shift Session</span>
+          {/* Desktop Header */}
+          <div className="hidden lg:block mb-6">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-orange-500/10 border border-orange-500/20 text-xs font-semibold text-[#EA580C] dark:text-[#FB923C] mb-2.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span>Floor Portal Active &bull; Shift Session</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] dark:text-white tracking-tight">
-              Welcome back
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              Sign In to Your Workspace
             </h1>
-            <p className="mt-1.5 text-sm text-[#64748B] dark:text-[#94A3B8] font-medium">
-              Sign in to your floor operations session
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Enter your corporate credentials to access the operational floor
             </p>
           </div>
 
-          {/* Floating Liquid Glass Card */}
-          <div className="liquid-glass rounded-3xl p-8 sm:p-10 border border-white/90 dark:border-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.06),inset_0_1px_2px_rgba(255,255,255,0.95)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl">
+          {/* Corporate Card */}
+          <div className="p-7 sm:p-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
             {state?.error && (
-              <div className="mb-6 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 text-red-700 dark:text-red-400 text-sm font-semibold flex items-center gap-2 backdrop-blur-md animate-in fade-in shake-x duration-300">
-                <span className="text-base">⚠️</span>
+              <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
                 <span>{state.error}</span>
               </div>
             )}
@@ -143,15 +142,15 @@ export default function LoginPage() {
             <form action={formAction} className="space-y-4">
               <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8]">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                     Username
                   </label>
-                  <span className="text-[11px] text-[#94A3B8]">
-                    Assigned by Admin
+                  <span className="text-[10px] text-slate-400">
+                    Assigned by Administrator
                   </span>
                 </div>
                 <div className="relative">
-                  <User className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                  <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     name="username"
@@ -159,18 +158,18 @@ export default function LoginPage() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Enter your username (e.g. admin)"
-                    className="liquid-glass-input w-full pl-11 pr-4 py-2.5 rounded-xl text-sm placeholder-[#94A3B8] focus:outline-none"
+                    className="w-full pl-9 pr-3.5 py-2 rounded-lg text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-orange-500/20 transition-colors"
                     autoComplete="username"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8] mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                  <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="password"
                     name="password"
@@ -178,20 +177,18 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="liquid-glass-input w-full pl-11 pr-4 py-2.5 rounded-xl text-sm placeholder-[#94A3B8] focus:outline-none"
+                    className="w-full pl-9 pr-3.5 py-2 rounded-lg text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-orange-500/20 transition-colors"
                     autoComplete="current-password"
                   />
                 </div>
               </div>
 
+              {/* Corporate Primary Orange Action Button */}
               <button
                 type="submit"
                 disabled={isPending}
-                className="w-full mt-3 py-3.5 px-4 font-bold text-sm rounded-xl flex items-center justify-center gap-2 cursor-pointer bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-indigo-500/25 transition-all duration-200 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed group relative overflow-hidden"
+                className="w-full mt-2 py-2.5 px-4 font-bold text-xs rounded-lg flex items-center justify-center gap-2 cursor-pointer bg-[#F97316] hover:bg-[#EA580C] text-white border border-[#EA580C] shadow-xs transition-colors active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isPending && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
-                )}
                 {isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -199,17 +196,17 @@ export default function LoginPage() {
                   </>
                 ) : (
                   <>
-                    <span>Log In to Session</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                    <span>Sign In to Workspace</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </>
                 )}
               </button>
             </form>
           </div>
 
-          {/* Footer info — Mobile only */}
-          <p className="mt-6 text-center text-xs text-[#64748B] dark:text-[#94A3B8] font-medium lg:hidden">
-            &copy; {new Date().getFullYear()} Enterprise CRM Platform. All rights reserved.
+          {/* Mobile Footer */}
+          <p className="mt-6 text-center text-[11px] text-slate-400 font-medium lg:hidden">
+            &copy; {new Date().getFullYear()} CRM Platform. Secure Enterprise Access.
           </p>
         </div>
       </div>

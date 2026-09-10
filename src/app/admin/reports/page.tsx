@@ -13,16 +13,16 @@ export default async function AdminReportsPage() {
 
       {/* Main Content Area: Dedicated Executive Reports & CSV Export Center (Device-Adaptive Screen Scaled) */}
       <main className="flex-1 w-full max-w-[2160px] mx-auto px-2.5 sm:px-5 lg:px-6 2xl:px-8 py-4 relative z-10">
-        <div className="mb-6">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-slate-800/80 border border-purple-200/70 dark:border-purple-500/30 text-xs font-bold text-purple-700 dark:text-purple-400 shadow-sm mb-2 backdrop-blur-md">
-            <FileSpreadsheet className="w-3.5 h-3.5 text-[#8B5CF6]" />
-            <span>Executive Reporting & Data Export Center</span>
+        <div className="mb-4">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-xs font-semibold text-[#EA580C] dark:text-[#FB923C] mb-1.5">
+            <FileSpreadsheet className="w-3.5 h-3.5 text-[#F97316]" />
+            <span>Executive Auditing & Analytics</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] dark:text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
             Staff Performance Reports & Data Export Center
           </h1>
-          <p className="text-sm text-[#64748B] dark:text-[#94A3B8] mt-1 font-medium">
-            Monitor verified deals, employee conversion rates, productive shift hours, and late marks. Download 1-click CSV datasets for payroll and floor reviews.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+            Monitor verified sales deals, conversion velocity, productive shift hours, and download 1-click CSV datasets.
           </p>
         </div>
 

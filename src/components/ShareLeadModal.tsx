@@ -13,6 +13,8 @@ import {
   Loader2,
   Send,
   FileText,
+  Phone,
+  Tag,
 } from "lucide-react";
 import { ModalPortal } from "@/components/ModalPortal";
 import { LeadItem } from "@/app/actions/leads";
@@ -160,22 +162,29 @@ export function ShareLeadModal({
 
           <form onSubmit={handleShare} className="space-y-4 pt-4 overflow-y-auto flex-1 pr-1">
             {/* Lead & Case Preview Card */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 space-y-2">
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-extrabold text-xs text-[#0F172A] dark:text-white truncate">
-                  👤 {lead.customerName}
+                <span className="font-bold text-xs text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{lead.customerName}</span>
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
                   {lead.status}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-[11px] text-[#64748B] dark:text-[#94A3B8] font-mono">
-                <div>📱 {lead.mobile || "No Mobile"}</div>
-                <div className="truncate">🏷️ {lead.campaignName || "General"}</div>
+              <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                <div className="flex items-center gap-1">
+                  <Phone className="w-3 h-3 text-slate-400" />
+                  <span>{lead.mobile || "No Mobile"}</span>
+                </div>
+                <div className="truncate flex items-center gap-1">
+                  <Tag className="w-3 h-3 text-slate-400" />
+                  <span className="truncate">{lead.campaignName || "General"}</span>
+                </div>
               </div>
               {lead.caseDetails && (
                 <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60">
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-orange-600 dark:text-orange-400 block mb-0.5 flex items-center gap-1">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400 block mb-0.5 flex items-center gap-1">
                     <FileText className="w-3 h-3" />
                     <span>Attached Case Details ({lead.caseDetails.length.toLocaleString()} chars)</span>
                   </span>
