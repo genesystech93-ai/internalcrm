@@ -8,6 +8,8 @@ import {
   updateSalaryProfileAction,
   getAugustPayrollLedgerAction,
   getMonthlySalaryLedgerAction,
+  updatePayrollAdjustmentAction,
+  bulkUpdateDisbursementStatusAction,
   SalaryProfileItem,
   AugustLedgerItem,
 } from "@/app/actions/salary";
@@ -50,8 +52,13 @@ import {
   Loader2,
   Download,
   FileSpreadsheet,
+  Eye,
+  SlidersHorizontal,
+  CheckCircle2,
+  CheckCheck,
 } from "lucide-react";
 import { ModalPortal } from "./ModalPortal";
+import { PayslipModal } from "./PayslipModal";
 
 interface AdminWorkforceManagerProps {
   initialTab?: "attendance" | "leaves" | "salaries" | "incentives";
@@ -73,6 +80,32 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
   const [payrollEmployeeFilter, setPayrollEmployeeFilter] = useState<string>("ALL");
   const [payrollMonthFilter, setPayrollMonthFilter] = useState<string>(getCurrentMonthKey());
 
+  // Payslip Preview Modal state
+  const [selectedPayslipItem, setSelectedPayslipItem] = useState<AugustLedgerItem | null>(null);
+  const [showPayslipModal, setShowPayslipModal] = useState(false);
+
+  // Adjustment & Disbursement Modal state
+  const [adjustingItem, setAdjustingItem] = useState<AugustLedgerItem | null>(null);
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [adjBonus, setAdjBonus] = useState<string>("0");
+  const [adjBonusRemarks, setAdjBonusRemarks] = useState<string>("");
+  const [adjDeductions, setAdjDeductions] = useState<string>("0");
+  const [adjDeductionRemarks, setAdjDeductionRemarks] = useState<string>("");
+  const [adjStatus, setAdjStatus] = useState<"PENDING" | "PROCESSING" | "DISBURSED">("PENDING");
+  const [adjPaymentMethod, setAdjPaymentMethod] = useState<string>("IMPS");
+  const [adjUtrRef, setAdjUtrRef] = useState<string>("");
+  const [isSavingAdjustment, setIsSavingAdjustment] = useState(false);
+  const [isBulkDisbursing, setIsBulkDisbursing] = useState(false);
+  const [payrollToast, setPayrollToast] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  // Auto-dismiss payroll toast
+  useEffect(() => {
+    if (payrollToast) {
+      const timer = setTimeout(() => setPayrollToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [payrollToast]);
+
   // Unified Campaign Incentive Rules state
   const [campaignIncentives, setCampaignIncentives] = useState<CampaignIncentiveItem[]>([]);
   const [showRuleModal, setShowRuleModal] = useState(false);
@@ -82,6 +115,7 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
   const [closerAmountPerLead, setCloserAmountPerLead] = useState("500.00");
   const [minLeadsTarget, setMinLeadsTarget] = useState("10");
   const [teamBonusPool, setTeamBonusPool] = useState("10000.00");
+
 
   // Teams state
   const [teams, setTeams] = useState<TeamItem[]>([]);
@@ -142,6 +176,67 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
     });
   }, [payrollMonthFilter, payrollEmployeeFilter]);
 
+  const openAdjustModal = (item: AugustLedgerItem) => {
+    setAdjustingItem(item);
+    setAdjBonus(String(item.bonus || 0));
+    setAdjBonusRemarks(item.bonusRemarks || "");
+    setAdjDeductions(String(item.deductions || 0));
+    setAdjDeductionRemarks(item.deductionRemarks || "");
+    setAdjStatus(item.status || "PENDING");
+    setAdjPaymentMethod(item.paymentMethod || (item.bank ? "IMPS" : "CASH"));
+    setAdjUtrRef(item.utrRef || "");
+    setShowAdjustModal(true);
+  };
+
+  const handleSaveAdjustment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adjustingItem) return;
+    setIsSavingAdjustment(true);
+
+    const res = await updatePayrollAdjustmentAction(adjustingItem.userId, payrollMonthFilter, {
+      bonus: Number(adjBonus) || 0,
+      bonusRemarks: adjBonusRemarks.trim() || undefined,
+      deductions: Number(adjDeductions) || 0,
+      deductionRemarks: adjDeductionRemarks.trim() || undefined,
+      status: adjStatus,
+      paymentMethod: adjPaymentMethod,
+      utrRef: adjUtrRef.trim() || undefined,
+    });
+
+    if (res.error) {
+      setPayrollToast({ text: res.error, type: "error" });
+    } else {
+      setPayrollToast({ text: `Payroll adjustments saved for ${adjustingItem.name}.`, type: "success" });
+      setShowAdjustModal(false);
+      const ledgerRes = await getMonthlySalaryLedgerAction(payrollMonthFilter, payrollEmployeeFilter);
+      if (ledgerRes?.items) setAugustLedger(ledgerRes.items);
+    }
+    setIsSavingAdjustment(false);
+  };
+
+  const handleBulkDisburseAll = async () => {
+    if (
+      !confirm(
+        `Are you sure you want to mark all ${augustLedger.length} staff payouts as DISBURSED for ${formatMonthLabel(payrollMonthFilter)}?`
+      )
+    ) {
+      return;
+    }
+    setIsBulkDisbursing(true);
+    const res = await bulkUpdateDisbursementStatusAction(payrollMonthFilter, "DISBURSED", "IMPS");
+    if (res.error) {
+      setPayrollToast({ text: res.error, type: "error" });
+    } else {
+      setPayrollToast({
+        text: `All staff marked as DISBURSED for ${formatMonthLabel(payrollMonthFilter)}.`,
+        type: "success",
+      });
+      const ledgerRes = await getMonthlySalaryLedgerAction(payrollMonthFilter, payrollEmployeeFilter);
+      if (ledgerRes?.items) setAugustLedger(ledgerRes.items);
+    }
+    setIsBulkDisbursing(false);
+  };
+
   const handleExportAugustPayrollCSV = () => {
     if (augustLedger.length === 0) return;
     const headers = [
@@ -156,7 +251,16 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
       "Present Days",
       "Absent Days",
       "Basic Salary (Rs.)",
-      `${formatMonthLabel(payrollMonthFilter)} Net Salary (Rs.)`,
+      "Attendance Prorated Base (Rs.)",
+      "Bonus / Incentive (Rs.)",
+      "Bonus Remarks",
+      "Deductions / Advances (Rs.)",
+      "Deduction Remarks",
+      `${formatMonthLabel(payrollMonthFilter)} Final Net Payout (Rs.)`,
+      "Payout Status",
+      "Payment Method",
+      "UTR / Transaction Ref",
+      "Disbursed Date",
     ];
 
     const rows = augustLedger.map((item) => [
@@ -172,6 +276,15 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
       item.absentDays,
       item.basicSalary,
       item.augNetSalary,
+      item.bonus || 0,
+      `"${item.bonusRemarks || ""}"`,
+      item.deductions || 0,
+      `"${item.deductionRemarks || ""}"`,
+      item.finalPayout ?? item.augNetSalary,
+      item.status || "PENDING",
+      `"${item.paymentMethod || "IMPS"}"`,
+      `"${item.utrRef || ""}"`,
+      `"${item.disbursedAt || ""}"`,
     ]);
 
     const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
@@ -591,6 +704,24 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
           {/* Shift Attendance, Salary & Banking Ledger */}
           {augustLedger.length > 0 && (
             <div className="liquid-glass-card rounded-3xl p-6 sm:p-8 mt-6 border border-emerald-500/20">
+              {payrollToast && (
+                <div
+                  className={`mb-4 p-3 rounded-2xl flex items-center justify-between text-xs font-bold ${
+                    payrollToast.type === "success"
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
+                      : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {payrollToast.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                    <span>{payrollToast.text}</span>
+                  </div>
+                  <button type="button" onClick={() => setPayrollToast(null)} className="p-0.5 hover:opacity-75 cursor-pointer">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
                   <div className="flex items-center gap-2.5 mb-1">
@@ -607,18 +738,31 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
                     </span>
                   </div>
                   <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-                    Official bank routing codes, IFSC, daily shift counts, and pro-rated earned net payouts for {formatMonthLabel(payrollMonthFilter)}.
+                    Official bank routing codes, IFSC, daily shift counts, bonuses, deductions, and pro-rated earned net payouts for {formatMonthLabel(payrollMonthFilter)}.
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleExportAugustPayrollCSV}
-                  className="liquid-glass-button px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shrink-0"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download {formatMonthLabel(payrollMonthFilter)} CSV</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleBulkDisburseAll}
+                    disabled={isBulkDisbursing || augustLedger.length === 0}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-sm shadow-emerald-600/20 disabled:opacity-50 transition-all cursor-pointer"
+                    title="Mark all employee records as Disbursed for this billing cycle"
+                  >
+                    {isBulkDisbursing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCheck className="w-3.5 h-3.5" />}
+                    <span>Mark All Disbursed</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleExportAugustPayrollCSV}
+                    className="liquid-glass-button px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shrink-0"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download {formatMonthLabel(payrollMonthFilter)} CSV</span>
+                  </button>
+                </div>
               </div>
 
               {/* Employee & Month Filter Controls */}
@@ -677,12 +821,6 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
                   </p>
                 </div>
                 <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
-                  <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Shift Logs Recorded</p>
-                  <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
-                    {augustLedger.filter((i) => payrollEmployeeFilter === "ALL" || i.userId === payrollEmployeeFilter || i.username.toLowerCase() === payrollEmployeeFilter.toLowerCase()).length * (parseMonthDateRange(payrollMonthFilter)?.daysInMonth || 30)}
-                  </p>
-                </div>
-                <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
                   <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Gross Base Payroll</p>
                   <p className="text-lg font-extrabold text-[#0F172A] dark:text-white font-mono">
                     ₹{augustLedger
@@ -692,11 +830,23 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
                   </p>
                 </div>
                 <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+                  <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">Adjustments (+/-)</p>
+                  <p className="text-lg font-extrabold text-purple-600 dark:text-purple-400 font-mono">
+                    {(() => {
+                      const filtered = augustLedger.filter(
+                        (i) => payrollEmployeeFilter === "ALL" || i.userId === payrollEmployeeFilter || i.username.toLowerCase() === payrollEmployeeFilter.toLowerCase()
+                      );
+                      const netAdj = filtered.reduce((sum, item) => sum + (item.bonus || 0) - (item.deductions || 0), 0);
+                      return `${netAdj >= 0 ? "+" : "-"}₹${Math.abs(netAdj).toLocaleString("en-IN")}`;
+                    })()}
+                  </p>
+                </div>
+                <div className="p-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
                   <p className="text-[10px] uppercase font-bold text-[#64748B] dark:text-[#94A3B8]">{formatMonthLabel(payrollMonthFilter)} Net Payout</p>
                   <p className="text-lg font-extrabold text-[#EA580C] dark:text-[#FB923C] font-mono">
                     ₹{augustLedger
                       .filter((i) => payrollEmployeeFilter === "ALL" || i.userId === payrollEmployeeFilter || i.username.toLowerCase() === payrollEmployeeFilter.toLowerCase())
-                      .reduce((sum, item) => sum + item.augNetSalary, 0)
+                      .reduce((sum, item) => sum + (item.finalPayout ?? item.augNetSalary), 0)
                       .toLocaleString("en-IN")}
                   </p>
                 </div>
@@ -709,10 +859,13 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
                     <tr className="border-b border-slate-200/80 dark:border-slate-700 text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider">
                       <th className="py-2.5 px-3">Employee</th>
                       <th className="py-2.5 px-3">Team</th>
-                      <th className="py-2.5 px-3">Banking Routing (IFSC & A/C)</th>
-                      <th className="py-2.5 px-3 text-center">Present / Absent</th>
+                      <th className="py-2.5 px-3">Banking Routing</th>
+                      <th className="py-2.5 px-3 text-center">Attendance</th>
                       <th className="py-2.5 px-3 text-right">Base Salary</th>
-                      <th className="py-2.5 px-3 text-right">{payrollMonthFilter === "2026-08" ? "Aug Earned Net" : `${formatMonthLabel(payrollMonthFilter)} Earned Net`}</th>
+                      <th className="py-2.5 px-3 text-right">Bonus / Ded.</th>
+                      <th className="py-2.5 px-3 text-right">Net Payout</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -760,8 +913,82 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
                         <td className="py-3 px-3 text-right font-mono font-semibold text-slate-600 dark:text-slate-400">
                           ₹{item.basicSalary.toLocaleString("en-IN")}
                         </td>
+                        <td className="py-3 px-3 text-right font-mono text-xs">
+                          {((item.bonus || 0) > 0 || (item.deductions || 0) > 0) ? (
+                            <div className="flex flex-col items-end">
+                              {(item.bonus || 0) > 0 && (
+                                <span className="text-emerald-600 dark:text-emerald-400 font-bold" title={item.bonusRemarks || "Bonus"}>
+                                  +₹{(item.bonus || 0).toLocaleString("en-IN")}
+                                </span>
+                              )}
+                              {(item.deductions || 0) > 0 && (
+                                <span className="text-rose-600 dark:text-rose-400 font-bold" title={item.deductionRemarks || "Deduction"}>
+                                  -₹{(item.deductions || 0).toLocaleString("en-IN")}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">₹0</span>
+                          )}
+                        </td>
                         <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                          ₹{item.augNetSalary.toLocaleString("en-IN")}
+                          ₹{(item.finalPayout ?? item.augNetSalary).toLocaleString("en-IN")}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              item.status === "DISBURSED"
+                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                                : item.status === "PROCESSING"
+                                ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                                : "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30"
+                            }`}
+                          >
+                            {item.status === "DISBURSED" ? (
+                              <>
+                                <CheckCircle2 className="w-2.5 h-2.5" />
+                                <span>Paid</span>
+                              </>
+                            ) : item.status === "PROCESSING" ? (
+                              <>
+                                <Clock className="w-2.5 h-2.5" />
+                                <span>Transit</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertCircle className="w-2.5 h-2.5" />
+                                <span>Pending</span>
+                              </>
+                            )}
+                          </span>
+                          {item.utrRef && (
+                            <p className="text-[9px] font-mono text-slate-400 truncate max-w-[90px] mx-auto mt-0.5" title={`UTR: ${item.utrRef}`}>
+                              {item.utrRef}
+                            </p>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedPayslipItem(item);
+                                setShowPayslipModal(true);
+                              }}
+                              className="p-1.5 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                              title="Preview & Print Official Payslip"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openAdjustModal(item)}
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                              title="Edit Bonus, Deductions & Payout Status"
+                            >
+                              <SlidersHorizontal className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1502,6 +1729,196 @@ export function AdminWorkforceManager({ initialTab = "salaries" }: AdminWorkforc
             </ModalPortal>
           )}
         </div>
+      )}
+
+      {/* Payslip Inspection & Print Modal */}
+      <PayslipModal
+        isOpen={showPayslipModal}
+        onClose={() => {
+          setShowPayslipModal(false);
+          setSelectedPayslipItem(null);
+        }}
+        item={selectedPayslipItem}
+        monthKey={payrollMonthFilter}
+      />
+
+      {/* Adjustments & Disbursement Modal */}
+      {showAdjustModal && adjustingItem && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative max-h-[92vh] overflow-y-auto custom-scrollbar my-auto">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-extrabold text-[#0F172A] dark:text-white flex items-center gap-2">
+                    <SlidersHorizontal className="w-5 h-5 text-orange-500" />
+                    <span>Adjust Payroll & Payout Details</span>
+                  </h3>
+                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
+                    {adjustingItem.name} (@{adjustingItem.username}) • {formatMonthLabel(payrollMonthFilter)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAdjustModal(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveAdjustment} className="space-y-4 text-xs">
+                {/* Baseline Snapshot */}
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400">Attendance Prorated Base</span>
+                    <p className="font-mono text-sm font-extrabold text-slate-800 dark:text-slate-200">
+                      ₹{adjustingItem.augNetSalary.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] uppercase font-bold text-slate-400">Shift Record</span>
+                    <p className="font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      {adjustingItem.presentDays}P / {adjustingItem.absentDays}A
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bonus Section */}
+                <div className="p-3.5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider text-[11px]">
+                      + Bonus / Incentive (₹)
+                    </label>
+                    <span className="text-[10px] text-slate-400">Credits</span>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={adjBonus}
+                    onChange={(e) => setAdjBonus(e.target.value)}
+                    placeholder="0"
+                    className="liquid-glass-input w-full px-3 py-2 rounded-xl font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-white/90 dark:bg-slate-900/90 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={adjBonusRemarks}
+                    onChange={(e) => setAdjBonusRemarks(e.target.value)}
+                    placeholder="Remarks (e.g. Sales quota achievement, Weekend OT)"
+                    className="w-full px-3 py-1.5 rounded-xl border border-emerald-500/20 bg-white/70 dark:bg-slate-900/70 text-slate-800 dark:text-slate-200 text-xs focus:outline-none placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* Deductions Section */}
+                <div className="p-3.5 rounded-2xl bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-rose-700 dark:text-rose-300 uppercase tracking-wider text-[11px]">
+                      - Custom Deductions / Advances (₹)
+                    </label>
+                    <span className="text-[10px] text-slate-400">Debits</span>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={adjDeductions}
+                    onChange={(e) => setAdjDeductions(e.target.value)}
+                    placeholder="0"
+                    className="liquid-glass-input w-full px-3 py-2 rounded-xl font-mono font-bold text-rose-600 dark:text-rose-400 bg-white/90 dark:bg-slate-900/90 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={adjDeductionRemarks}
+                    onChange={(e) => setAdjDeductionRemarks(e.target.value)}
+                    placeholder="Remarks (e.g. Disciplinary fine, Salary advance recovery)"
+                    className="w-full px-3 py-1.5 rounded-xl border border-rose-500/20 bg-white/70 dark:bg-slate-900/70 text-slate-800 dark:text-slate-200 text-xs focus:outline-none placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* Dynamic Net Calculation Preview */}
+                <div className="p-3 rounded-2xl bg-orange-500/10 border border-orange-500/25 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-orange-600 dark:text-orange-400">
+                      Recomputed Net Payout
+                    </span>
+                    <p className="text-[11px] text-slate-500">Base + Bonus - Deductions</p>
+                  </div>
+                  <span className="text-lg font-black font-mono text-orange-600 dark:text-orange-400">
+                    ₹{Math.max(
+                      0,
+                      adjustingItem.augNetSalary + (Number(adjBonus) || 0) - (Number(adjDeductions) || 0)
+                    ).toLocaleString("en-IN")}
+                  </span>
+                </div>
+
+                {/* Disbursement Status & Payment Routing */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                      Disbursement Status
+                    </label>
+                    <select
+                      value={adjStatus}
+                      onChange={(e) => setAdjStatus(e.target.value as any)}
+                      className="liquid-glass-input w-full px-3 py-2 rounded-xl font-semibold focus:outline-none"
+                    >
+                      <option value="PENDING">🔵 PENDING</option>
+                      <option value="PROCESSING">🟡 PROCESSING</option>
+                      <option value="DISBURSED">🟢 DISBURSED (Paid)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                      Payment Mode
+                    </label>
+                    <select
+                      value={adjPaymentMethod}
+                      onChange={(e) => setAdjPaymentMethod(e.target.value)}
+                      className="liquid-glass-input w-full px-3 py-2 rounded-xl font-semibold focus:outline-none"
+                    >
+                      <option value="IMPS">IMPS (Immediate Transfer)</option>
+                      <option value="NEFT">NEFT (Bank Batch)</option>
+                      <option value="UPI">UPI Floor Transfer</option>
+                      <option value="CASH">Cash in Hand</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    Bank UTR / Transaction Reference
+                  </label>
+                  <input
+                    type="text"
+                    value={adjUtrRef}
+                    onChange={(e) => setAdjUtrRef(e.target.value)}
+                    placeholder="e.g. CMS987654321 / UTR998811"
+                    className="liquid-glass-input w-full px-3 py-2 rounded-xl font-mono focus:outline-none"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdjustModal(false)}
+                    className="liquid-glass-button-secondary flex-1 py-2.5 rounded-xl font-bold text-xs cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingAdjustment}
+                    className="liquid-glass-button-primary flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    {isSavingAdjustment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    <span>Save Adjustments</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );

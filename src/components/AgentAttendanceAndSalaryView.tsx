@@ -17,22 +17,26 @@ import {
   TrendingUp,
   ShieldCheck,
   Coffee,
+  Eye,
 } from "lucide-react";
 import {
   getMyAttendanceSummaryAction,
   SingleEmployeeAttendanceStats,
 } from "@/app/actions/attendance";
 import { getMySalaryRecordAction, AugustLedgerItem } from "@/app/actions/salary";
-import { getCurrentMonthKey, formatMonthLabel, getDefaultAvailableMonths } from "@/lib/date-utils";
+import { getCurrentMonthKey, formatMonthLabel, getDefaultAvailableMonths, parseMonthDateRange } from "@/lib/date-utils";
+import { PayslipModal } from "./PayslipModal";
 
 export function AgentAttendanceAndSalaryView() {
   const [activeTab, setActiveTab] = useState<"attendance" | "salary">("attendance");
   const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonthKey());
   const [attendanceData, setAttendanceData] = useState<SingleEmployeeAttendanceStats | null>(null);
   const [salaryData, setSalaryData] = useState<AugustLedgerItem | null>(null);
+  const [showPayslipModal, setShowPayslipModal] = useState(false);
   const [availableMonths, setAvailableMonths] = useState<Array<{ value: string; label: string }>>(
     getDefaultAvailableMonths()
   );
+
   const [isPending, startTransition] = useTransition();
 
   const loadData = (month: string) => {
@@ -338,13 +342,35 @@ export function AgentAttendanceAndSalaryView() {
               {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-200 dark:border-slate-800 gap-4">
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className="px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold text-xs border border-orange-500/20">
                       OFFICIAL PAYSLIP STATEMENT
                     </span>
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs border border-emerald-500/20 flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      Verified Disbursed
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${
+                        salaryData.status === "DISBURSED"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                          : salaryData.status === "PROCESSING"
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                          : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                      }`}
+                    >
+                      {salaryData.status === "DISBURSED" ? (
+                        <>
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <span>Disbursed & Paid</span>
+                        </>
+                      ) : salaryData.status === "PROCESSING" ? (
+                        <>
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Processing Transfer</span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          <span>Pending Authorization</span>
+                        </>
+                      )}
                     </span>
                   </div>
                   <h2 className="text-2xl font-black text-slate-900 dark:text-white">
@@ -353,14 +379,41 @@ export function AgentAttendanceAndSalaryView() {
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
                     User: @{salaryData.username} | Department: {salaryData.team}
                   </p>
+                  {salaryData.utrRef && (
+                    <p className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 mt-1 font-semibold">
+                      Bank Ref / UTR: {salaryData.utrRef}
+                      {salaryData.disbursedAt && ` • Settled on ${salaryData.disbursedAt}`}
+                    </p>
+                  )}
                 </div>
 
-                <div className="text-left sm:text-right">
-                  <p className="text-xs font-semibold text-slate-400">PAYROLL PERIOD</p>
-                  <p className="text-lg font-black text-orange-600 dark:text-orange-400">
-                    {formatMonthLabel(selectedMonth)}
-                  </p>
-                  <p className="text-[11px] text-slate-400">Genesoft Infotech Internal CRM</p>
+                <div className="flex flex-col sm:items-end gap-2">
+                  <div className="text-left sm:text-right">
+                    <p className="text-xs font-semibold text-slate-400">PAYROLL PERIOD</p>
+                    <p className="text-lg font-black text-orange-600 dark:text-orange-400">
+                      {formatMonthLabel(selectedMonth)}
+                    </p>
+                    <p className="text-[11px] text-slate-400">Genesoft Infotech Internal CRM</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowPayslipModal(true)}
+                      className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-orange-500/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Full Printable Slip</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePrint}
+                      className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold cursor-pointer"
+                      title="Direct Print"
+                    >
+                      <Printer className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -374,7 +427,9 @@ export function AgentAttendanceAndSalaryView() {
                   </h4>
                   <div className="flex justify-between text-xs py-1 border-b border-slate-200/50 dark:border-slate-800">
                     <span className="text-slate-600 dark:text-slate-400">Total Month Days</span>
-                    <span className="font-bold text-slate-900 dark:text-white">31 Days</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {parseMonthDateRange(selectedMonth)?.daysInMonth || 30} Days
+                    </span>
                   </div>
                   <div className="flex justify-between text-xs py-1 border-b border-slate-200/50 dark:border-slate-800">
                     <span className="text-slate-600 dark:text-slate-400">Recorded Present Days</span>
@@ -387,7 +442,12 @@ export function AgentAttendanceAndSalaryView() {
                   <div className="flex justify-between text-xs py-1">
                     <span className="text-slate-600 dark:text-slate-400">Attendance Compliance Rate</span>
                     <span className="font-bold text-blue-500">
-                      {Math.round((salaryData.presentDays / 31) * 100)}%
+                      {Math.min(
+                        100,
+                        Math.round(
+                          (salaryData.presentDays / (parseMonthDateRange(selectedMonth)?.daysInMonth || 30)) * 100
+                        )
+                      )}%
                     </span>
                   </div>
                 </div>
@@ -401,7 +461,7 @@ export function AgentAttendanceAndSalaryView() {
                   <div className="flex justify-between text-xs py-1 border-b border-slate-200/50 dark:border-slate-800">
                     <span className="text-slate-600 dark:text-slate-400">Bank Name</span>
                     <span className="font-bold text-slate-900 dark:text-white">
-                      {salaryData.bank || "HDFC Bank (Primary)"}
+                      {salaryData.bank || "Direct Floor Transfer"}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs py-1 border-b border-slate-200/50 dark:border-slate-800">
@@ -413,15 +473,53 @@ export function AgentAttendanceAndSalaryView() {
                   <div className="flex justify-between text-xs py-1 border-b border-slate-200/50 dark:border-slate-800">
                     <span className="text-slate-600 dark:text-slate-400">IFSC Routing Code</span>
                     <span className="font-mono font-bold text-slate-900 dark:text-white">
-                      {salaryData.ifsc || "HDFC0000240"}
+                      {salaryData.ifsc || "Direct Credit"}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs py-1">
                     <span className="text-slate-600 dark:text-slate-400">Payment Channel</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">NEFT / Direct Deposit</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                      {salaryData.paymentMethod || "IMPS / Direct Deposit"}
+                    </span>
                   </div>
                 </div>
               </div>
+
+              {/* Adjustments Summary (if any) */}
+              {((salaryData.bonus || 0) > 0 || (salaryData.deductions || 0) > 0) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  {(salaryData.bonus || 0) > 0 && (
+                    <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
+                      <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-400">
+                        + Incentive / Performance Bonus
+                      </span>
+                      <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                        +₹{(salaryData.bonus || 0).toLocaleString("en-IN")}
+                      </p>
+                      {salaryData.bonusRemarks && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 italic mt-0.5">
+                          Note: {salaryData.bonusRemarks}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {(salaryData.deductions || 0) > 0 && (
+                    <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs">
+                      <span className="text-[10px] uppercase font-bold text-rose-700 dark:text-rose-400">
+                        - Deductions / Advances
+                      </span>
+                      <p className="text-lg font-black text-rose-600 dark:text-rose-400 font-mono">
+                        -₹{(salaryData.deductions || 0).toLocaleString("en-IN")}
+                      </p>
+                      {salaryData.deductionRemarks && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 italic mt-0.5">
+                          Note: {salaryData.deductionRemarks}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Total Net Pay Highlight */}
               <div className="p-5 rounded-2xl bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-emerald-500/10 border border-orange-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -437,10 +535,10 @@ export function AgentAttendanceAndSalaryView() {
                 <div className="sm:text-right">
                   <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center sm:justify-end gap-1">
                     <Sparkles className="w-3.5 h-3.5" />
-                    Final Net Payout Received
+                    Final Net Payout Calculated
                   </span>
                   <p className="text-3xl sm:text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
-                    ₹{salaryData.augNetSalary.toLocaleString("en-IN")}
+                    ₹{(salaryData.finalPayout ?? salaryData.augNetSalary).toLocaleString("en-IN")}
                   </p>
                 </div>
               </div>
@@ -453,6 +551,14 @@ export function AgentAttendanceAndSalaryView() {
           )}
         </div>
       )}
+
+      {/* Reusable Printable Payslip Modal */}
+      <PayslipModal
+        isOpen={showPayslipModal}
+        onClose={() => setShowPayslipModal(false)}
+        item={salaryData}
+        monthKey={selectedMonth}
+      />
     </div>
   );
 }
