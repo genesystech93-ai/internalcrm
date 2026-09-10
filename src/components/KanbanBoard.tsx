@@ -317,7 +317,7 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
       )}
 
       {/* 1. Kanban Controls Toolbar */}
-      <div className="liquid-glass-card rounded-2xl p-3 border border-white/80 dark:border-slate-800 shadow-sm flex flex-col gap-3">
+      <div className="liquid-glass-card rounded-2xl p-2.5 border border-white/80 dark:border-slate-800 shadow-sm flex flex-col gap-2 mb-2.5">
         {/* Top Control Line: Search, Campaign, View Presets & Quick Actions */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5">
           {/* Search Input & Campaign Selector */}
@@ -507,7 +507,7 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
       {/* 2. Responsive Kanban Horizontal Scrollable Track */}
       <div
         ref={trackRef}
-        className="flex gap-3.5 overflow-x-auto pb-6 pt-1 items-start min-h-[580px] custom-scrollbar scroll-smooth"
+        className="flex gap-3 overflow-x-auto pb-3 pt-1 items-start min-h-[460px] max-h-[calc(100dvh-190px)] custom-scrollbar scroll-smooth"
       >
         {visibleColumns.map((col) => {
           const colLeads = filteredLeads.filter((l) => l.status === col.id);
@@ -520,7 +520,7 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
                 key={col.id}
                 id={`kanban-col-${col.id}`}
                 onClick={() => toggleCollapse(col.id)}
-                className="w-[48px] min-w-[48px] shrink-0 liquid-glass rounded-2xl p-2 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500/50 transition-all flex flex-col items-center py-4 cursor-pointer min-h-[540px] group bg-slate-50/50 dark:bg-slate-900/50 select-none"
+                className="w-[44px] min-w-[44px] shrink-0 liquid-glass rounded-2xl p-2 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500/50 transition-all flex flex-col items-center py-3 cursor-pointer min-h-[460px] group bg-slate-50/50 dark:bg-slate-900/50 select-none"
                 title={`Click to expand ${col.label} (${colLeads.length} leads)`}
               >
                 <span className="w-2.5 h-2.5 rounded-full mb-3 shrink-0" style={{ backgroundColor: col.color }} />
@@ -600,7 +600,7 @@ export function KanbanBoard({ leads, isAdmin = false, onRefresh }: KanbanBoardPr
               </div>
 
               {/* Cards Track */}
-              <div className="space-y-2.5 flex-1 overflow-y-auto max-h-[660px] pr-1 custom-scrollbar">
+              <div className="space-y-2 flex-1 overflow-y-auto max-h-[calc(100dvh-270px)] pr-1 custom-scrollbar">
                 {colLeads.length === 0 ? (
                   <div className="h-32 flex flex-col items-center justify-center text-center p-3 text-[11px] text-[#94A3B8] border border-dashed border-slate-200/80 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-900/30">
                     <p className="font-medium">No leads in this stage</p>

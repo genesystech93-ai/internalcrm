@@ -60,8 +60,8 @@ export function AdminNav({ sessionUser }: AdminNavProps) {
   return (
     <header className="sticky top-0 z-50">
       {/* Top Bar: Brand, Session & Quick Actions */}
-      <div className="liquid-glass-header px-6 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-6">
+      <div className="liquid-glass-header px-3 sm:px-6 2xl:px-8 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-4 sm:gap-6">
           <Logo size="md" />
           <div className="h-6 w-px bg-slate-200/80 dark:bg-slate-700 hidden sm:block"></div>
           <div className="flex items-center gap-2">
@@ -119,8 +119,8 @@ export function AdminNav({ sessionUser }: AdminNavProps) {
       </div>
 
       {/* Sub-Navigation Strip: Purpose-Built Portal Tabs */}
-      <div className="liquid-glass px-6 py-2 border-b border-white/60 dark:border-slate-800 shadow-sm backdrop-blur-md">
-        <div className="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
+      <div className="liquid-glass px-3 sm:px-6 2xl:px-8 py-2 border-b border-white/60 dark:border-slate-800 shadow-sm backdrop-blur-md">
+        <div className="w-full max-w-[2160px] mx-auto flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
           {navLinks.map((tab) => {
             const Icon = tab.icon;
             return (

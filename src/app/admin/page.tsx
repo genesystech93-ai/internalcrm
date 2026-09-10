@@ -1,6 +1,5 @@
 import { getSession } from "@/lib/auth";
 import { AdminNav } from "@/components/AdminNav";
-import { AdminDashboardClient } from "@/components/AdminDashboardClient";
 import { AdminWorkspaceContainer } from "@/components/AdminWorkspaceContainer";
 
 export default async function AdminDashboardPage() {
@@ -11,12 +10,9 @@ export default async function AdminDashboardPage() {
       {/* Universal Admin Navigation Header with Sub-Portal Tabs */}
       <AdminNav sessionUser={session} />
 
-      {/* Main Content Area: Executive Decision Center & Decluttered Tabs */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 sm:p-8 relative z-10 space-y-6">
-        <AdminDashboardClient sessionName={session?.name || "Admin"} />
-
-        {/* Tab-Segmented Admin Workspace (Decluttered, High-Focus Workspaces) */}
-        <AdminWorkspaceContainer initialTab="leads" />
+      {/* Main Content Area: Device-Adaptive Screen Scaled Executive Command Center */}
+      <main className="flex-1 w-full max-w-[2160px] mx-auto px-2.5 sm:px-5 lg:px-6 2xl:px-8 py-3 space-y-3 relative z-10">
+        <AdminWorkspaceContainer initialTab="leads" sessionName={session?.name || "Admin"} />
       </main>
     </div>
   );

@@ -23,6 +23,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
   const [search, setSearch] = useState("");
   const [selectedCampaign, setSelectedCampaign] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
+  const [density, setDensity] = useState<"compact" | "comfortable">("compact");
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
 
   useEffect(() => {
@@ -127,24 +128,24 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
         </div>
       )}
 
-      {/* Search & Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-5">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-3" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search leads by name, mobile, email..."
-            className="liquid-glass-input w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs focus:outline-none"
-          />
-        </div>
+      {/* Search & Filter Bar (Compact, High-Density Responsive Row) */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 mb-2.5">
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-1 max-w-xl">
+          <div className="relative flex-1">
+            <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-3 top-2.5" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search leads by name, mobile, email..."
+              className="liquid-glass-input w-full pl-8 pr-3 py-1.5 rounded-xl text-xs focus:outline-none"
+            />
+          </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
           <select
             value={selectedCampaign}
             onChange={(e) => setSelectedCampaign(e.target.value)}
-            className="liquid-glass-input px-3 py-2 rounded-xl text-xs focus:outline-none font-semibold"
+            className="liquid-glass-input px-2.5 py-1.5 rounded-xl text-xs focus:outline-none font-semibold cursor-pointer max-w-[150px] truncate"
           >
             <option value="ALL">All Campaigns</option>
             {campaigns.map((c) => (
@@ -157,7 +158,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className="liquid-glass-input px-3 py-2 rounded-xl text-xs focus:outline-none font-semibold"
+            className="liquid-glass-input px-2.5 py-1.5 rounded-xl text-xs focus:outline-none font-semibold cursor-pointer max-w-[140px] truncate"
           >
             <option value="ALL">All Statuses</option>
             <option value="UPLOADED">Uploaded</option>
@@ -166,24 +167,59 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
             <option value="VOICEMAIL">Voicemail</option>
             <option value="APPROVED">Approved</option>
             <option value="REJECTED">Rejected</option>
+            <option value="CUSTOM">Custom</option>
           </select>
+        </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+          <span className="text-[11px] font-bold text-slate-400">
+            {filteredLeads.length} of {leads.length}
+          </span>
+
+          {/* Row Density Switcher */}
+          <div className="flex items-center p-0.5 rounded-xl liquid-glass border border-white/70 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setDensity("compact")}
+              className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                density === "compact"
+                  ? "bg-[#F97316] text-white shadow-2xs"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
+              title="Compact density (view more leads simultaneously)"
+            >
+              Compact
+            </button>
+            <button
+              type="button"
+              onClick={() => setDensity("comfortable")}
+              className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                density === "comfortable"
+                  ? "bg-[#F97316] text-white shadow-2xs"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
+              title="Comfortable row density"
+            >
+              Standard
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Table Data Grid */}
-      <div className="liquid-glass-card rounded-3xl border border-white/80 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      {/* Table Data Grid with Sticky Header and Internal Scroll */}
+      <div className="liquid-glass-card rounded-2xl border border-white/80 dark:border-slate-800 overflow-hidden shadow-sm flex flex-col max-h-[calc(100dvh-190px)]">
+        <div className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1">
           <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200/80 dark:border-slate-700 text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider bg-slate-50/50 dark:bg-slate-900/50">
-                <th className="py-3 px-4">Customer Name & DOB</th>
-                <th className="py-3 px-3">Contact (Mobile & Email)</th>
-                <th className="py-3 px-3">Campaign & Source</th>
-                <th className="py-3 px-3">Client & Net Approval SLA</th>
-                <th className="py-3 px-3">Closer / Agent</th>
-                <th className="py-3 px-3">Status & Callback</th>
-                <th className="py-3 px-4">Address & Notes</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+            <thead className="sticky top-0 z-10 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-md shadow-2xs border-b border-slate-200/80 dark:border-slate-700">
+              <tr className="text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider text-[11px]">
+                <th className={density === "compact" ? "py-2 px-3" : "py-3 px-4"}>Customer Name & DOB</th>
+                <th className={density === "compact" ? "py-2 px-2.5" : "py-3 px-3"}>Contact (Mobile & Email)</th>
+                <th className={density === "compact" ? "py-2 px-2.5" : "py-3 px-3"}>Campaign & Source</th>
+                <th className={density === "compact" ? "py-2 px-2.5" : "py-3 px-3"}>Client & Net SLA</th>
+                <th className={density === "compact" ? "py-2 px-2.5" : "py-3 px-3"}>Closer / Agent</th>
+                <th className={density === "compact" ? "py-2 px-2.5" : "py-3 px-3"}>Status & Callback</th>
+                <th className={density === "compact" ? "py-2 px-3" : "py-3 px-4"}>Address & Notes</th>
+                <th className={density === "compact" ? "py-2 px-3 text-right" : "py-3 px-4 text-right"}>Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -195,8 +231,10 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                 </tr>
               ) : (
                 filteredLeads.map((lead) => {
-                  // Pretext measure calculated row height
-                  const rowHeight = calculateRowHeight(lead.address, lead.notes);
+                  const tdCell = density === "compact" ? "py-1.5 px-2.5" : "py-3 px-3";
+                  const tdCellName = density === "compact" ? "py-1.5 px-3" : "py-3 px-4";
+                  const tdCellNotes = density === "compact" ? "py-1.5 px-3 max-w-xs" : "py-3 px-4 max-w-xs";
+                  const tdCellActions = density === "compact" ? "py-1.5 px-3 text-right" : "py-3 px-4 text-right";
 
                   return (
                     <tr
@@ -205,19 +243,19 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                       className="hover:bg-orange-500/5 dark:hover:bg-slate-800/80 transition-colors cursor-pointer group"
                       title="Click row to view lead details"
                     >
-                      <td className="py-3 px-4">
+                      <td className={tdCellName}>
                         <p className="font-extrabold text-[#0F172A] dark:text-white group-hover:text-[#EA580C] transition-colors">{lead.customerName}</p>
                         <p className="font-mono text-[10px] text-[#64748B] dark:text-[#94A3B8]">DOB: {lead.dob}</p>
                       </td>
-                      <td className="py-3 px-3">
+                      <td className={tdCell}>
                         <p className="font-mono font-bold text-[#0F172A] dark:text-white">{lead.mobile}</p>
                         <p className="text-[10px] text-[#64748B] dark:text-[#94A3B8] truncate max-w-[140px]">{lead.email}</p>
                       </td>
-                      <td className="py-3 px-3">
+                      <td className={tdCell}>
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20">
                           {lead.campaignName}
                         </span>
-                        <div className="text-[10px] text-[#94A3B8] mt-1 flex items-center gap-1 flex-wrap">
+                        <div className="text-[10px] text-[#94A3B8] mt-0.5 flex items-center gap-1 flex-wrap">
                           <span>{lead.source}</span>
                           {lead.referredByName && (
                             <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1 rounded truncate max-w-[120px]" title={`Referred by ${lead.referredByName}`}>
@@ -227,7 +265,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                         </div>
                       </td>
                       {/* Client & Net Approval SLA */}
-                      <td className="py-3 px-3">
+                      <td className={tdCell}>
                         {lead.clientName ? (
                           <div>
                             <div className="flex items-center gap-1 font-bold text-slate-900 dark:text-white text-[11px]">
@@ -255,7 +293,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                               e.stopPropagation();
                               setClientSubmitLead(lead);
                             }}
-                            className="px-2 py-1 rounded-xl text-[10px] font-bold bg-orange-500/10 hover:bg-orange-500/20 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                            className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-orange-500/10 hover:bg-orange-500/20 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20 transition-all flex items-center gap-1 cursor-pointer"
                           >
                             <Building2 className="w-3 h-3" />
                             <span>+ Client SLA</span>
@@ -264,7 +302,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                           <span className="text-[10px] text-slate-400 italic">Unassigned</span>
                         )}
                       </td>
-                      <td className="py-3 px-3">
+                      <td className={tdCell}>
                         <p className="font-semibold text-[#0F172A] dark:text-white flex items-center gap-1">
                           <span>Closer: {lead.closerName}</span>
                           {lead.closerName.toLowerCase().includes("self") && (
@@ -275,30 +313,30 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                         </p>
                         <p className="font-mono text-[10px] text-[#94A3B8]">@{lead.agentUsername}</p>
                       </td>
-                      <td className="py-3 px-3">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusBadge(lead.status)}`}>
+                      <td className={tdCell}>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusBadge(lead.status)}`}>
                           ● {lead.status === "CUSTOM" && lead.customStatusLabel ? `✨ ${lead.customStatusLabel}` : lead.status}
                         </span>
                         {lead.status === "CALL_BACK" && lead.callBackTime && (
-                          <p className="font-mono text-[10px] text-purple-600 dark:text-purple-400 mt-1 flex items-center gap-1">
+                          <p className="font-mono text-[10px] text-purple-600 dark:text-purple-400 mt-0.5 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             <span>{new Date(lead.callBackTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                           </p>
                         )}
                       </td>
-                      <td className="py-3 px-4 max-w-xs">
+                      <td className={tdCellNotes}>
                         <p className="text-[11px] text-[#475569] dark:text-[#CBD5E1] line-clamp-1">{lead.address}</p>
                         {lead.notes && (
                           <p className="text-[10px] text-[#94A3B8] line-clamp-1 italic mt-0.5">&ldquo;{lead.notes}&rdquo;</p>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                      <td className={tdCellActions} onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
                             onClick={() => setInspectLead(lead)}
                             title="Inspect Lead Details & History"
-                            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-[#64748B] cursor-pointer"
+                            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-[#64748B] cursor-pointer"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
@@ -307,7 +345,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                             type="button"
                             onClick={() => handleShareLead(lead)}
                             title="Share Lead and Case to Floor Pulse Chat"
-                            className="p-1.5 rounded-lg hover:bg-orange-500/15 text-[#EA580C] dark:text-orange-400 cursor-pointer transition-colors"
+                            className="p-1 rounded-lg hover:bg-orange-500/15 text-[#EA580C] dark:text-orange-400 cursor-pointer transition-colors"
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
                           </button>
@@ -316,7 +354,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                             type="button"
                             onClick={() => setClientSubmitLead(lead)}
                             title={lead.clientName ? `Reassign Client (${lead.clientName})` : "Direct Submit Lead to Client Buyer"}
-                            className="p-1.5 rounded-lg hover:bg-blue-500/15 text-blue-600 dark:text-blue-400 cursor-pointer transition-colors"
+                            className="p-1 rounded-lg hover:bg-blue-500/15 text-blue-600 dark:text-blue-400 cursor-pointer transition-colors"
                           >
                             <Building2 className="w-3.5 h-3.5" />
                           </button>
@@ -327,7 +365,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                               onClick={() => handleFastApprove(lead.id)}
                               disabled={approvingId === lead.id}
                               title="Approve & Credit Incentive"
-                              className="p-1.5 rounded-lg hover:bg-emerald-500/15 text-[#059669] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                              className="p-1 rounded-lg hover:bg-emerald-500/15 text-[#059669] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                               {approvingId === lead.id ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin text-[#059669]" />
@@ -342,7 +380,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                               type="button"
                               onClick={() => handleStartReject(lead)}
                               title="Reject Lead (Reason Required)"
-                              className="p-1.5 rounded-lg hover:bg-red-500/15 text-[#EF4444] cursor-pointer"
+                              className="p-1 rounded-lg hover:bg-red-500/15 text-[#EF4444] cursor-pointer"
                             >
                               <XCircle className="w-3.5 h-3.5" />
                             </button>
@@ -353,7 +391,7 @@ export function LeadTable({ leads, isAdmin = false, onRefresh }: LeadTableProps)
                               type="button"
                               onClick={() => setDeletingLead(lead)}
                               title="Permanently Delete Lead"
-                              className="p-1.5 rounded-lg hover:bg-rose-500/15 text-rose-600 dark:text-rose-400 cursor-pointer transition-colors"
+                              className="p-1 rounded-lg hover:bg-rose-500/15 text-rose-600 dark:text-rose-400 cursor-pointer transition-colors"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

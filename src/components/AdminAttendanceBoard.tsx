@@ -238,12 +238,12 @@ export function AdminAttendanceBoard() {
   }, [summary?.staffSummaries]);
 
   return (
-    <div className="liquid-glass-card rounded-3xl p-6 sm:p-8 mb-8 border border-white/80 dark:border-slate-800 shadow-xl relative overflow-hidden">
+    <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 mb-4 border border-white/80 dark:border-slate-800 shadow-xl relative overflow-hidden">
       {/* Decorative gradient blur background */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-orange-500/5 via-purple-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
 
       {/* Top Header & Master Controls */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 mb-7 relative z-10">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4 relative z-10">
         <div>
           <div className="flex items-center gap-2.5 mb-1.5">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#F97316] to-[#FB923C] flex items-center justify-center text-white shadow-md shadow-orange-500/20">
@@ -340,7 +340,7 @@ export function AdminAttendanceBoard() {
       )}
 
       {/* Interactive Single Employee & Single Month Filter Command Bar */}
-      <div className="p-4 sm:p-5 rounded-3xl mb-7 bg-white/70 dark:bg-slate-900/80 border border-slate-200/90 dark:border-slate-800 shadow-lg backdrop-blur-md relative z-10">
+      <div className="p-3 sm:p-3.5 rounded-2xl mb-4 bg-white/70 dark:bg-slate-900/80 border border-slate-200/90 dark:border-slate-800 shadow-md backdrop-blur-md relative z-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3 flex-1">
             {/* Employee Selector */}
@@ -523,7 +523,7 @@ export function AdminAttendanceBoard() {
       </div>
 
       {/* Key Metric KPI Cards (5 Cards Grid) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 mb-7">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-4">
         {/* Total Attendance Records */}
         <div className="liquid-glass p-4 rounded-2xl border border-white/70 dark:border-slate-800 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
@@ -764,9 +764,9 @@ export function AdminAttendanceBoard() {
           </div>
 
           {/* Table Container */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100dvh-280px)] custom-scrollbar rounded-xl border border-slate-200/80 dark:border-slate-800">
             <table className="w-full text-left border-collapse text-xs">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-md shadow-2xs">
                 <tr className="border-b border-slate-200/80 dark:border-slate-700 text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider">
                   <th className="py-3 px-3">Employee</th>
                   <th className="py-3 px-3">Team</th>
@@ -907,9 +907,9 @@ export function AdminAttendanceBoard() {
 
       {/* VIEW 2: Live Floor Shifts Table */}
       {activeTab === "live" && (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-[calc(100dvh-280px)] custom-scrollbar rounded-xl border border-slate-200/80 dark:border-slate-800">
           <table className="w-full text-left border-collapse text-xs">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-md shadow-2xs">
               <tr className="border-b border-slate-200/80 dark:border-slate-700 text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider">
                 <th className="py-3 px-3">Employee</th>
                 <th className="py-3 px-3">Campaign & Shift</th>
@@ -1002,9 +1002,9 @@ export function AdminAttendanceBoard() {
 
       {/* VIEW 3: Historical Shift Logs (Last 50 Records) */}
       {activeTab === "history" && (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-[calc(100dvh-280px)] custom-scrollbar rounded-xl border border-slate-200/80 dark:border-slate-800">
           <table className="w-full text-left border-collapse text-xs">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-md shadow-2xs">
               <tr className="border-b border-slate-200/80 dark:border-slate-700 text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider">
                 <th className="py-3 px-3">Shift Date</th>
                 <th className="py-3 px-3">Employee</th>

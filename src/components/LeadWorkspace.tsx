@@ -45,63 +45,56 @@ export function LeadWorkspace({ isAdmin = false }: LeadWorkspaceProps) {
   }, []);
 
   return (
-    <div id="leads-workspace" className="w-full mb-8 scroll-mt-24">
-      {/* Workspace Header Strip */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-xl font-extrabold text-[#0F172A] dark:text-white tracking-tight">
-              {isAdmin ? "Lead Decision & Quality Audit Pipeline" : "My Active Leads & Pipeline"}
-            </h2>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20">
-              {leads.length} Leads
-            </span>
-          </div>
-          <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-            {isAdmin
-              ? "Dual-view audit pipeline: 1-click Approve, Reject with mandatory reason, or reclassify leads."
-              : "Track your transfer submissions, scheduled callbacks, and approval status."}
-          </p>
+    <div id="leads-workspace" className="w-full mb-3 scroll-mt-16">
+      {/* Streamlined High-Density Workspace Header Strip */}
+      <div className="flex items-center justify-between gap-3 mb-2.5 flex-wrap">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base sm:text-lg font-extrabold text-[#0F172A] dark:text-white tracking-tight flex items-center gap-1.5">
+            <span>{isAdmin ? "Lead Decisions & Audit Pipeline" : "My Active Leads"}</span>
+          </h2>
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-orange-500/10 text-[#EA580C] dark:text-[#FB923C] border border-orange-500/20 shadow-2xs">
+            {leads.length} Leads
+          </span>
         </div>
 
         {/* Action Controls & View Switcher */}
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+        <div className="flex items-center gap-2">
           {/* New Lead Entry Trigger */}
           <button
             type="button"
             onClick={() => setIsEntryModalOpen(true)}
-            className="liquid-glass-button-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-orange-500/20"
+            className="liquid-glass-button-primary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm shadow-orange-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all"
             title="Fast Lead Entry (Ctrl+N)"
           >
             <PlusCircle className="w-3.5 h-3.5" />
-            <span>New Lead Entry (Ctrl+N)</span>
+            <span>New Lead (Ctrl+N)</span>
           </button>
 
           {/* 1-Click View Switcher (Kanban vs Table) */}
-          <div className="flex items-center p-1 rounded-xl liquid-glass border border-white/70 dark:border-slate-700">
+          <div className="flex items-center p-0.5 rounded-xl liquid-glass border border-white/70 dark:border-slate-700">
             <button
               type="button"
               onClick={() => setViewMode("kanban")}
               className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                 viewMode === "kanban"
-                  ? "bg-[#F97316] text-white shadow-sm shadow-orange-500/30"
+                  ? "bg-[#F97316] text-white shadow-2xs"
                   : "text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white"
               }`}
               title="Kanban Board View"
             >
-              <LayoutGrid className="w-4 h-4" />
+              <LayoutGrid className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
               onClick={() => setViewMode("table")}
               className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                 viewMode === "table"
-                  ? "bg-[#F97316] text-white shadow-sm shadow-orange-500/30"
+                  ? "bg-[#F97316] text-white shadow-2xs"
                   : "text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white"
               }`}
               title="Table Grid View"
             >
-              <TableIcon className="w-4 h-4" />
+              <TableIcon className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -110,10 +103,10 @@ export function LeadWorkspace({ isAdmin = false }: LeadWorkspaceProps) {
             type="button"
             onClick={loadLeads}
             disabled={loading}
-            className="liquid-glass-button-secondary p-2 rounded-xl text-xs flex items-center justify-center cursor-pointer"
+            className="liquid-glass-button-secondary p-1.5 rounded-xl text-xs flex items-center justify-center cursor-pointer"
             title="Refresh Leads"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-orange-500" : ""}`} />
           </button>
         </div>
       </div>

@@ -22,8 +22,8 @@ export default async function AdminEmployeesPage() {
       {/* Universal Admin Navigation Header */}
       <AdminNav sessionUser={session} />
 
-      {/* Main Content Area: Dedicated Workforce & Employee Management */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 sm:p-8 relative z-10">
+      {/* Main Content Area: Dedicated Workforce & Employee Management (Device-Adaptive Screen Scaled) */}
+      <main className="flex-1 w-full max-w-[2160px] mx-auto px-2.5 sm:px-5 lg:px-6 2xl:px-8 py-4 relative z-10">
         <div className="mb-6">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-slate-800/80 border border-emerald-200/70 dark:border-emerald-500/30 text-xs font-bold text-[#10B981] dark:text-emerald-400 shadow-sm mb-2 backdrop-blur-md">
             <Users className="w-3.5 h-3.5 text-[#10B981]" />

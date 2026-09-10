@@ -15,7 +15,7 @@ export default async function AgentDashboardPage() {
   return (
     <div className="min-h-screen flex flex-col relative">
       {/* Top Agent Navigation - Liquid Glass Header */}
-      <header className="liquid-glass-header px-6 py-3.5 flex items-center justify-between sticky top-0 z-50">
+      <header className="liquid-glass-header px-3 sm:px-6 2xl:px-8 py-3.5 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-4 sm:gap-6">
           <Logo size="md" />
           <div className="h-6 w-px bg-slate-200/80 dark:bg-slate-700 hidden sm:block"></div>
@@ -49,8 +49,8 @@ export default async function AgentDashboardPage() {
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 sm:p-8 relative z-10 space-y-6">
+      {/* Main Content Area: Device-Adaptive Screen Scaled */}
+      <main className="flex-1 w-full max-w-[2160px] mx-auto px-2.5 sm:px-5 lg:px-6 2xl:px-8 py-3 space-y-3 relative z-10">
         {/* Animated Welcome Header */}
         <AgentDashboardHeader sessionName={session?.name || "Agent"} />
 
